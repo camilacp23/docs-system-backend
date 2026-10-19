@@ -51,10 +51,23 @@ export default tseslint.config(
     },
   },
   {
-    // node:test's describe()/it() return promises that the runner itself tracks; awaiting them is not possible
-    // inside describe callbacks. R-1 (awaited writes) is enforced on src/, where it matters.
+    // node:test's describe()/it()/hooks return promises that the runner itself tracks (they cannot be awaited
+    // inside describe callbacks). Only those calls are allowed; any other floating promise in tests is an error.
     files: ['tests/**/*.test.ts'],
-    rules: { '@typescript-eslint/no-floating-promises': 'off' },
+    rules: {
+      '@typescript-eslint/no-floating-promises': [
+        'error',
+        {
+          allowForKnownSafeCalls: [
+            {
+              from: 'package',
+              package: 'node:test',
+              name: ['test', 'describe', 'it', 'suite', 'before', 'after', 'beforeEach', 'afterEach'],
+            },
+          ],
+        },
+      ],
+    },
   },
   {
     // Plain JS/MJS files (configs, Phase 2 .mjs test) are not part of a TypeScript project.
