@@ -16,27 +16,29 @@ BASE_URL="http://localhost:${PORT}/api/v1"
 START_TIMEOUT_SECONDS=90
 LOG="$(mktemp)"
 API_PID=""
+BRU_PID=""
 DROP_DB=0
 
 # Anything that answers HTTP on the sandbox port (the API, or another process): curl exits 0 on any HTTP response.
 answers() { curl -s -o /dev/null --max-time 2 "$BASE_URL/users"; }
 
-stopApi() {
-  [ -n "$API_PID" ] || return 0
-  if kill -0 "$API_PID" 2>/dev/null; then
-    kill "$API_PID" 2>/dev/null
+# stopProcess PID: asks it to stop, waits up to 10 s, then forces it (and its children).
+stopProcess() {
+  local pid="$1"
+  [ -n "$pid" ] || return 0
+  if kill -0 "$pid" 2>/dev/null; then
+    kill "$pid" 2>/dev/null
     for _ in 1 2 3 4 5 6 7 8 9 10; do
-      kill -0 "$API_PID" 2>/dev/null || break
+      kill -0 "$pid" 2>/dev/null || break
       sleep 1
     done
-    if kill -0 "$API_PID" 2>/dev/null; then
+    if kill -0 "$pid" 2>/dev/null; then
       # Git Bash: a native Windows process may ignore the signal; end it (and its children) through Windows.
-      WINPID="$(cat "/proc/$API_PID/winpid" 2>/dev/null || true)"
-      if [ -n "$WINPID" ]; then taskkill //PID "$WINPID" //T //F >/dev/null 2>&1; else kill -9 "$API_PID" 2>/dev/null; fi
+      WINPID="$(cat "/proc/$pid/winpid" 2>/dev/null || true)"
+      if [ -n "$WINPID" ]; then taskkill //PID "$WINPID" //T //F >/dev/null 2>&1; else kill -9 "$pid" 2>/dev/null; fi
     fi
   fi
-  wait "$API_PID" 2>/dev/null
-  API_PID=""
+  wait "$pid" 2>/dev/null
 }
 
 cleanup() {
@@ -44,7 +46,8 @@ cleanup() {
   # An interrupted DROP DATABASE would leave an invalid database behind: ignore further INT/TERM while cleaning.
   trap '' INT TERM
   trap - EXIT
-  stopApi
+  stopProcess "$BRU_PID"
+  stopProcess "$API_PID"
   if [ "$DROP_DB" -eq 1 ]; then
     npx --no-install tsx scripts/sandbox-db.ts --drop >/dev/null 2>&1 || echo "WARNING: could not drop docs_sandbox" >&2
   fi
@@ -84,8 +87,12 @@ if ! answers; then
 fi
 
 echo "Running the Bruno collection ..."
-(cd bruno/docs-system-api && npx --no-install bru run --env sandbox -r)
+# In the background and awaited with `wait`, so Ctrl+C (or SIGTERM) reaches the trap at once instead of after bru ends.
+(cd bruno/docs-system-api && exec node ../../node_modules/@usebruno/cli/bin/bru.js run --env sandbox -r) &
+BRU_PID=$!
+wait "$BRU_PID"
 CODE=$?
+BRU_PID=""
 
 if [ "$CODE" -eq 0 ]; then echo "test:api: all requests and assertions passed"; else echo "test:api: FAILED (bru exit $CODE)" >&2; fi
 exit "$CODE"
