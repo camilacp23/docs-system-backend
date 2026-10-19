@@ -23,9 +23,15 @@ export type AuditContext = { userId: number };
 export const auditContext = new AsyncLocalStorage<AuditContext>();
 
 const WRITE_OPERATIONS = new Set([
-  'create', 'createMany', 'createManyAndReturn',
-  'update', 'updateMany', 'updateManyAndReturn',
-  'upsert', 'delete', 'deleteMany',
+  'create',
+  'createMany',
+  'createManyAndReturn',
+  'update',
+  'updateMany',
+  'updateManyAndReturn',
+  'upsert',
+  'delete',
+  'deleteMany',
 ]);
 
 type BaseTx = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>;
@@ -33,8 +39,7 @@ type BaseTx = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transact
 export function createPrisma(connectionString: string) {
   const base = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
 
-  const setActor = (userId: number) =>
-    base.$executeRaw`SELECT set_config('app.user_id', ${String(userId)}, true)`;
+  const setActor = (userId: number) => base.$executeRaw`SELECT set_config('app.user_id', ${String(userId)}, true)`;
 
   const prisma = base.$extends({
     name: 'audit-context',

@@ -8,7 +8,14 @@ import { security } from './config.js';
 import { auditContext } from '../db/prisma.js';
 import type { OperationPolicy } from './rbac.js';
 
-declare global { namespace Express { interface Request { user?: { id: number; role: string; status: string }; policy?: OperationPolicy } } }
+declare global {
+  namespace Express {
+    interface Request {
+      user?: { id: number; role: string; status: string };
+      policy?: OperationPolicy;
+    }
+  }
+}
 
 export function authenticate(base: any): RequestHandler {
   return async (req, _res, next) => {
@@ -17,13 +24,21 @@ export function authenticate(base: any): RequestHandler {
       const [scheme, token] = header.split(' ');
       if (scheme !== 'Bearer' || !token) throw E.unauthenticated();
       let claims;
-      try { claims = verifyAccessToken(token); }
-      catch (e) { throw e instanceof jwt.TokenExpiredError ? E.tokenExpired() : E.unauthenticated(); }
-      const user = await base.user.findUnique({ where: { id: Number(claims.sub) }, select: { id: true, role: true, status: true } });
-      if (!user || user.status !== 'ACTIVE') throw E.unauthenticated();       // deactivation is immediate
+      try {
+        claims = verifyAccessToken(token);
+      } catch (e) {
+        throw e instanceof jwt.TokenExpiredError ? E.tokenExpired() : E.unauthenticated();
+      }
+      const user = await base.user.findUnique({
+        where: { id: Number(claims.sub) },
+        select: { id: true, role: true, status: true },
+      });
+      if (!user || user.status !== 'ACTIVE') throw E.unauthenticated(); // deactivation is immediate
       req.user = user;
-      auditContext.run({ userId: user.id }, next);                           // rule R-1: handlers run inside
-    } catch (e) { next(e); }
+      auditContext.run({ userId: user.id }, next); // rule R-1: handlers run inside
+    } catch (e) {
+      next(e);
+    }
   };
 }
 
@@ -43,7 +58,8 @@ export const requireAllowedOrigin: RequestHandler = (req, _res, next) =>
   req.get('origin') === security.allowedOrigin ? next() : next(E.originRejected());
 
 export function errorHandler(err: any, _req: Request, res: Response, _next: NextFunction) {
-  if (err instanceof ApiError) return res.status(err.status).json({ code: err.code, message: err.message, details: err.details });
+  if (err instanceof ApiError)
+    return res.status(err.status).json({ code: err.code, message: err.message, details: err.details });
   // Phase 3 (TODO_FASE3.md): translate database errors here, e.g. constraint
   // 'context_screen_mismatch' (CP-07) -> E.contextScreenMismatch(JSON.parse(err.detail)).
   const requestId = randomUUID().slice(0, 8);

@@ -6,10 +6,15 @@ import { security } from './config.js';
 export type AccessClaims = { sub: string; jti: string; iat: number; exp: number };
 
 export function signAccessToken(userId: number): string {
-  const [key] = security.keys;
+  const [key] = security.keys as [(typeof security.keys)[number]];
   return jwt.sign({}, key.secret, {
-    algorithm: 'HS256', keyid: key.kid, subject: String(userId), jwtid: randomUUID(),
-    issuer: security.issuer, audience: security.audience, expiresIn: security.accessTtlSeconds,
+    algorithm: 'HS256',
+    keyid: key.kid,
+    subject: String(userId),
+    jwtid: randomUUID(),
+    issuer: security.issuer,
+    audience: security.audience,
+    expiresIn: security.accessTtlSeconds,
   });
 }
 
@@ -18,7 +23,11 @@ export function verifyAccessToken(token: string): AccessClaims {
   const header = jwt.decode(token, { complete: true })?.header;
   const key = security.keys.find((k) => k.kid === header?.kid);
   if (!key) throw new jwt.JsonWebTokenError('unknown key id');
-  return jwt.verify(token, key.secret, { algorithms: ['HS256'], issuer: security.issuer, audience: security.audience }) as AccessClaims;
+  return jwt.verify(token, key.secret, {
+    algorithms: ['HS256'],
+    issuer: security.issuer,
+    audience: security.audience,
+  }) as AccessClaims;
 }
 
 /** Opaque refresh token: 256 random bits; only its SHA-256 is stored (refresh_token.token_hash). */

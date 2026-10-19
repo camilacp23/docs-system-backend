@@ -1,0 +1,17 @@
+prisma/migrations
+src/generated
+test-results
+tests/*.sql
+docs
+api/openapi.yaml
+node_modules
+dist
+coverage
+package-lock.json
+tests/0[1-9]_*
+tests/10_*
+src/security/testApp.ts
+src/security/authService.ts
+*.md
+tools
+.husky
