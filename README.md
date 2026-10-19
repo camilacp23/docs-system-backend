@@ -1,5 +1,7 @@
 # docs-system-backend
 
+[![CI](https://github.com/camilacp23/docs-system-backend/actions/workflows/ci.yml/badge.svg)](https://github.com/camilacp23/docs-system-backend/actions/workflows/ci.yml)
+
 Backend de **Documentación técnica**, el sistema de gestión de documentación técnica del
 Departamento de Arquitectura Empresarial (SAR es la primera aplicación documentada).
 Fase 3 (desarrollo) sobre la base verificada en la Fase 2 (153 verificaciones).

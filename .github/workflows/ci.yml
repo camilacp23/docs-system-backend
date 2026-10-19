@@ -1,0 +1,163 @@
+name: CI
+
+# Reproduces from scratch the whole verification of the backend: bootstrap of roles and databases, migrations,
+# drift check, format, lint, types, build, unit/integration tests, the Phase 2 regression, the Bruno API tests,
+# the OpenAPI contract and the dependency audit. No secret is stored in the repository: the passwords of
+# docs_owner and docs_app are generated in every run and masked, and .env is built in the run.
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      # NOT a secret and NOT a real environment: the password of the superuser of the throwaway PostgreSQL
+      # container below. The container is ephemeral (it disappears when the job ends) and is reachable only from
+      # inside this runner. It corresponds to no development, test or production environment.
+      PG_SUPERUSER_PASSWORD: ci-only-throwaway-postgres
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      HUSKY: '0'
+
+    services:
+      postgres:
+        image: postgres:18.3
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-only-throwaway-postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js (version from .nvmrc)
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Set up Python (contract check)
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install the PostgreSQL 18 client (same major as the server)
+        run: |
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-18
+          echo "/usr/lib/postgresql/18/bin" >> "$GITHUB_PATH"
+          /usr/lib/postgresql/18/bin/psql --version
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          pip install pyyaml==6.0.3
+
+      - name: Audit production dependencies (blocking)
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Audit all dependencies (informational)
+        # The remaining findings belong to the Bruno CLI (development only, no fix available).
+        continue-on-error: true
+        run: npm audit --audit-level=high
+
+      - name: Generate passwords for docs_owner and docs_app
+        run: |
+          owner_pwd="$(openssl rand -hex 24)"
+          app_pwd="$(openssl rand -hex 24)"
+          echo "::add-mask::$owner_pwd"
+          echo "::add-mask::$app_pwd"
+          {
+            echo "OWNER_PWD=$owner_pwd"
+            echo "APP_PWD=$app_pwd"
+            echo "PGPASSWORD_OWNER=$owner_pwd"
+            echo "PGPASSWORD_APP=$app_pwd"
+            echo "PGPASSWORD_SUPERUSER=$PG_SUPERUSER_PASSWORD"
+          } >> "$GITHUB_ENV"
+
+      - name: Bootstrap roles and databases
+        # Same script as in development, plus what development does by hand: CREATEDB for docs_owner (tests and
+        # the shadow database) and the docs_shadow database used by the drift check.
+        run: |
+          export PGPASSWORD="$PG_SUPERUSER_PASSWORD"
+          psql -X -h "$PGHOST" -U postgres -v ON_ERROR_STOP=1 \
+            -v owner_pwd="$OWNER_PWD" -v app_pwd="$APP_PWD" -v db_name=docs_system \
+            -f bootstrap/01_roles_and_database.sql
+          psql -X -h "$PGHOST" -U postgres -v ON_ERROR_STOP=1 \
+            -c "ALTER ROLE docs_owner CREATEDB" \
+            -c "CREATE DATABASE docs_shadow OWNER docs_owner"
+
+      - name: Build .env for this run
+        run: |
+          umask 077
+          {
+            echo "DATABASE_URL=\"postgresql://docs_owner:${OWNER_PWD}@${PGHOST}:${PGPORT}/docs_system\""
+            echo "SHADOW_DATABASE_URL=\"postgresql://docs_owner:${OWNER_PWD}@${PGHOST}:${PGPORT}/docs_shadow\""
+            echo "APP_DATABASE_URL=\"postgresql://docs_app:${APP_PWD}@${PGHOST}:${PGPORT}/docs_system\""
+          } > .env
+
+      - name: Apply migrations (prisma migrate deploy)
+        run: npx prisma migrate deploy
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Drift check (migrations vs schema.prisma)
+        run: npm run db:drift
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Unit and integration tests
+        run: npm test
+
+      - name: Phase 2 regression (153 checks)
+        run: npm run test:legacy
+
+      - name: API tests (Bruno on the seeded sandbox, port 3001)
+        run: npm run test:api
+
+      - name: Lint the OpenAPI contract
+        run: npx --yes @redocly/cli@2.11.1 lint api/openapi.yaml --extends recommended
+
+      - name: Check the contract against the database
+        run: |
+          npm run db:test:template
+          PGPASSWORD="$PG_SUPERUSER_PASSWORD" python api/check_contract_vs_db.py api/openapi.yaml \
+            "-h $PGHOST -U postgres -d docs_test_template"
+
+      - name: PostgreSQL log (on failure)
+        if: failure()
+        run: |
+          id="$(docker ps --filter ancestor=postgres:18.3 -q | head -n 1)"
+          if [ -n "$id" ]; then docker logs --tail 200 "$id" 2>&1; fi
