@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Technical Documentation System API
-  version: 0.3.1
+  version: 0.3.2
   summary: REST API contracts — SDD Interface Viewpoint (Bitácora 3, Activities 5 and 6)
   description: |
     Contracts of the eleven modules (41 operations of SRS Table 25), the
@@ -40,6 +40,12 @@ info:
     covers a context variable that has no origin screen, with its own message and
     `details`. The `ETag` header is now documented on the 201 of `POST /users` and
     on the 200 of `PUT /users/{id}/role`. No operation was added or removed (50).
+
+    Changes in 0.3.2 (applications): the `ETag` header is now documented on the
+    201 of `POST /applications`. `GET /applications` states its default order
+    (name ascending, then id). `PUT /applications/{id}` states its full-replacement
+    semantics: an omitted `description` or `jiraProjectKey` is stored as null.
+    No operation was added or removed (50).
 
     Error catalog (`code` -> HTTP status: `message`):
 
@@ -391,7 +397,7 @@ paths:
       x-capability: 'Manage applications (proposed row)'
       x-roles: [ADMINISTRATOR, DEVELOPER, READER]
       summary: List documented applications
-      description: 'Roles: all.'
+      description: 'Roles: all. Ordered by name ascending (then id); there is no `sort` parameter.'
       parameters:
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PageSize'
@@ -430,6 +436,7 @@ paths:
           description: Created
           headers:
             Location: { $ref: '#/components/headers/Location' }
+            ETag: { $ref: '#/components/headers/ETag' }
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApplicationEnvelope' }
@@ -465,6 +472,9 @@ paths:
       summary: Update or archive an application
       description: |
         Roles: Administrator. Applications are archived (status ARCHIVED), never deleted.
+        The body replaces the whole editable representation: an omitted `description`
+        or `jiraProjectKey` is stored as null (null `jiraProjectKey` = the department
+        default project, TECHEA).
         `status: ARCHIVED` makes the application's documentation read-only for every
         role (CP-01): writes on its variables, collections, screens, status, Jira
         tickets, review and comments return 422 APPLICATION_ARCHIVED. Reports can
