@@ -20,6 +20,24 @@ export const security = {
   integrationUserEmail: requireEmail('INTEGRATION_USER_EMAIL'),
 };
 
+/** Values of the validated application configuration (src/config) that the security layer reads. */
+export type SecurityOverrides = {
+  keys: { kid: string; secret: Buffer }[];
+  accessTtlSeconds: number;
+  sessionMaxSeconds: number;
+  bcryptCost: number;
+  allowedOrigin: string;
+  integrationUserEmail: string;
+};
+
+/**
+ * Makes the security layer use the validated configuration of the real application (`buildApp`).
+ * The Phase 2 harness never calls it and keeps reading `process.env`.
+ */
+export function configureSecurity(overrides: SecurityOverrides): void {
+  Object.assign(security, overrides);
+}
+
 /** True when `email` is the reserved integration account (comparison in lowercase, as stored). */
 export const isIntegrationEmail = (email: string | null | undefined) =>
   !!email && email.trim().toLowerCase() === security.integrationUserEmail;

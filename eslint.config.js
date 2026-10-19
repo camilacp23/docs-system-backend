@@ -29,14 +29,13 @@ export default tseslint.config(
       '@typescript-eslint/no-floating-promises': 'error',
       '@typescript-eslint/no-misused-promises': 'error',
       '@typescript-eslint/await-thenable': 'error',
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
     },
   },
   {
-    // Phase 2 reference code in src/ (loosely typed, written before this tooling). Rewriting it is out of scope
-    // ("no behavior changes"); the unsafe-any family is relaxed here only. New code is fully checked.
-    // authService.ts and testApp.ts are frozen (CLAUDE.md rule 9) and are also exempt from no-misused-promises
-    // (Express 4 async handlers); middleware.ts keeps it relaxed until the async-handler wrapper exists.
-    files: ['src/db/prisma.ts', 'src/security/{authService,middleware,rbac,testApp}.ts'],
+    // Frozen Phase 2 code (CLAUDE.md rule 9): authService.ts and testApp.ts are loosely typed and use Express 4 async
+    // handlers; rewriting them is out of scope. Everything else in src/ is fully checked, with no exceptions.
+    files: ['src/security/{authService,testApp}.ts'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-namespace': 'off',
