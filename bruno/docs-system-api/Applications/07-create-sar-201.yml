@@ -1,0 +1,47 @@
+info:
+  name: 07 Create SAR 201
+  type: http
+  seq: 7
+http:
+  method: POST
+  url: '{{baseUrl}}/applications'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{appAdminToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{appName}}",
+        "description": "Sistema de Administración de Requerimientos",
+        "platform": "Power Apps",
+        "jiraProjectKey": "TECHEA"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) {
+          bru.setVar("appId", res.body.data.id);
+          bru.setVar("appEtag", res.headers["etag"]);
+          bru.setVar("appScreenId", res.body.data.appContextScreen.id);
+        }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("body is the created application with its App (OnStart) screen and its creator", function () {
+          const d = res.body.data;
+          expect(d).to.include.keys("id", "name", "description", "platform", "jiraProjectKey", "status", "appContextScreen", "createdBy", "createdAt", "updatedAt");
+          expect(d.name).to.equal(bru.getVar("appName"));
+          expect(d.status).to.equal("ACTIVE");
+          expect(d.jiraProjectKey).to.equal("TECHEA");
+          expect(d.appContextScreen.name).to.equal("App (OnStart)");
+          expect(d.appContextScreen.id).to.be.a("number");
+          expect(d.createdBy.id).to.be.a("number");
+          expect(d.createdBy.name).to.be.a("string").and.not.empty;
+        });
+        test("Location points to the new application", function () { expect(res.headers["location"]).to.equal("/api/v1/applications/" + res.body.data.id); });
+        test("ETag is a weak validator", function () { expect(res.headers["etag"]).to.match(/^W\/"\d+"$/); });
+settings:
+  encodeUrl: true
