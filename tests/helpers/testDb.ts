@@ -52,7 +52,7 @@ function requireEnv(name: string): string {
 }
 
 /** Same server and credentials as `baseUrl`, different database. */
-function withDatabase(baseUrl: string, database: string): string {
+export function withDatabase(baseUrl: string, database: string): string {
   const url = new URL(baseUrl);
   url.pathname = `/${database}`;
   return url.toString();
@@ -63,7 +63,7 @@ function assertTestDatabase(name: string): void {
 }
 
 /** Connection to the maintenance database as docs_owner (CREATEDB), used to create and drop databases. */
-async function connectMaintenance(): Promise<pg.Client> {
+export async function connectMaintenance(): Promise<pg.Client> {
   const maintenanceDb = process.env.TEST_DB_MAINTENANCE_DB ?? 'postgres';
   if (/^docs_system$/i.test(maintenanceDb)) throw new Error('TEST_DB_MAINTENANCE_DB must not be docs_system');
   const client = new pg.Client({ connectionString: withDatabase(requireEnv('DATABASE_URL'), maintenanceDb) });

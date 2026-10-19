@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# API tests with the Bruno collection (bruno/docs-system-api) on the isolated database docs_sandbox.
+# Recreates docs_sandbox, starts the API on port 3001, runs the collection with the Bruno CLI and ALWAYS stops the
+# API and drops docs_sandbox on the way out (trap), even when an assertion fails or the script is interrupted.
+# Runs in Git Bash (Windows) and Linux. Never touches docs_system and never prints a password.
+#
+# Usage:   npm run test:api
+# Exit code: 0 only if every request and assertion of the collection passed (2 = could not run).
+set -uo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT" || exit 2
+
+PORT=3001
+BASE_URL="http://localhost:${PORT}/api/v1"
+START_TIMEOUT_SECONDS=90
+LOG="$(mktemp)"
+API_PID=""
+DROP_DB=0
+
+# Anything that answers HTTP on the sandbox port (the API, or another process): curl exits 0 on any HTTP response.
+answers() { curl -s -o /dev/null --max-time 2 "$BASE_URL/users"; }
+
+stopApi() {
+  [ -n "$API_PID" ] || return 0
+  if kill -0 "$API_PID" 2>/dev/null; then
+    kill "$API_PID" 2>/dev/null
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+      kill -0 "$API_PID" 2>/dev/null || break
+      sleep 1
+    done
+    if kill -0 "$API_PID" 2>/dev/null; then
+      # Git Bash: a native Windows process may ignore the signal; end it (and its children) through Windows.
+      WINPID="$(cat "/proc/$API_PID/winpid" 2>/dev/null || true)"
+      if [ -n "$WINPID" ]; then taskkill //PID "$WINPID" //T //F >/dev/null 2>&1; else kill -9 "$API_PID" 2>/dev/null; fi
+    fi
+  fi
+  wait "$API_PID" 2>/dev/null
+  API_PID=""
+}
+
+cleanup() {
+  local status=$?
+  # An interrupted DROP DATABASE would leave an invalid database behind: ignore further INT/TERM while cleaning.
+  trap '' INT TERM
+  trap - EXIT
+  stopApi
+  if [ "$DROP_DB" -eq 1 ]; then
+    npx --no-install tsx scripts/sandbox-db.ts --drop >/dev/null 2>&1 || echo "WARNING: could not drop docs_sandbox" >&2
+  fi
+  rm -f "$LOG"
+  exit "$status"
+}
+trap cleanup EXIT INT TERM
+
+command -v node >/dev/null || { echo "node not found in PATH" >&2; exit 2; }
+command -v curl >/dev/null || { echo "curl not found in PATH" >&2; exit 2; }
+
+if answers; then
+  echo "Port $PORT already answers (is 'npm run sandbox:api' running?). Stop it and try again." >&2
+  exit 2
+fi
+
+DROP_DB=1
+echo "Recreating docs_sandbox ..."
+npx --no-install tsx scripts/sandbox-db.ts >"$LOG" 2>&1 || { cat "$LOG" >&2; exit 2; }
+
+echo "Starting the API on port $PORT ..."
+node --import tsx scripts/sandbox-api.ts >"$LOG" 2>&1 &
+API_PID=$!
+for ((i = 0; i < START_TIMEOUT_SECONDS; i++)); do
+  answers && break
+  if ! kill -0 "$API_PID" 2>/dev/null; then
+    echo "The API stopped while starting:" >&2
+    cat "$LOG" >&2
+    exit 2
+  fi
+  sleep 1
+done
+if ! answers; then
+  echo "The API did not answer within ${START_TIMEOUT_SECONDS} s:" >&2
+  cat "$LOG" >&2
+  exit 2
+fi
+
+echo "Running the Bruno collection ..."
+(cd bruno/docs-system-api && npx --no-install bru run --env sandbox -r)
+CODE=$?
+
+if [ "$CODE" -eq 0 ]; then echo "test:api: all requests and assertions passed"; else echo "test:api: FAILED (bru exit $CODE)" >&2; fi
+exit "$CODE"
