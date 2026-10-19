@@ -11,4 +11,4 @@ variables:
   - name: reservedEmail
     value: '{{process.env.SANDBOX_RESERVED_EMAIL}}'
   - name: reservedId
-    value: '2'
+    value: '{{process.env.SANDBOX_RESERVED_ID}}'

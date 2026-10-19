@@ -89,6 +89,7 @@ export async function recreateSandbox(): Promise<void> {
   const password = generatePassword();
   if (!loadPasswordPattern().test(password)) throw new Error('Generated password does not meet the policy');
   const db = createPrisma(sandboxAppUrl());
+  let reservedId: number;
   try {
     await runSeed(db, {
       appDatabaseUrl: sandboxAppUrl(),
@@ -98,13 +99,17 @@ export async function recreateSandbox(): Promise<void> {
       adminPassword: password,
       integrationUserEmail: SANDBOX_RESERVED_EMAIL,
     });
+    // The collection needs the real id of the reserved account (it is hidden from the API); read it by e-mail.
+    const reserved = await db.base.user.findUnique({ where: { email: SANDBOX_RESERVED_EMAIL }, select: { id: true } });
+    if (!reserved) throw new Error('The reserved account was not created by the seed');
+    reservedId = reserved.id;
   } finally {
     await db.base.$disconnect();
   }
 
   writeFileSync(
     SANDBOX_ENV_FILE,
-    `SANDBOX_ADMIN_EMAIL=${SANDBOX_ADMIN_EMAIL}\nSANDBOX_ADMIN_PASSWORD=${password}\nSANDBOX_RESERVED_EMAIL=${SANDBOX_RESERVED_EMAIL}\n`,
+    `SANDBOX_ADMIN_EMAIL=${SANDBOX_ADMIN_EMAIL}\nSANDBOX_ADMIN_PASSWORD=${password}\nSANDBOX_RESERVED_EMAIL=${SANDBOX_RESERVED_EMAIL}\nSANDBOX_RESERVED_ID=${reservedId}\n`,
     { mode: 0o600 },
   );
 }

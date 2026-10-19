@@ -19,7 +19,8 @@ single request out of order.
   administrator (`admin@sandbox.local`) and the reserved integration account. The scripts only ever create or drop that
   exact name.
 - The administrator password is generated on every recreation and written to
-  `docs-system-api/.env` (git-ignored). It is never read from the development `.env`, and it is never printed.
+  `docs-system-api/.env` (git-ignored), together with the real id of the reserved account (`SANDBOX_RESERVED_ID`,
+  read from the database by its e-mail because the API never lists it). It is never read from the development `.env`, and it is never printed.
 - The development `.env` only supplies the PostgreSQL host and the `docs_owner` / `docs_app` credentials.
 - The sandbox API listens on port **3001** (the development API uses 3000) with `FRONTEND_ORIGIN=http://localhost:5173`.
   Its JWT key is generated at every start, so tokens do not survive a restart.
