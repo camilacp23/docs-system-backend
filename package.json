@@ -24,6 +24,7 @@
     "db:test:template": "tsx scripts/db-test-template.ts",
     "prisma:generate": "prisma generate",
     "db:deploy": "prisma migrate deploy",
+    "db:seed": "tsx src/scripts/seed.ts",
     "db:drift": "prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --exit-code",
     "test:audit-e2e": "tsx tests/04_prisma_audit_e2e.test.ts",
     "test:jira-signature": "tsx tests/05_jira_signature.test.ts",
