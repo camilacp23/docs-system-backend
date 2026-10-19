@@ -7,6 +7,7 @@
 import './config/loadEnvFile.js'; // must stay first: src/security/config.ts reads the environment on import
 import { ConfigError, loadConfig, type AppConfig } from './config/index.js';
 import { createPrisma } from './db/prisma.js';
+import { assertReservedAccount, ReservedAccountError } from './db/reservedAccount.js';
 import { buildApp } from './app.js';
 import { createLogger } from './http/logger.js';
 import { StartupError } from './http/operations.js';
@@ -33,6 +34,7 @@ async function main(): Promise<void> {
 
   try {
     await db.base.$queryRaw`SELECT 1`; // fail fast if the database is unreachable
+    await assertReservedAccount(db, config.integrationUserEmail); // actor of the webhook writes (TODO_FASE3 #3)
     const { app, policies, notImplemented } = buildApp({ config, db, logger });
     logger.info(
       { total: policies.size, notImplemented: notImplemented.length, operations: notImplemented },
@@ -65,7 +67,9 @@ async function main(): Promise<void> {
     process.on('SIGTERM', () => shutdown('SIGTERM'));
   } catch (e) {
     await db.base.$disconnect().catch(() => undefined);
-    if (e instanceof StartupError || (e instanceof Error && /x-roles/.test(e.message))) {
+    if (e instanceof ReservedAccountError) {
+      logger.fatal({ reason: e.message }, 'reserved account check failed: refusing to start');
+    } else if (e instanceof StartupError || (e instanceof Error && /x-roles/.test(e.message))) {
       logger.fatal({ reason: e.message }, 'the contract is inconsistent: refusing to start');
     } else {
       logger.fatal({ err: e instanceof Error ? e.message : 'unknown' }, 'could not start');
