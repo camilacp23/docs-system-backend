@@ -100,7 +100,8 @@ command -v node >/dev/null || { echo "node not found in PATH" >&2; exit 2; }
 
 # The default source is the template built from the migrations: create it or refresh it if they changed.
 if [ "$SOURCE_DB" = "docs_test_template" ]; then
-  npx --no-install tsx scripts/db-test-template.ts >"$WORK/template.txt" 2>&1 \n    || { echo "Could not prepare docs_test_template:" >&2; cat "$WORK/template.txt" >&2; exit 2; }
+  npx --no-install tsx scripts/db-test-template.ts >"$WORK/template.txt" 2>&1 \
+    || { echo "Could not prepare docs_test_template:" >&2; cat "$WORK/template.txt" >&2; exit 2; }
 fi
 
 # Copies left by an earlier run that was killed during its cleanup (never dropped automatically: a run may be active).
