@@ -67,12 +67,27 @@ cleanup() {
   # Ignore further INT/TERM while dropping: an interrupted DROP DATABASE leaves an invalid database behind.
   trap '' INT TERM
   trap - EXIT
-  local db
+  local db attempt err dropped
   for db in "${CREATED[@]:-}"; do
     [ -n "$db" ] || continue
     case "$db" in
-      docs_legacy_*) psql_as OWNER "$OWNER_USER" "$MAINT_DB" -c "DROP DATABASE IF EXISTS \"$db\" WITH (FORCE)" >/dev/null 2>&1 \
-        || echo "WARNING: could not drop disposable database $db" >&2 ;;
+      # Only this run's own copies: docs_legacy_<run>_NN (never docs_system, docs_shadow or docs_test_template).
+      "docs_legacy_${RUN_ID}_"[0-9][0-9])
+        # DROP DATABASE first requests a checkpoint and waits for it; on a busy disk that takes ~10 s and the wait
+        # was seen to end with "canceling statement due to user request" (PostgreSQL log). The drop is safe to
+        # repeat (IF EXISTS also removes a database left invalid by an interrupted drop), so retry and show the error.
+        dropped=0
+        for attempt in 1 2 3; do
+          if err="$(psql_as OWNER "$OWNER_USER" "$MAINT_DB" -c "DROP DATABASE IF EXISTS \"$db\" WITH (FORCE)" 2>&1 >/dev/null)"; then
+            dropped=1
+            break
+          fi
+          echo "WARNING: drop of $db failed (attempt $attempt of 3):" >&2
+          echo "$err" | sed 's/^/  /' >&2
+          psql_as OWNER "$OWNER_USER" "$MAINT_DB" -Atc "SELECT '  connected: pid '||pid||' '||coalesce(usename,'')||' '||coalesce(application_name,'')||' '||backend_type||' '||coalesce(state,'')||' '||left(query,60) FROM pg_stat_activity WHERE datname = '$db'" 2>&1 | tr -d '\r' >&2
+          sleep 2
+        done
+        [ "$dropped" -eq 1 ] || echo "WARNING: could not drop disposable database $db" >&2 ;;
     esac
   done
   rm -rf "$WORK"
