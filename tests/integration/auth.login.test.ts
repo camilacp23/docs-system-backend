@@ -159,9 +159,7 @@ describe('POST /auth/login', () => {
     });
     it('A12 a token issued by login passes the gate (no 401/403)', async () => {
       const token = sessionOf(await login(t, EMAILS.admin)).accessToken;
-      const res = await probe(token);
-      assert.equal(res.status, 404);
-      assert.equal(bodyOf(res).details.reason, 'NOT_IMPLEMENTED');
+      assert.equal((await probe(token)).status, 200); // GET /users is implemented since B-05
     });
   });
 
