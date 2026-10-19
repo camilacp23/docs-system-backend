@@ -71,11 +71,23 @@ function fromValidator(err: unknown): ApiError | undefined {
   return undefined;
 }
 
-/** What is written to the log for an error: Prisma messages embed the query arguments, so they are not logged. */
+/** Class name of a thrown value (`PrismaClientKnownRequestError`, `DriverAdapterError`, `TypeError`...). */
+function errorClassOf(err: unknown): string {
+  if (err instanceof Error) return err.constructor.name || err.name;
+  if (isRecord(err) && typeof err.name === 'string') return err.name;
+  return typeof err;
+}
+
+/**
+ * Safe diagnostic fields of an error for the log. Prisma and driver messages embed the query arguments (values,
+ * even `passwordHash`), so for database and Prisma errors only the class, the Prisma code, the SQLSTATE and the
+ * constraint, table and model names are logged; never the message, `detail` or the arguments.
+ */
 function describeForLog(err: unknown, facts: DbFacts | null): Rec {
+  const errorClass = errorClassOf(err);
   if (facts !== null) {
     return {
-      type: 'DatabaseError',
+      errorClass,
       prismaCode: facts.prismaCode,
       sqlstate: facts.sqlstate,
       constraint: facts.constraint,
@@ -83,13 +95,13 @@ function describeForLog(err: unknown, facts: DbFacts | null): Rec {
       model: facts.modelName,
     };
   }
-  if (err instanceof ApiError) return { type: 'ApiError', code: err.code };
+  if (err instanceof ApiError) return { errorClass, code: err.code };
   if (err instanceof Error) {
-    return err.name.startsWith('PrismaClient')
-      ? { type: err.name }
-      : { type: err.name, message: err.message, stack: err.stack };
+    return errorClass.startsWith('PrismaClient') || err.name === 'DriverAdapterError'
+      ? { errorClass }
+      : { errorClass, message: err.message, stack: err.stack };
   }
-  return { type: typeof err };
+  return { errorClass };
 }
 
 type Classified = { error: ApiError; log?: { level: 'warn' | 'error'; extra: Rec } };
@@ -138,7 +150,15 @@ export function createErrorHandler(deps: { db: Pick<Database, 'base'>; logger: L
     }
     if (classified.log !== undefined) {
       const log = typeof req.log?.[classified.log.level] === 'function' ? req.log : deps.logger;
-      log[classified.log.level]({ requestId: requestIdOf(req), ...classified.log.extra }, 'request failed');
+      log[classified.log.level](
+        {
+          requestId: requestIdOf(req),
+          method: req.method,
+          path: req.originalUrl.split('?')[0],
+          ...classified.log.extra,
+        },
+        'request failed',
+      );
     }
     const { status, code, message, details } = classified.error;
     sendError(res, status, { code, message, details });

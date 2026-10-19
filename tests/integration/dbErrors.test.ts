@@ -730,7 +730,7 @@ describe('database errors provoked on a real database', () => {
         op: 'listUsers',
         // @ts-expect-error unknown argument on purpose
         run: () => t.db.base.user.findMany({ where: { nope: 1 } }),
-        expect: internal('"type":"PrismaClientValidationError"'),
+        expect: internal('"errorClass":"PrismaClientValidationError"'),
       },
       {
         name: 'direct write to audit_log is denied (42501)',
@@ -744,6 +744,22 @@ describe('database errors provoked on a real database', () => {
         run: () =>
           t.db.auditedTransaction((tx) => tx.$queryRawUnsafe(`SELECT log_business_event('bad', 'app_user', '1')`)),
         expect: internal('DB_22023'),
+      },
+      {
+        name: 'leak check: Prisma validation error whose message embeds a password hash argument',
+        op: 'createUser',
+        run: () =>
+          t.db.prisma.user.create({
+            // @ts-expect-error invalid role on purpose: Prisma echoes the arguments in its message
+            data: { name: 'LEAKME-name', email: 'leak@test.local', passwordHash: 'LEAKME-hash', role: 'NOPE' },
+          }),
+        expect: internal('"errorClass":"PrismaClientValidationError"'),
+      },
+      {
+        name: 'leak check: PostgreSQL message that quotes the rejected value',
+        op: 'updateUser',
+        run: sql(`UPDATE app_user SET role = $1 WHERE id = $2`, 'LEAKME-role', t.users.reader.id),
+        expect: internal('DB_22P02'),
       },
     ];
 
@@ -806,5 +822,40 @@ describe('database errors provoked on a real database', () => {
       }
     }
     assert.deepEqual(failures, []);
+  });
+
+  it('a 500 logs safe diagnostic fields and never values, arguments or password hashes', async () => {
+    const secrets = { passwordHash: 'LEAKME-body-hash', password: 'LEAKME-body-pw', name: 'LEAKME-body-name' };
+    let checked = 0;
+    for (const [index, s] of scenarios.entries()) {
+      if (s.expect.status !== 500) continue;
+      const res = await http.post(`/run/${index}`).send(secrets);
+      const requestId = String(res.headers['x-request-id']);
+      const line = t.logs.find((l) => l.includes(requestId) && l.includes('request failed'));
+      assert.ok(line, s.name);
+      const entry = JSON.parse(line) as Record<string, unknown>;
+      assert.equal(entry.requestId, requestId, s.name);
+      assert.equal(entry.method, 'POST', s.name);
+      assert.equal(entry.path, `/run/${index}`, s.name);
+      assert.equal(typeof entry.errorClass, 'string', s.name);
+      assert.ok(String(entry.errorClass).length > 0, s.name);
+      assert.ok(entry.errorClass !== 'DatabaseError', 'the real class name is logged, not a label');
+      if (typeof s.expect.logReason === 'string' && s.expect.logReason.startsWith('DB_')) {
+        assert.equal(entry.sqlstate, s.expect.logReason.slice(3), s.name);
+        assert.equal(entry.prismaCode, 'P2010', s.name);
+      }
+      for (const key of ['message', 'detail', 'stack']) {
+        if (entry.errorClass !== 'Error')
+          assert.equal(entry[key], undefined, `${s.name}: no ${key} of a database or Prisma error`);
+      }
+      checked += 1;
+    }
+    assert.ok(checked >= 8, 'several 500 classes were checked');
+    const everything = t.logs.join(' | ');
+    assert.doesNotMatch(
+      everything,
+      /passwordHash|LEAKME/,
+      'no password hash, query argument or body value in any log line',
+    );
   });
 });
