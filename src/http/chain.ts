@@ -40,18 +40,6 @@ export function corsPolicy(config: Pick<AppConfig, 'frontendOrigin'>): RequestHa
 }
 
 /**
- * Mount point of the rate limit on /api/v1/auth/*. B-04 implements the limits (login: 5 failures per IP + e-mail
- * per 15 minutes; refresh/logout: D-60); until then it lets every request through.
- *
- * B-04 will take the configuration (RATE_LIMIT_SESSION_MAX and RATE_LIMIT_SESSION_WINDOW_MINUTES, D-60).
- */
-export function authRateLimit(): RequestHandler {
-  return (_req, _res, next) => {
-    next();
-  };
-}
-
-/**
  * Request validation against the contract, same configuration as the verified test 08. It is mounted PER
  * OPERATION (see operations.ts), after authentication and authorization, so 401/403 come before 400.
  *

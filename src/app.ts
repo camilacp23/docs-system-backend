@@ -2,7 +2,7 @@
  * The real Express application (SDD Section 4.1, Figure 3).
  *
  * Chain, in this order: helmet -> CORS -> requestId and access log -> JSON body (1 MB; the Jira webhook keeps its
- * raw body) -> cookies -> /auth rate limit -> [per operation: authenticate -> authorize -> request validation ->
+ * raw body) -> cookies -> /auth rate limits -> [per operation: authenticate -> authorize -> request validation ->
  * handler] -> 404 ROUTE_NOT_FOUND -> errorHandler.
  *
  * The request id and the log come BEFORE the body parser (the SDD lists them after it) so that a 400 or 413
@@ -16,12 +16,13 @@ import cookieParser from 'cookie-parser';
 import express, { type Express, type RequestHandler } from 'express';
 import type { AppConfig } from './config/env.js';
 import type { Database } from './db/prisma.js';
-import { authRateLimit, corsPolicy, requestValidator, securityHeaders } from './http/chain.js';
+import { corsPolicy, requestValidator, securityHeaders } from './http/chain.js';
 import { createErrorHandler, routeNotFound } from './http/errorHandler.js';
 import { createLogger, type Logger } from './http/logger.js';
+import { authRateLimit } from './http/rateLimit.js';
 import { registerOperations, type OperationHandlers } from './http/operations.js';
 import { requestContext } from './http/requestContext.js';
-import { moduleHandlers } from './modules/index.js';
+import { createModuleHandlers } from './modules/index.js';
 import { configureSecurity } from './security/config.js';
 import { loadPolicies, type OperationPolicy } from './security/rbac.js';
 
@@ -92,11 +93,11 @@ export function buildApp(options: BuildAppOptions): BuiltApp {
   app.use(jsonUnlessWebhook);
   app.use(cookieParser());
 
-  app.use('/api/v1/auth', authRateLimit());
+  app.use('/api/v1/auth', authRateLimit(config));
 
   const notImplemented = registerOperations(app, {
     policies,
-    handlers: options.handlers ?? moduleHandlers,
+    handlers: options.handlers ?? createModuleHandlers({ db }),
     validator: requestValidator(options.openapiPath ?? DEFAULT_OPENAPI_PATH),
     db,
   });
