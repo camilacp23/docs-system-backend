@@ -1,0 +1,14 @@
+PASS V1 valid body accepted -> 201
+PASS V2 missing environments -> 400 {"field":"/body/environments","issue":"minItems.openapi.validation","message":"must NOT have fewer than 1 item
+PASS V3 unknown dataType -> 400 {"field":"/body/dataType","issue":"enum.openapi.validation","message":"must be equal to one of the allowed val
+PASS V4 extra property rejected -> 400 {"field":"/body/hack","issue":"unevaluatedProperties.openapi.validation","message":"must NOT have unevaluated 
+PASS V5 description null allowed (3.1 type array) -> 201
+PASS V6 listing without applicationId -> 400 {"field":"/query/applicationId","issue":"required.openapi.validation","message":"must have required property '
+PASS V7 pageSize over 100 -> 400 {"field":"/query/pageSize","issue":"maximum.openapi.validation","message":"must be <= 100"}
+PASS V8 PUT screen valid -> 200
+PASS V9 PUT screen extra property (status cannot be sent here) -> 400 {"field":"/body/documentationStatus","issue":"unevaluatedProperties.openapi.validation","message":"must NOT ha
+PASS V10 POST application extra property -> 400 {"field":"/body/status","issue":"unevaluatedProperties.openapi.validation","message":"must NOT have unevaluate
+PASS V11 usedIn "origin" rejected (reserved) -> 400 {"field":"/body/variableLinks/0/usedIn","issue":"pattern.openapi.validation","message":"must match pattern \"^
+PASS V12 POST comment with reviewDecision rejected (CP-11: only the review writes it) -> 400 {"field":"/body/reviewDecision","issue":"additionalProperties.openapi.validation","message":"must NOT have add
+PASS V13 GET /search without q but with types accepted by the validator (CP-03) -> 200
+PASS V14 GET /search with a one-character q rejected -> 400 {"field":"/query/q","issue":"minLength.openapi.validation","message":"must NOT have fewer than 2 characters"}

@@ -1,0 +1,15 @@
+flowchart LR
+    adm([Administrator]) --- sys
+    dev([Developer]) --- sys
+    rea([Reader]) --- sys
+    subgraph sys[Technical Documentation System]
+        spa[Web SPA<br/>React]
+        api[REST API<br/>Node.js + Express]
+        db[(PostgreSQL 18)]
+        spa --> api --> db
+    end
+    api -->|REST API v3, HTTPS<br/>department technical account| jira[Jira Cloud<br/>project TECHEA]
+    jira -->|signed webhook<br/>issue updated or deleted| api
+    spa -.->|links to boards| miro[Miro]
+    sar[SAR ecosystem<br/>Power Apps, Power Automate, ServiceNow] -.->|analyzed and documented<br/>manually by developers| dev
+    gh[GitHub<br/>source code, CI] -.->|deploys| api

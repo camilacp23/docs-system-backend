@@ -1,0 +1,22 @@
+sequenceDiagram
+    actor U as Developer
+    participant S as React SPA
+    participant A as Express API
+    participant D as PostgreSQL
+    participant W as Report worker
+    U->>S: Generate PDF (publish when ready)
+    S->>A: POST /reports/pdf
+    A->>D: INSERT report, status PENDING
+    A-->>S: 202 report, Location /reports/31
+    loop every few seconds
+        W->>D: SELECT next PENDING FOR UPDATE SKIP LOCKED
+    end
+    W->>D: read documentation within the requested scope
+    W->>W: render PDF
+    W->>D: INSERT report_file, UPDATE report READY, publish
+    loop until READY or FAILED
+        S->>A: GET /reports/31
+        A-->>S: 200 status
+    end
+    S->>A: GET /reports/31/file
+    A-->>S: 200 application/pdf

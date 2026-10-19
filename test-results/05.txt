@@ -1,0 +1,10 @@
+PASS  J0 known HMAC-SHA256 vector
+PASS  J1 valid signature accepted
+PASS  J2 tampered body rejected
+PASS  J3 wrong secret rejected
+PASS  J4 missing header rejected
+PASS  J5 unsupported method rejected
+PASS  J6 truncated signature rejected (no exception)
+PASS  J7 non-hex signature rejected
+PASS  J8 re-serialized JSON rejected (raw body required)
+ALL PASSED

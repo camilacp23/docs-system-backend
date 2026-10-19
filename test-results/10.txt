@@ -1,0 +1,51 @@
+Pager usage is off.
+    100
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+                          scenario                          |        design        |   outcome   |                                           detail                                           
+------------------------------------------------------------+----------------------+-------------+--------------------------------------------------------------------------------------------
+ A1 audit record survives deletion of the element           | adopted              | SURVIVES    | written by the audit trigger; no FK to the audited entity
+ A2 same audit with a real FK (RESTRICT): delete the screen | rejected alternative | REJECTED    | update or delete on table "documented_element" violates RESTRICT setting of foreign key co
+ A3 audit entity_type outside the audited tables            | adopted              | REJECTED    | new row for relation "audit_log" violates check constraint "audit_log_entity_type_chk"
+ C1 comment on a non-existent screen                        | adopted              | REJECTED    | insert or update on table "comment" violates foreign key constraint "comment_screen_id_fke
+ C1 comment on a non-existent screen                        | baseline             | ACCEPTED    | 
+ C2 comment on a variable (not allowed by FR-23)            | adopted              | REJECTED    | insert or update on table "comment" violates foreign key constraint "comment_screen_id_fke
+ C2 comment on a variable (not allowed by FR-23)            | baseline             | ACCEPTED    | 
+ C3 screen deleted: orphan comments left                    | adopted              | 0 orphan(s) | ON DELETE CASCADE
+ C3 screen deleted: orphan comments left                    | baseline             | 2 orphan(s) | includes the invalid row accepted in C1
+ D1 dependency to a non-existent element                    | adopted              | REJECTED    | insert or update on table "dependency" violates foreign key constraint "dependency_target_
+ D1 dependency to a non-existent element                    | baseline             | ACCEPTED    | 
+ D2 dependency declaring the wrong type of an element       | adopted              | REJECTED    | insert or update on table "dependency" violates foreign key constraint "dependency_source_
+ D2 dependency declaring the wrong type of an element       | baseline             | ACCEPTED    | 
+ D3 dependency with a misspelled type value                 | adopted              | REJECTED    | invalid input value for enum element_type: "COMPONNET"
+ D3 dependency with a misspelled type value                 | baseline             | ACCEPTED    | 
+ D4 target deleted: orphan dependencies left                | adopted              | 0 orphan(s) | ON DELETE CASCADE
+ D4 target deleted: orphan dependencies left                | baseline             | 3 orphan(s) | includes the invalid rows accepted in D1 and D3
+ D5 phantom element (supertype without subtype) as target   | adopted              | REJECTED    | documented_element 50 (VARIABLE) has no variable row
+ D5 phantom element (supertype without subtype) as target   | baseline             | N/A         | no supertype exists
+

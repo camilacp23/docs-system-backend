@@ -1,0 +1,570 @@
+// =====================================================================
+// Technical Documentation System — Prisma schema
+// Prisma ORM 7.10.0 · PostgreSQL 18.3
+// Declares: tables, enums, PK/FK (incl. composite), unique and partial
+// unique indexes, secondary indexes.
+// NOT declarable in Prisma (manual migrations, see prisma/migrations):
+//   CHECK constraints, triggers and functions, deferred constraint
+//   triggers, audit mechanism, privileges.
+// Naming: models PascalCase + @@map(snake_case); fields camelCase + @map.
+// =====================================================================
+
+generator client {
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+  // URL is set in prisma.config.ts (Prisma 7)
+}
+
+// ----------------------------------------------------------------- enums
+enum UserRole {
+  ADMINISTRATOR
+  DEVELOPER
+  READER
+
+  @@map("user_role")
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+
+  @@map("user_status")
+}
+
+enum ApplicationStatus {
+  ACTIVE
+  ARCHIVED
+
+  @@map("application_status")
+}
+
+enum ElementType {
+  SCREEN
+  VARIABLE
+  COLLECTION
+  COMPONENT
+
+  @@map("element_type")
+}
+
+enum Environment {
+  DEV
+  PROD
+
+  @@map("environment")
+}
+
+enum VariableScope {
+  GLOBAL
+  CONTEXT
+
+  @@map("variable_scope")
+}
+
+/// Power Fx data types (Microsoft Learn). Void excluded.
+enum DataType {
+  BOOLEAN
+  CHOICE
+  COLOR
+  CURRENCY
+  DATE
+  DATE_TIME
+  DECIMAL
+  DYNAMIC
+  FLOAT
+  GUID
+  HYPERLINK
+  IMAGE
+  MEDIA
+  NUMBER
+  RECORD
+  RECORD_REFERENCE
+  TABLE
+  TEXT
+  TIME
+  YES_NO
+
+  @@map("data_type")
+}
+
+enum DocumentationStatus {
+  UNDOCUMENTED
+  DRAFT
+  IN_PROGRESS
+  IN_REVIEW
+  APPROVED
+
+  @@map("documentation_status")
+}
+
+enum AccessMode {
+  READ
+  WRITE
+  READ_WRITE
+
+  @@map("access_mode")
+}
+
+enum AssignmentFunction {
+  SET
+  UPDATE_CONTEXT
+
+  @@map("assignment_function")
+}
+
+enum RelationType {
+  USES
+  DERIVES_FROM
+  NAVIGATES_TO
+
+  @@map("relation_type")
+}
+
+enum JiraStatusCategory {
+  TO_DO
+  IN_PROGRESS
+  DONE
+
+  @@map("jira_status_category")
+}
+
+/// Jira issuetype.hierarchyLevel: EPIC = 1, STANDARD = 0, SUBTASK = -1
+enum JiraHierarchyLevel {
+  EPIC
+  STANDARD
+  SUBTASK
+
+  @@map("jira_hierarchy_level")
+}
+
+enum ReportFormat {
+  PDF
+  XLSX
+
+  @@map("report_format")
+}
+
+enum ReportStatus {
+  PENDING
+  READY
+  FAILED
+
+  @@map("report_status")
+}
+
+/// CP-11: decision recorded on a review comment (written only by POST /screens/{id}/review)
+enum ReviewDecision {
+  APPROVE
+  RETURN
+
+  @@map("review_decision")
+}
+
+// ----------------------------------------------------------------- users
+model User {
+  id           Int        @id @default(autoincrement())
+  name         String     @db.VarChar(120)
+  email        String     @unique @db.VarChar(254)
+  passwordHash String     @map("password_hash") @db.VarChar(255)
+  role         UserRole
+  status       UserStatus @default(ACTIVE)
+  lastLoginAt  DateTime?  @map("last_login_at") @db.Timestamptz(3)
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  applications    Application[]
+  authoredScreens Screen[]       @relation("ScreenAuthor")
+  jiraTickets     JiraTicket[]
+  comments        Comment[]
+  reports         Report[]
+  auditLogs       AuditLog[]
+  refreshTokens   RefreshToken[]
+
+  @@map("app_user")
+}
+
+model RefreshToken {
+  id        BigInt    @id @default(autoincrement())
+  userId    Int       @map("user_id")
+  tokenHash String    @unique @map("token_hash") @db.Char(64)
+  familyId  String    @map("family_id") @db.Uuid
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("refresh_token")
+}
+
+// ---------------------------------------------------------- applications
+model Application {
+  id             Int               @id @default(autoincrement())
+  name           String            @unique @db.VarChar(120)
+  description    String?
+  platform       String            @db.VarChar(60)
+  jiraProjectKey String?           @map("jira_project_key") @db.VarChar(20)
+  status         ApplicationStatus @default(ACTIVE)
+  createdById    Int               @map("created_by")
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  createdBy User                @relation(fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  elements  DocumentedElement[]
+  reports   Report[]
+
+  @@map("application")
+}
+
+// ------------------------------------------------- supertype + subtypes
+model DocumentedElement {
+  id            Int         @id @default(autoincrement())
+  type          ElementType
+  applicationId Int         @map("application_id")
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  application  Application          @relation(fields: [applicationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  screen       Screen?
+  variable     Variable?
+  collection   Collection?
+  component    Component?
+  environments ElementEnvironment[]
+  outgoing     Dependency[]         @relation("DependencySource")
+  incoming     Dependency[]         @relation("DependencyTarget")
+
+  @@unique([id, type], map: "documented_element_id_type_key")
+  @@unique([id, type, applicationId], map: "documented_element_id_type_app_key")
+  @@index([applicationId, type])
+  @@map("documented_element")
+}
+
+model Screen {
+  id                  Int                 @id
+  elementType         ElementType         @default(SCREEN) @map("element_type")
+  applicationId       Int                 @map("application_id")
+  name                String              @db.VarChar(150)
+  isAppContext        Boolean             @default(false) @map("is_app_context")
+  documentationStatus DocumentationStatus @default(UNDOCUMENTED) @map("documentation_status")
+  onStart             String?             @map("on_start")
+  workingProcess      String?             @map("working_process")
+  architecture        String?
+  dataModel           String?             @map("data_model")
+  requirements        String?
+  knownIssues         String?             @map("known_issues")
+  risks               String?
+  miroLink            String?             @map("miro_link") @db.VarChar(2048)
+  /// FK -> User. There is no Author table: the column is named after the role.
+  authorId            Int                 @map("author_id")
+  createdAt           DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  element             DocumentedElement    @relation(fields: [id, elementType, applicationId], references: [id, type, applicationId], onDelete: Cascade, onUpdate: Restrict)
+  author              User                 @relation("ScreenAuthor", fields: [authorId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  components          Component[]
+  createdVariables    Variable[]           @relation("ScreenCreatesVariable")
+  variableLinks       ScreenVariable[]
+  collectionLinks     ScreenCollection[]
+  variableAssignments VariableCollection[]
+  jiraTickets         JiraTicket[]
+  comments            Comment[]
+
+  @@unique([id, elementType, applicationId])
+  @@unique([applicationId, name])
+  @@unique([applicationId], map: "one_app_context_per_application", where: raw("is_app_context"))
+  @@index([applicationId, documentationStatus])
+  @@map("screen")
+}
+
+model Variable {
+  id             Int           @id
+  elementType    ElementType   @default(VARIABLE) @map("element_type")
+  applicationId  Int           @map("application_id")
+  name           String        @db.VarChar(150)
+  dataType       DataType      @map("data_type")
+  scope          VariableScope
+  description    String?
+  originScreenId Int?          @map("origin_screen_id")
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  element         DocumentedElement    @relation(fields: [id, elementType, applicationId], references: [id, type, applicationId], onDelete: Cascade, onUpdate: Restrict)
+  originScreen    Screen?              @relation("ScreenCreatesVariable", fields: [originScreenId], references: [id], onDelete: SetNull, onUpdate: Restrict)
+  screenLinks     ScreenVariable[]
+  collectionLinks VariableCollection[]
+
+  @@unique([id, elementType, applicationId])
+  @@unique([id, scope], map: "variable_id_scope_key")
+  @@unique([applicationId, name], map: "variable_global_name_key", where: raw("scope = 'GLOBAL'"))
+  @@unique([originScreenId, name], map: "variable_context_name_key", where: raw("scope = 'CONTEXT'"))
+  @@index([originScreenId])
+  @@index([applicationId], map: "variable_untraced_idx", where: raw("origin_screen_id IS NULL"))
+  @@map("variable")
+}
+
+model Collection {
+  id                Int         @id
+  elementType       ElementType @default(COLLECTION) @map("element_type")
+  applicationId     Int         @map("application_id")
+  name              String      @db.VarChar(150)
+  creationCondition String?     @map("creation_condition")
+  description       String?
+  createdAt         DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  element       DocumentedElement    @relation(fields: [id, elementType, applicationId], references: [id, type, applicationId], onDelete: Cascade, onUpdate: Restrict)
+  fields        CollectionField[]
+  screenLinks   ScreenCollection[]
+  variableLinks VariableCollection[]
+
+  @@unique([id, elementType, applicationId])
+  @@unique([applicationId, name])
+  @@map("collection")
+}
+
+model CollectionField {
+  id           Int      @id @default(autoincrement())
+  collectionId Int      @map("collection_id")
+  name         String   @db.VarChar(150)
+  dataType     DataType @map("data_type")
+  description  String?
+  position     Int      @db.SmallInt
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+
+  @@unique([collectionId, name])
+  @@map("collection_field")
+}
+
+model Component {
+  id            Int         @id
+  elementType   ElementType @default(COMPONENT) @map("element_type")
+  applicationId Int         @map("application_id")
+  screenId      Int         @map("screen_id")
+  name          String      @db.VarChar(150)
+  type          String      @db.VarChar(60)
+  onSelect      String?     @map("on_select")
+  description   String?
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  element DocumentedElement @relation(fields: [id, elementType, applicationId], references: [id, type, applicationId], onDelete: Cascade, onUpdate: Restrict)
+  screen  Screen            @relation(fields: [screenId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+
+  @@unique([id, elementType, applicationId])
+  @@unique([screenId, name])
+  @@map("component")
+}
+
+// ------------------------------------------------ environment presence
+model ElementEnvironment {
+  elementId   Int         @map("element_id")
+  elementType ElementType @map("element_type")
+  environment Environment
+  notes       String?
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  element DocumentedElement @relation(fields: [elementId, elementType], references: [id, type], onDelete: Cascade, onUpdate: Restrict)
+
+  @@id([elementId, environment])
+  @@index([environment])
+  @@map("element_environment")
+}
+
+// -------------------------------------------------- associative entities
+model ScreenVariable {
+  id         Int        @id @default(autoincrement())
+  screenId   Int        @map("screen_id")
+  variableId Int        @map("variable_id")
+  accessMode AccessMode @map("access_mode")
+  usedIn     String     @map("used_in") @db.VarChar(200)
+  createdAt  DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  screen   Screen   @relation(fields: [screenId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+  variable Variable @relation(fields: [variableId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+
+  @@unique([screenId, variableId, usedIn])
+  @@index([variableId])
+  @@map("screen_variable")
+}
+
+model ScreenCollection {
+  id           Int        @id @default(autoincrement())
+  screenId     Int        @map("screen_id")
+  collectionId Int        @map("collection_id")
+  accessMode   AccessMode @map("access_mode")
+  usedIn       String     @map("used_in") @db.VarChar(200)
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  screen     Screen     @relation(fields: [screenId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+
+  @@unique([screenId, collectionId, usedIn])
+  @@index([collectionId])
+  @@map("screen_collection")
+}
+
+model VariableCollection {
+  id                 Int                @id @default(autoincrement())
+  variableId         Int                @map("variable_id")
+  variableScope      VariableScope      @map("variable_scope")
+  collectionId       Int                @map("collection_id")
+  screenId           Int                @map("screen_id")
+  assignmentFunction AssignmentFunction @map("assignment_function")
+  tableFunction      String?            @map("table_function") @db.VarChar(200)
+  usedIn             String             @map("used_in") @db.VarChar(200)
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  // ON UPDATE CASCADE on purpose: copies a scope change so the CHECK can reject inconsistencies
+  variable   Variable   @relation(fields: [variableId, variableScope], references: [id, scope], onDelete: Cascade, onUpdate: Cascade)
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+  screen     Screen     @relation(fields: [screenId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+
+  @@unique([variableId, collectionId, screenId, usedIn], map: "variable_collection_unique_key")
+  @@index([collectionId])
+  @@index([screenId])
+  @@map("variable_collection")
+}
+
+// ------------------------------------------------------------ dependency
+model Dependency {
+  id           Int          @id @default(autoincrement())
+  sourceId     Int          @map("source_id")
+  sourceType   ElementType  @map("source_type")
+  targetId     Int          @map("target_id")
+  targetType   ElementType  @map("target_type")
+  relationType RelationType @map("relation_type")
+  description  String?
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  source DocumentedElement @relation("DependencySource", fields: [sourceId, sourceType], references: [id, type], onDelete: Cascade, onUpdate: Restrict)
+  target DocumentedElement @relation("DependencyTarget", fields: [targetId, targetType], references: [id, type], onDelete: Cascade, onUpdate: Restrict)
+
+  @@unique([sourceId, targetId, relationType], map: "dependency_source_target_relation_key")
+  @@index([targetId])
+  @@map("dependency")
+}
+
+// ------------------------------------------------------------------ jira
+model JiraTicket {
+  id             Int                 @id @default(autoincrement())
+  screenId       Int                 @map("screen_id")
+  jiraIssueId    String              @unique @map("jira_issue_id") @db.VarChar(32)
+  jiraIssueKey   String              @unique @map("jira_issue_key") @db.VarChar(32)
+  hierarchyLevel JiraHierarchyLevel  @map("hierarchy_level")
+  issueType      String              @map("issue_type") @db.VarChar(50)
+  parentTicketId Int?                @map("parent_ticket_id")
+  parentLevel    JiraHierarchyLevel? @map("parent_level")
+  summary        String              @db.VarChar(255)
+  status         String              @db.VarChar(100)
+  statusCategory JiraStatusCategory  @map("status_category")
+  createdById    Int                 @map("created_by")
+  lastSyncedAt   DateTime            @default(now()) @map("last_synced_at") @db.Timestamptz(3)
+  createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  screen    Screen       @relation(fields: [screenId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+  createdBy User         @relation(fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  parent    JiraTicket?  @relation("TicketHierarchy", fields: [parentTicketId, screenId, parentLevel], references: [id, screenId, hierarchyLevel], onDelete: Cascade, onUpdate: Restrict)
+  children  JiraTicket[] @relation("TicketHierarchy")
+
+  @@unique([id, screenId, hierarchyLevel], map: "jira_ticket_id_screen_level_key")
+  @@unique([screenId], map: "jira_ticket_one_epic_per_screen", where: raw("hierarchy_level = 'EPIC'"))
+  @@index([screenId, hierarchyLevel, statusCategory])
+  @@index([parentTicketId])
+  @@map("jira_ticket")
+}
+
+// --------------------------------------------------------------- comment
+model Comment {
+  id             Int             @id @default(autoincrement())
+  screenId       Int             @map("screen_id")
+  userId         Int             @map("user_id")
+  text           String
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime?       @map("updated_at") @db.Timestamptz(3)
+  /// CP-11: NULL = ordinary comment; APPROVE/RETURN = review comment
+  reviewDecision ReviewDecision? @map("review_decision")
+
+  screen Screen @relation(fields: [screenId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([screenId, createdAt])
+  @@map("comment")
+}
+
+// --------------------------------------------------------------- reports
+model Report {
+  id            Int          @id @default(autoincrement())
+  applicationId Int          @map("application_id")
+  title         String       @db.VarChar(200)
+  format        ReportFormat
+  parameters    Json
+  status        ReportStatus @default(PENDING)
+  isPublished   Boolean      @default(false) @map("is_published")
+  fileName      String?      @map("file_name") @db.VarChar(255)
+  fileSize      Int?         @map("file_size")
+  errorMessage  String?      @map("error_message")
+  generatedById Int          @map("generated_by")
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  completedAt   DateTime?    @map("completed_at") @db.Timestamptz(3)
+  publishedAt   DateTime?    @map("published_at") @db.Timestamptz(3)
+  updatedAt     DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  generatedBy User        @relation(fields: [generatedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  file        ReportFile?
+
+  @@index([applicationId, isPublished, createdAt(sort: Desc)])
+  @@map("report")
+}
+
+model ReportFile {
+  reportId Int    @id @map("report_id")
+  mimeType String @map("mime_type") @db.VarChar(100)
+  content  Bytes
+
+  report Report @relation(fields: [reportId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+
+  @@map("report_file")
+}
+
+// ----------------------------------------------------------------- audit
+/// Written ONLY by database functions (trigger audit_row_change and
+/// log_business_event). Read-only for the API role. entity_id and
+/// application_id are loose references on purpose (NFR-20).
+model AuditLog {
+  id            BigInt   @id @default(autoincrement())
+  actorUserId   Int?     @map("actor_user_id")
+  dbRole        String   @map("db_role") @db.VarChar(63)
+  action        String
+  eventName     String?  @map("event_name") @db.VarChar(100)
+  entityType    String   @map("entity_type")
+  entityId      String   @map("entity_id")
+  entityLabel   String?  @map("entity_label") @db.VarChar(300)
+  applicationId Int?     @map("application_id")
+  oldValue      Json?    @map("old_value")
+  newValue      Json?    @map("new_value")
+  changedFields String[] @default([]) @map("changed_fields")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  actor User? @relation(fields: [actorUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([applicationId, createdAt])
+  @@index([createdAt(sort: Desc)])
+  @@map("audit_log")
+}

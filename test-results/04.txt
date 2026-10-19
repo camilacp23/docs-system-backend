@@ -1,0 +1,12 @@
+PASS  E01 nested create supertype + screen (composite FK, deferred subtype check)
+PASS  E02 nested create variable + environments
+PASS  E03 extension set the actor for a nested write (actor=1, db_role=docs_app)
+PASS  E04 trigger-generated origin link audited with the same actor
+PASS  E05 updateMany audited row by row with old/new values (2 rows)
+PASS  E06 raw SQL write in auditedTransaction audited with actor
+PASS  E07 business event recorded in the same transaction
+PASS  E08 20 concurrent writes by 2 users: every record has its own actor (20 records, 0 mismatched)
+PASS  E09 write without context: actor NULL, db_role = docs_app
+PASS  E11 (pitfall, rule R-1) un-awaited query escapes the context: actor NULL
+PASS  E10 auditedTransaction requires an audit context
+ALL PASSED

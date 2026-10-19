@@ -1,0 +1,19 @@
+Pager usage is off.
+psql:tests/03_owner_immutability_tests.sql:12: NOTICE:  PASS  AU22 owner UPDATE on audit_log -> rejected: audit_log is append-only (UPDATE rejected)
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/03_owner_immutability_tests.sql:13: NOTICE:  PASS  AU23 owner DELETE on audit_log -> rejected: audit_log is append-only (DELETE rejected)
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/03_owner_immutability_tests.sql:14: NOTICE:  PASS  AU24 owner TRUNCATE on audit_log -> rejected: audit_log is append-only (TRUNCATE rejected)
+ expect_error 
+--------------
+ 
+(1 row)
+

@@ -1,0 +1,28 @@
+digraph A {
+ graph [rankdir=TB, fontname="Helvetica", fontsize=12, nodesep=0.3, ranksep=0.35, pad=0.3];
+ node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=12, color="#b0b0b0", fillcolor="#ffffff", margin="0.15,0.08"];
+ edge [fontname="Helvetica", fontsize=9, color="#313131", fontcolor="#595959", arrowsize=0.7];
+ subgraph cluster_api { label="Express API  (database role: docs_app)"; style="rounded"; color="#c6dcff"; bgcolor="#f0f5fd";
+  req [label="HTTP request\nAuthorization: Bearer JWT"];
+  jwt [label="JWT middleware\nreq.user.id"];
+  als [label="auditContext.run({ userId })\nAsyncLocalStorage"];
+  svc [label="Service layer\nawait prisma...  (rule R-1)"];
+  ext [label="Prisma Client 7.10\nextension audit-context\nor auditedTransaction()"];
+  req -> jwt -> als -> svc -> ext;
+ }
+ subgraph cluster_db { label="PostgreSQL 18  (one transaction)"; style="rounded"; color="#fff6b6"; bgcolor="#fffbed";
+  setc [label="SELECT set_config(\n'app.user_id', id, true)"];
+  write [label="INSERT / UPDATE / DELETE\non a documented table\n(incl. cascades, SET NULL)"];
+  trg [label="AFTER ROW trigger\naudit_row_change()\nSECURITY DEFINER\nsearch_path fixed"];
+  log [label="audit_log\nappend-only", fillcolor="#fff6b6"];
+  ev [label="log_business_event()\nSECURITY DEFINER"];
+  setc -> write -> trg -> log;
+  ev -> log [label="EVENT"];
+ }
+ ext -> setc [label="same transaction"];
+ ext -> ev [style=dashed, label="business events"];
+ other [label="psql, scripts, jobs\n(no app.user_id)", fillcolor="#f7f7f7"];
+ other -> write [style=dashed, label="actor NULL\ndb_role recorded"];
+ deny [label="docs_app: SELECT only on audit_log\nno ALTER / DISABLE TRIGGER (not owner)\nUPDATE/DELETE/TRUNCATE blocked for all roles", shape=note, fillcolor="#fff0f0", color="#ffc6c6", fontsize=10];
+ log -> deny [style=dotted, arrowhead=none];
+}

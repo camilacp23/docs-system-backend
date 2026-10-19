@@ -1,0 +1,183 @@
+Pager usage is off.
+ set_config 
+------------
+ 
+(1 row)
+
+ set_config 
+------------
+ 1
+(1 row)
+
+psql:tests/02_audit_privilege_tests.sql:46: NOTICE:  PASS  AU01 CREATE audited with actor and db_role 
+ check 
+-------
+ 
+(1 row)
+
+psql:tests/02_audit_privilege_tests.sql:49: NOTICE:  PASS  AU02 trigger-generated rows are audited too (origin link, App screen) 
+ check 
+-------
+ 
+(1 row)
+
+psql:tests/02_audit_privilege_tests.sql:51: NOTICE:  PASS  AU03 bootstrap write without app.user_id: actor NULL, db_role recorded 
+ check 
+-------
+ 
+(1 row)
+
+psql:tests/02_audit_privilege_tests.sql:53: NOTICE:  PASS  AU04 password value never stored 
+ check 
+-------
+ 
+(1 row)
+
+ set_config 
+------------
+ 1
+(1 row)
+
+psql:tests/02_audit_privilege_tests.sql:65: NOTICE:  PASS  AU05 UPDATE with old/new values and changed_fields (changed_fields = {documentation_status,risks})
+ check 
+-------
+ 
+(1 row)
+
+ set_config 
+------------
+ 1
+(1 row)
+
+psql:tests/02_audit_privilege_tests.sql:73: NOTICE:  PASS  AU06 no-op UPDATE is not recorded 
+ check 
+-------
+ 
+(1 row)
+
+ set_config 
+------------
+ 1
+(1 row)
+
+psql:tests/02_audit_privilege_tests.sql:82: NOTICE:  PASS  AU07 password change: name in changed_fields, value redacted 
+ check 
+-------
+ 
+(1 row)
+
+psql:tests/02_audit_privilege_tests.sql:89: NOTICE:  PASS  AU08 app.user_id does not leak across transactions (actor NULL) 
+ check 
+-------
+ 
+(1 row)
+
+ set_config 
+------------
+ 1 OR 1=1
+(1 row)
+
+psql:tests/02_audit_privilege_tests.sql:97: NOTICE:  PASS  AU09 malformed app.user_id ignored (actor NULL) 
+ check 
+-------
+ 
+(1 row)
+
+ set_config 
+------------
+ 1
+(1 row)
+
+psql:tests/02_audit_privilege_tests.sql:106: NOTICE:  PASS  AU10 DELETE cascade audited (screen, component, comment, links) 
+ check 
+-------
+ 
+(1 row)
+
+psql:tests/02_audit_privilege_tests.sql:109: NOTICE:  PASS  AU11 SET NULL on origin_screen_id captured as UPDATE with actor 
+ check 
+-------
+ 
+(1 row)
+
+psql:tests/02_audit_privilege_tests.sql:111: NOTICE:  PASS  AU12 record survives deletion and stays readable 
+ check 
+-------
+ 
+(1 row)
+
+psql:tests/02_audit_privilege_tests.sql:115: NOTICE:  PASS  AU13 API role INSERT into audit_log -> rejected: permission denied for table audit_log
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/02_audit_privilege_tests.sql:116: NOTICE:  PASS  AU14 API role UPDATE audit_log -> rejected: permission denied for table audit_log
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/02_audit_privilege_tests.sql:117: NOTICE:  PASS  AU15 API role DELETE audit_log -> rejected: permission denied for table audit_log
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/02_audit_privilege_tests.sql:118: NOTICE:  PASS  AU16 API role disables the audit trigger -> rejected: must be owner of table screen
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/02_audit_privilege_tests.sql:119: NOTICE:  PASS  AU17 API role drops the audit trigger -> rejected: must be owner of relation screen
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/02_audit_privilege_tests.sql:120: NOTICE:  PASS  AU18 API role reads Prisma migration history -> rejected: permission denied for table _prisma_migrations
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/02_audit_privilege_tests.sql:121: NOTICE:  PASS  AU19 API role creates objects in schema public -> rejected: permission denied for schema public
+ expect_error 
+--------------
+ 
+(1 row)
+
+ set_config 
+------------
+ 1
+(1 row)
+
+ log_business_event 
+--------------------
+                 19
+(1 row)
+
+psql:tests/02_audit_privilege_tests.sql:129: NOTICE:  PASS  AU20 business event recorded as EVENT with actor 
+ check 
+-------
+ 
+(1 row)
+
+psql:tests/02_audit_privilege_tests.sql:131: NOTICE:  PASS  AU21 business event without app.user_id -> rejected: Business events require app.user_id in the current transaction
+ expect_error 
+--------------
+ 
+(1 row)
+
+ set_config 
+------------
+ 1
+(1 row)
+
+psql:tests/02_audit_privilege_tests.sql:144: NOTICE:  PASS  AU25 review_decision of a review comment stored in new_value 
+ check 
+-------
+ 
+(1 row)
+

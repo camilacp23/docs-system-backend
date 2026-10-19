@@ -1,0 +1,36 @@
+PASS  A01 login returns access token, user, and refresh cookie
+PASS  A02 refresh cookie is HttpOnly, Secure, SameSite=Strict, Path=/api/v1/auth (Path=/api/v1/auth; Expires=Tue, 13 Oct 2026 12:57:02 GMT; HttpOnly; Secure; SameSite=Strict)
+PASS  A03 JWT: HS256 with kid, iss/aud, 8 h expiry, no role claim
+PASS  A04 wrong password, unknown e-mail, inactive account: same 401 INVALID_CREDENTIALS
+PASS  A05 integration account cannot log in
+PASS  A06 login audited with the user as actor
+PASS  A07 no token -> 401 UNAUTHENTICATED
+PASS  A08 expired token -> 401 TOKEN_EXPIRED
+PASS  A09 token signed with another key -> 401
+PASS  A10 alg "none" token -> 401
+PASS  A11 token for another audience -> 401
+PASS  A12 valid token -> 200
+PASS  A13 refresh returns a new access token and a NEW refresh cookie
+PASS  A14 reusing a rotated token -> 401 and the whole family is revoked
+PASS  A15 refresh from another Origin -> 403
+PASS  A16 logout -> 204 and the refresh token no longer works
+PASS  A17 refresh tokens stored only as SHA-256 hashes
+PASS  A18 role change applies to an already-issued token (200 -> 403) (200 -> 403)
+PASS  A19 role change revokes the user's refresh tokens
+PASS  A20 deactivation applies to an already-issued token (-> 401)
+PASS  A21 an administrator cannot deactivate themself
+PASS  A22 sixth failed login in 15 min -> 429 RATE_LIMITED
+PASS  A23 RBAC matrix: every operation x every role enforced as declared in the contract (132 checks)
+PASS  A24 GET /users/:id: a non-admin can read only their own user (SELF_OR_ROLE)
+PASS  A25 every contract operation has x-roles (fail-closed loading) (50 operations)
+PASS  A26 session ends 12 h after login (12.00 h)
+PASS  A27 rotation keeps the same end (never extends the session)
+PASS  A28 refresh cookie expires with the session
+PASS  A29 refresh after the 12 h end -> 401 REFRESH_INVALID (log in again)
+PASS  A30 login with the integration e-mail -> the standard 401 INVALID_CREDENTIALS (The email or password is incorrect.)
+PASS  A31 PUT /users/{id} on the reserved account -> 422 RESERVED_ACCOUNT (This is a system account and can't be changed.)
+PASS  A32 PUT /users/{id}/role on the reserved account -> 422 RESERVED_ACCOUNT (role unchanged)
+PASS  A33 DELETE /users/{id} on the reserved account -> 422 RESERVED_ACCOUNT
+PASS  A34 GET /users never lists the reserved account (total excludes it) (5 of 6)
+PASS  A35 GET /users/{id} of the reserved account -> 404 NOT_FOUND (This user doesn't exist. It may have been deleted.)
+ALL PASSED

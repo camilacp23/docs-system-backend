@@ -1,0 +1,37 @@
+flowchart TB
+    subgraph L1[Consumers: read documentation, never write it]
+        m5[5 Dependency map]
+        m6[6 Search]
+        m7[7 Dashboard]
+        m9[9 Reports]
+        m11[11 Onboarding]
+    end
+    subgraph L2[Documentation core: write documentation]
+        m10[10 Comments and review]
+        m4[4 Screens]
+        m2[2 Variables]
+        m3[3 Collections]
+    end
+    subgraph L3[Foundation]
+        m1[1 Authentication and users]
+        app[Applications]
+        jira[integrations/jira]
+        m8[8 Audit, database triggers]
+    end
+    m5 --> m4
+    m6 --> m4
+    m7 --> m4
+    m9 --> m4
+    m11 --> m4
+    m9 --> m5
+    m11 --> m5
+    m7 --> m8
+    m7 --> jira
+    m10 -->|workflow| m4
+    m4 -->|links, components| m2
+    m4 -->|links| m3
+    m3 -->|assignments| m2
+    m4 --> jira
+    m2 --> app
+    m3 --> app
+    L2 -.->|every module| m1

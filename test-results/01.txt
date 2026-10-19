@@ -1,0 +1,183 @@
+Pager usage is off.
+psql:tests/01_integrity_tests.sql:38: NOTICE:  PASS  T01 App (OnStart) screen auto-created for each application
+psql:tests/01_integrity_tests.sql:55: NOTICE:  PASS  T02 origin trigger created screen_variable(App OnStart, gUsuario, WRITE, origin)
+psql:tests/01_integrity_tests.sql:59: NOTICE:  PASS  T03 screen row pointing to a VARIABLE element -> rejected: insert or update on table "screen" violates foreign key constraint "screen_id_element_type_application_id_fkey"
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/01_integrity_tests.sql:62: NOTICE:  PASS  T04 subtype with element_type different from its table -> rejected: new row for relation "screen" violates check constraint "screen_element_type_chk"
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/01_integrity_tests.sql:66: NOTICE:  PASS  T05 dependency with a pair outside the allowed list (variable -> screen) -> rejected: new row for relation "dependency" violates check constraint "dependency_allowed_pairs_chk"
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/01_integrity_tests.sql:68: NOTICE:  PASS  T06 dependency declaring a wrong type for an existing element -> rejected: insert or update on table "dependency" violates foreign key constraint "dependency_source_id_source_type_fkey"
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/01_integrity_tests.sql:70: NOTICE:  PASS  T07 valid dependency component -> variable accepted
+psql:tests/01_integrity_tests.sql:75: NOTICE:  PASS  T08 UpdateContext on a GLOBAL variable -> rejected: new row for relation "variable_collection" violates check constraint "variable_collection_function_scope_chk"
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/01_integrity_tests.sql:78: NOTICE:  PASS  T09 declaring a scope that is not the variable's real scope -> rejected: insert or update on table "variable_collection" violates foreign key constraint "variable_collection_variable_id_variable_scope_fkey"
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/01_integrity_tests.sql:82: NOTICE:  PASS  T10 changing variable scope while a SET link exists (cascade + CHECK) -> rejected: new row for relation "variable_collection" violates check constraint "variable_collection_function_scope_chk"
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/01_integrity_tests.sql:89: NOTICE:  PASS  T11 same screen name allowed in a different application
+psql:tests/01_integrity_tests.sql:91: NOTICE:  PASS  T12 linking a SAR variable to a screen of another application -> rejected: Cross-application link rejected on screen_variable (screen_id, variable_id)
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/01_integrity_tests.sql:96: NOTICE:  PASS  T13 variable without any environment (checked at commit) -> rejected: Element 200 must exist in at least one environment (DEV/PROD)
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/01_integrity_tests.sql:98: NOTICE:  PASS  T14 removing the last environment of a collection -> rejected: Element 5 must exist in at least one environment (DEV/PROD)
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/01_integrity_tests.sql:104: NOTICE:  PASS  T15 duplicate GLOBAL variable name in the same application -> rejected: duplicate key value violates unique constraint "variable_global_name_key"
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/01_integrity_tests.sql:108: NOTICE:  PASS  T16 deleting the App (OnStart) screen -> rejected: The App (OnStart) screen cannot be deleted
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/01_integrity_tests.sql:117: NOTICE:  PASS  T17a origin moved: old origin row removed, new one created
+psql:tests/01_integrity_tests.sql:126: NOTICE:  PASS  T17b screen delete: components + their supertype + dependencies removed, variable origin SET NULL
+psql:tests/01_integrity_tests.sql:130: NOTICE:  PASS  T18 physical delete of a user referenced as author -> rejected: update or delete on table "app_user" violates RESTRICT setting of foreign key constraint "application_created_by_fkey" on table "application"
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/01_integrity_tests.sql:132: NOTICE:  PASS  T19 email stored with uppercase -> rejected: new row for relation "app_user" violates check constraint "app_user_email_lowercase_chk"
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/01_integrity_tests.sql:145: NOTICE:  PASS  T20 valid chain Epic -> Story -> Subtask accepted
+psql:tests/01_integrity_tests.sql:148: NOTICE:  PASS  T21 second Epic for the same screen -> rejected: duplicate key value violates unique constraint "jira_ticket_one_epic_per_screen"
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/01_integrity_tests.sql:151: NOTICE:  PASS  T22 Subtask hanging directly from the Epic -> rejected: insert or update on table "jira_ticket" violates foreign key constraint "jira_ticket_parent_ticket_id_screen_id_parent_level_fkey"
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/01_integrity_tests.sql:156: NOTICE:  PASS  T23 Subtask whose parent Story belongs to another screen -> rejected: insert or update on table "jira_ticket" violates foreign key constraint "jira_ticket_parent_ticket_id_screen_id_parent_level_fkey"
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/01_integrity_tests.sql:159: NOTICE:  PASS  T24 Story without parent Epic -> rejected: new row for relation "jira_ticket" violates check constraint "jira_ticket_hierarchy_chk"
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/01_integrity_tests.sql:163: NOTICE:  PASS  T25 documented_element without its subtype row (checked at commit) -> rejected: documented_element 500 (COLLECTION) has no collection row
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/01_integrity_tests.sql:165: NOTICE:  PASS  T26 changing the type of an element that already has its subtype -> rejected: update or delete on table "documented_element" violates RESTRICT setting of foreign key constraint "variable_id_element_type_application_id_fkey" on table "variable"
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/01_integrity_tests.sql:195: NOTICE:  PASS  T27 UpdateContext of a context variable from another screen -> rejected: CONTEXT_SCREEN_MISMATCH: context variable locFiltro (610) can only be read or assigned in its origin screen (601); rejected variable_collection row 4 (screen 602)
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/01_integrity_tests.sql:197: NOTICE:  PASS  T28 READ link to a context variable from another screen -> rejected: CONTEXT_SCREEN_MISMATCH: context variable locFiltro (610) can only be read or assigned in its origin screen (601); rejected screen_variable row 11 (screen 602)
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/01_integrity_tests.sql:199: NOTICE:  PASS  T29 READ_WRITE link to a context variable from another screen -> rejected: CONTEXT_SCREEN_MISMATCH: context variable locFiltro (610) can only be read or assigned in its origin screen (601); rejected screen_variable row 12 (screen 602)
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/01_integrity_tests.sql:201: NOTICE:  PASS  T30 WRITE link to a context variable from another screen (Navigate) -> accepted
+ expect_ok 
+-----------
+ 
+(1 row)
+
+psql:tests/01_integrity_tests.sql:203: NOTICE:  PASS  T31 any link to a context variable without origin (even WRITE) -> rejected: CONTEXT_SCREEN_MISMATCH: context variable locSinOrig (612) can only be read or assigned in its origin screen (none); rejected screen_variable row 14 (screen 602)
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/01_integrity_tests.sql:205: NOTICE:  PASS  T32 moving the origin so that an existing READ link becomes invalid -> rejected: CONTEXT_SCREEN_MISMATCH: context variable locMover (613) can only be read or assigned in its origin screen (602); rejected screen_variable row 9 (screen 601)
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/01_integrity_tests.sql:207: NOTICE:  PASS  T33 changing scope GLOBAL -> CONTEXT with READ links in other screens -> rejected: CONTEXT_SCREEN_MISMATCH: context variable gModo (614) can only be read or assigned in its origin screen (601); rejected screen_variable row 10 (screen 602)
+ expect_error 
+--------------
+ 
+(1 row)
+
+psql:tests/01_integrity_tests.sql:213: NOTICE:  PASS  T34 the same operations on a global variable -> accepted
+ expect_ok 
+-----------
+ 
+(1 row)
+
+psql:tests/01_integrity_tests.sql:231: NOTICE:  PASS  T35 origin screen deleted: variable kept without origin, its WRITE link kept, new links rejected
+psql:tests/01_integrity_tests.sql:235: NOTICE:  PASS  T36 invalid review_decision value -> rejected: invalid input value for enum review_decision: "MAYBE"
+ expect_error 
+--------------
+ 
+(1 row)
+

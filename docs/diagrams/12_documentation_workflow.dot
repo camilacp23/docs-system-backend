@@ -1,0 +1,17 @@
+digraph W {
+ graph [rankdir=TB, fontname="Helvetica", nodesep=0.9, ranksep=0.55, pad=0.3];
+ node [shape=box, style="rounded,filled", fontname="Helvetica-Bold", fontsize=12, color="#b0b0b0", fillcolor="#fff6b6", margin="0.2,0.1"];
+ edge [fontname="Helvetica", fontsize=9.5, color="#313131", fontcolor="#595959", arrowsize=0.7];
+ start [shape=circle, label="", width=0.18, style=filled, fillcolor="#313131", color="#313131"];
+ U [label="UNDOCUMENTED"]; D [label="DRAFT"]; P [label="IN_PROGRESS"]; R [label="IN_REVIEW", fillcolor="#c6dcff"]; A [label="APPROVED", fillcolor="#adf0c7"];
+ start -> U [label="screen created\n(empty template)"];
+ start -> D [label="screen created\nwith content", style=dashed];
+ U -> D [label="status, or\nfirst content saved"];
+ D -> U [label="status"];
+ D -> P [label="status"];
+ P -> D [label="status"];
+ P -> R [label="submit\n(7 template fields\ncomplete)"];
+ R -> P [label="withdraw (Admin, Dev)\nor RETURN with comment (Admin)"];
+ R -> A [label="APPROVE (Admin)\nbusiness event"];
+ A -> P [label="reopen, or\napproved content edited"];
+}

@@ -1,0 +1,8 @@
+Pager usage is off.
+psql:tests/09_dependency_graph_tests.sql:57: NOTICE:  PASS  G01 SAR graph has 9 nodes (3 screens incl. App (OnStart), 2 variables, 2 collections, 2 components) -> 9
+psql:tests/09_dependency_graph_tests.sql:57: NOTICE:  PASS  G02 SAR graph has 11 edges -> 11 [ACCESSES=2, CONTAINS=2, CREATES=2, DERIVES_FROM=1, FEEDS=1, NAVIGATES_TO=1, USES=2]
+psql:tests/09_dependency_graph_tests.sql:57: NOTICE:  PASS  G03 edge kinds: ACCESSES=2, CONTAINS=2, CREATES=2, DERIVES_FROM=1, FEEDS=1, NAVIGATES_TO=1, USES=2
+psql:tests/09_dependency_graph_tests.sql:57: NOTICE:  PASS  G04 origin rows are not duplicated as ACCESSES
+psql:tests/09_dependency_graph_tests.sql:57: NOTICE:  PASS  G05 every edge endpoint is a node of the same graph
+psql:tests/09_dependency_graph_tests.sql:57: NOTICE:  PASS  G06 the other application is isolated (3 nodes: App (OnStart), Inicio, gOtra; 1 CREATES edge)
+psql:tests/09_dependency_graph_tests.sql:57: NOTICE:  PASS  G07 untraced flag: gUsuario and locFiltro have origin, so 0 untraced variables

@@ -1,0 +1,22 @@
+flowchart TB
+    req([HTTPS request]) --> m1
+    subgraph mw[Middleware chain, applied in this order]
+        m1[helmet, CORS allowlist, JSON body limit 1 MB, requestId]
+        m2[rate limit on /auth]
+        m3[authenticate<br/>verify JWT, read role and status from DB,<br/>open audit context]
+        m4[authorize<br/>x-roles of the operation in openapi.yaml]
+        m5[validate request<br/>schemas of openapi.yaml]
+        m1 --> m2 --> m3 --> m4 --> m5
+    end
+    m5 --> r
+    subgraph mod[Module folder src/modules/name, one per functional module]
+        r[routes<br/>bind operationId to controller]
+        c[controller<br/>HTTP to DTO, status codes]
+        s[service<br/>business rules, workflow, x-rule,<br/>auditedTransaction]
+        p[repository<br/>Prisma queries]
+        r --> c --> s --> p
+    end
+    p --> db[(PostgreSQL 18)]
+    s --> int[integrations/jira<br/>Jira REST client]
+    s --> jobs[jobs/reports<br/>report worker]
+    eh[errorHandler<br/>maps errors to code, message, details] -.-> req

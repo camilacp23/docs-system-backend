@@ -1,0 +1,16 @@
+PASS  W01 developer submits a complete screen
+PASS  W02 submit with incomplete template
+PASS  W03 nobody sets APPROVED through /status
+PASS  W04 administrator approves
+PASS  W05 developer cannot approve
+PASS  W06 return without comment
+PASS  W07 return with comment
+PASS  W08 review of a screen not in review
+PASS  W09 moving back is allowed (IN_PROGRESS -> DRAFT)
+PASS  W10 editing an APPROVED screen reopens it
+PASS  W11 first content moves UNDOCUMENTED to DRAFT
+PASS  W12 skipping steps is rejected (UNDOCUMENTED -> IN_REVIEW)
+PASS  W13 reader cannot change status
+PASS  W14 editing a screen IN_REVIEW -> 422 SCREEN_IN_REVIEW
+PASS  W15 editing after withdrawing from review is allowed
+ALL PASSED

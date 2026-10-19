@@ -1,0 +1,25 @@
+sequenceDiagram
+    actor P as Person in Jira
+    participant J as Jira Cloud
+    participant A as Express API
+    participant D as PostgreSQL
+    participant S as React SPA
+    P->>J: moves TECHEA-3 to In Progress
+    J->>A: POST /integrations/jira/webhook (X-Hub-Signature)
+    A->>A: verify HMAC-SHA256 of the raw body
+    alt invalid signature
+        A-->>J: 401 INVALID_SIGNATURE
+    else valid
+        A->>D: ticket with jira_issue_id = 10003?
+        alt not tracked, or event older than last_synced_at
+            A-->>J: 204 (ignored)
+        else tracked and newer
+            A->>D: BEGIN, set_config app.user_id = Integración Jira
+            A->>D: UPDATE status, category, summary, key, parent, last_synced_at
+            D->>D: audit trigger records the change
+            A->>D: COMMIT
+            A-->>J: 204
+        end
+    end
+    S->>A: GET /screens/12/jira-tickets
+    A-->>S: 200 tree with the new status

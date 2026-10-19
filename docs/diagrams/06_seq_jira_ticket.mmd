@@ -1,0 +1,29 @@
+sequenceDiagram
+    actor U as Developer
+    participant S as React SPA
+    participant A as Express API
+    participant D as PostgreSQL
+    participant J as Jira Cloud
+    U->>S: New future-to-do item (choose or create Story)
+    S->>A: POST /screens/12/jira-ticket
+    A->>A: authenticate, authorize (Admin, Dev)
+    A->>D: Epic of screen 12?
+    alt the screen has no Epic yet
+        A->>J: POST /rest/api/3/issue (Epic, project TECHEA)
+        J-->>A: 201 id, key
+        A->>D: save Epic (one per screen, unique index)
+    end
+    opt newStory
+        A->>J: POST /rest/api/3/issue (Story, parent = Epic)
+        J-->>A: 201 id, key
+        A->>D: save Story
+    end
+    A->>J: POST /rest/api/3/issue (Subtask, parent = Story)
+    alt Jira answers
+        J-->>A: 201 id, key
+        A->>D: save Subtask (audited with the user as actor)
+        A-->>S: 201 epic, story, subtask, created
+    else Jira fails or times out
+        A-->>S: 502 JIRA_PARTIAL_FAILURE, issues already created and storyId
+        S->>U: retry with the same Story (no duplicates)
+    end

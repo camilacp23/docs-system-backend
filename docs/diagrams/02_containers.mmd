@@ -1,0 +1,20 @@
+flowchart LR
+    subgraph browser[User's browser]
+        spa[React SPA<br/>React Router, Tailwind, React Flow<br/>access token in memory]
+    end
+    subgraph server[Application server, Node.js 22]
+        api[Express API /api/v1<br/>11 modules, security, audit context]
+        worker[Report worker<br/>same process, polls PENDING reports]
+        jc[Jira client<br/>timeouts, circuit breaker]
+        api --- worker
+        api --- jc
+    end
+    subgraph dbs[PostgreSQL 18]
+        db[(19 tables, triggers,<br/>append-only audit_log)]
+    end
+    spa -->|HTTPS, JSON, Bearer JWT<br/>refresh cookie on /auth| api
+    api -->|Prisma 7 + adapter-pg<br/>role docs_app, DML only| db
+    worker -->|role docs_app| db
+    jc -->|HTTPS REST v3| jira[Jira Cloud TECHEA]
+    jira -->|HTTPS webhook, HMAC| api
+    mig[prisma migrate deploy<br/>role docs_owner] -->|DDL| db

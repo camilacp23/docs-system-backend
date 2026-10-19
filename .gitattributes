@@ -1,0 +1,12 @@
+# Normalize line endings: LF in the repository and in the working tree (Windows included).
+* text=auto eol=lf
+# Prisma checksums every migration: a CRLF conversion makes Prisma report it as modified (P3006 risk).
+prisma/migrations/** -text
+*.sql text eol=lf
+*.sh text eol=lf
+# Binaries
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.docx binary
+*.pdf binary

@@ -1,0 +1,9 @@
+# Secrets (NFR-06): never commit .env; .env.example is the template
+.env
+.env.*
+!.env.example
+# Dependencies and generated code (recreated by npm install / npx prisma generate)
+node_modules/
+src/generated/
+# Local outputs
+*.log
