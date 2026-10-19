@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# Phase 2 regression suite (tests 01-10, 153 checks) on disposable copies of a database.
+# Phase 2 regression suite (tests 01-10, 153 checks) on disposable copies of a database that is built from the
+# migrations (docs_test_template), so the results never depend on the data of docs_system (seed, development data).
 # Runs in Git Bash (Windows) and Linux (CI). It does not modify any test file and contains no passwords.
 #
 # Usage:   npm run test:legacy        (or: bash scripts/test-legacy.sh)
 #
 # Environment (all optional):
-#   LEGACY_SOURCE_DB       database copied for every test (default: docs_system). Only copied, never written to.
+#   LEGACY_SOURCE_DB       database copied for every test (default: docs_test_template, rebuilt from prisma/migrations
+#                          by scripts/db-test-template.ts when they change). docs_system and docs_shadow are refused.
 #   LEGACY_MAINTENANCE_DB  database used to run CREATE/DROP DATABASE (default: postgres)
 #   PGHOST / PGPORT        server (default: localhost / 5432)
 #   LEGACY_OWNER_USER      default docs_owner (needs CREATEDB; creates and drops the copies; test 03)
@@ -20,7 +22,13 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT" || exit 2
 
-SOURCE_DB="${LEGACY_SOURCE_DB:-docs_system}"
+SOURCE_DB="${LEGACY_SOURCE_DB:-docs_test_template}"
+case "$(printf '%s' "$SOURCE_DB" | tr '[:upper:]' '[:lower:]')" in
+  docs_system|docs_shadow)
+    echo "Refusing LEGACY_SOURCE_DB=$SOURCE_DB: the regression must not read the development or shadow database." >&2
+    echo "Use the default (docs_test_template, built from the migrations) or another disposable database." >&2
+    exit 2 ;;
+esac
 MAINT_DB="${LEGACY_MAINTENANCE_DB:-postgres}"
 export PGHOST="${PGHOST:-localhost}"
 export PGPORT="${PGPORT:-5432}"
@@ -56,7 +64,9 @@ psql_as() { # psql_as ROLE USER DB [psql args...]
 
 cleanup() {
   local status=$?
-  trap - EXIT INT TERM
+  # Ignore further INT/TERM while dropping: an interrupted DROP DATABASE leaves an invalid database behind.
+  trap '' INT TERM
+  trap - EXIT
   local db
   for db in "${CREATED[@]:-}"; do
     [ -n "$db" ] || continue
@@ -72,6 +82,18 @@ trap cleanup EXIT INT TERM
 
 command -v psql >/dev/null || { echo "psql not found in PATH" >&2; exit 2; }
 command -v node >/dev/null || { echo "node not found in PATH" >&2; exit 2; }
+
+# The default source is the template built from the migrations: create it or refresh it if they changed.
+if [ "$SOURCE_DB" = "docs_test_template" ]; then
+  npx --no-install tsx scripts/db-test-template.ts >"$WORK/template.txt" 2>&1 \n    || { echo "Could not prepare docs_test_template:" >&2; cat "$WORK/template.txt" >&2; exit 2; }
+fi
+
+# Copies left by an earlier run that was killed during its cleanup (never dropped automatically: a run may be active).
+STALE="$(psql_as OWNER "$OWNER_USER" "$MAINT_DB" -Atc "SELECT datname FROM pg_database WHERE datname LIKE 'docs\_legacy\_%' ORDER BY 1" 2>/dev/null | tr -d '\r')"
+if [ -n "$STALE" ]; then
+  echo "WARNING: disposable copies from earlier runs still exist (drop them with DROP DATABASE ... WITH (FORCE)):" >&2
+  echo "$STALE" | sed 's/^/  /' >&2
+fi
 
 # newCopy NN -> creates a disposable copy of $SOURCE_DB and stores its name in DB_COPY
 # (no command substitution: the name must be registered in CREATED for the cleanup trap).
