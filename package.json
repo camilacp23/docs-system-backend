@@ -1,11 +1,11 @@
 {
   "name": "docs-system-backend",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "private": true,
   "type": "module",
-  "description": "Base del backend (Fase 2): modelo físico, migraciones, seguridad y código de referencia verificado (contrato 0.3.0, CP-01 a CP-11)",
+  "description": "Backend de Documentación técnica (Fase 3, desarrollo): base verificada en la Fase 2 (modelo físico, migraciones, seguridad, contrato 0.3.0) sobre la que se construyen los módulos",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.22.0"
   },
   "scripts": {
     "prisma:generate": "prisma generate",

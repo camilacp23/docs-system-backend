@@ -1,3 +1,5 @@
+> Guía de la Fase 2. En este repositorio: 03_backend/ → raíz, 04_api/ → api/, 05_diagramas/ → docs/diagrams/.
+
 # Entrega de la Bitácora 3 (26–28 sept 2026), actualizada con CP-01 a CP-11 (12 oct 2026): guía de uso y ejecución
 
 Proyecto: Sistema de Gestión de Documentación Técnica · Fase 2 (Diseño)

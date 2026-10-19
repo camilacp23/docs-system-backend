@@ -1,3 +1,5 @@
+> Guía de la Fase 2. En este repositorio: 03_backend/ → raíz, 04_api/ → api/, 05_diagramas/ → docs/diagrams/.
+
 # Guía: aplicar los cambios CP-01 a CP-11 y volver a ejecutar todas las pruebas
 
 Proyecto: Sistema de Gestión de Documentación Técnica · Fase 2 (Diseño) · 12 oct 2026
