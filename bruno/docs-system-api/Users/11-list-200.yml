@@ -1,0 +1,36 @@
+info:
+  name: 11 List 200 (envelope, reserved account hidden)
+  type: http
+  seq: 11
+http:
+  method: GET
+  url: '{{baseUrl}}/users?pageSize=100'
+  headers:
+    - name: Authorization
+      value: Bearer {{adminToken}}
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("collection envelope", function () {
+          expect(res.body.data).to.be.an("array");
+          expect(res.body.page).to.equal(1);
+          expect(res.body.pageSize).to.equal(100);
+          expect(res.body.total).to.be.at.least(3);
+          expect(res.body.data.length).to.equal(res.body.total);
+        });
+        test("rows have the user shape and no secrets", function () {
+          res.body.data.forEach(function (d) { expect(d).to.include.keys("id", "name", "email", "role", "status", "lastLoginAt", "createdAt", "updatedAt");
+          expect(d).to.not.have.property("passwordHash"); });
+        });
+        test("the created users are listed, the reserved account is not", function () {
+          const emails = res.body.data.map(function (d) { return d.email; });
+          expect(emails).to.include("dev-" + bru.getVar("runId") + "@sandbox.local");
+          expect(emails).to.include("reader-" + bru.getVar("runId") + "@sandbox.local");
+          expect(emails).to.not.include(bru.getEnvVar("reservedEmail"));
+        });
+        test("ETag header is present", function () { expect(res.headers["etag"]).to.be.a("string"); });
+settings:
+  encodeUrl: true

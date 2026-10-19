@@ -1,0 +1,29 @@
+info:
+  name: 19 Change role 422 (RESERVED_ACCOUNT)
+  type: http
+  seq: 19
+http:
+  method: PUT
+  url: '{{baseUrl}}/users/{{reservedId}}/role'
+  headers:
+    - name: Authorization
+      value: Bearer {{adminToken}}
+  body:
+    type: json
+    data: |-
+      {
+        "role": "ADMINISTRATOR"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 422", function () { expect(res.status).to.equal(422); });
+        test("error body has code RESERVED_ACCOUNT, message and details", function () {
+          expect(res.body.code).to.equal("RESERVED_ACCOUNT");
+          expect(res.body.message).to.be.a("string").and.not.empty;
+          expect(res.body).to.have.property("details");
+        });
+settings:
+  encodeUrl: true

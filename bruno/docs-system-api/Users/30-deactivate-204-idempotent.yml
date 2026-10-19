@@ -1,0 +1,17 @@
+info:
+  name: 30 Deactivate 204 (idempotent)
+  type: http
+  seq: 30
+http:
+  method: DELETE
+  url: '{{baseUrl}}/users/{{devId}}'
+  headers:
+    - name: Authorization
+      value: Bearer {{adminToken}}
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: test("status 204", function () { expect(res.status).to.equal(204); });
+settings:
+  encodeUrl: true

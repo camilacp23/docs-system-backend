@@ -1,0 +1,26 @@
+info:
+  name: 26 Change role 200 (developer becomes reader)
+  type: http
+  seq: 26
+http:
+  method: PUT
+  url: '{{baseUrl}}/users/{{devId}}/role'
+  headers:
+    - name: Authorization
+      value: Bearer {{adminToken}}
+  body:
+    type: json
+    data: |-
+      {
+        "role": "READER"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the role changed", function () { expect(res.body.data.role).to.equal("READER"); expect(res.body.data.id).to.equal(bru.getVar("devId")); });
+        test("ETag header is present", function () { expect(res.headers["etag"]).to.be.a("string"); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,28 @@
+info:
+  name: 05 Login 401 (reserved integration account)
+  type: http
+  seq: 5
+http:
+  method: POST
+  url: '{{baseUrl}}/auth/login'
+  body:
+    type: json
+    data: |-
+      {
+        "email": "{{reservedEmail}}",
+        "password": "{{adminPassword}}"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 401", function () { expect(res.status).to.equal(401); });
+        test("error body has code INVALID_CREDENTIALS, message and details", function () {
+          expect(res.body.code).to.equal("INVALID_CREDENTIALS");
+          expect(res.body.message).to.be.a("string").and.not.empty;
+          expect(res.body).to.have.property("details");
+        });
+        test("same message as any other failure", function () { expect(res.body.message).to.equal("The email or password is incorrect."); });
+settings:
+  encodeUrl: true

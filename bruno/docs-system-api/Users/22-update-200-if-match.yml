@@ -1,0 +1,35 @@
+info:
+  name: 22 Update 200 (matching If-Match)
+  type: http
+  seq: 22
+http:
+  method: PUT
+  url: '{{baseUrl}}/users/{{devId}}'
+  headers:
+    - name: Authorization
+      value: Bearer {{adminToken}}
+    - name: If-Match
+      value: '{{devEtag}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Run Developer Renamed",
+        "email": "dev-{{runId}}@sandbox.local",
+        "status": "ACTIVE"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: if (res.status === 200) { bru.setVar("devEtagOld", bru.getVar("devEtag")); bru.setVar("devEtag", res.headers["etag"]); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the name changed", function () { expect(res.body.data.name).to.equal("Run Developer Renamed"); });
+        test("the ETag changed", function () {
+          expect(res.headers["etag"]).to.match(/^W\/"\d+"$/);
+          expect(res.headers["etag"]).to.not.equal(bru.getVar("devEtagOld"));
+        });
+settings:
+  encodeUrl: true

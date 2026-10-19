@@ -1,0 +1,35 @@
+info:
+  name: 28 Create 413 (body above 1 MB)
+  type: http
+  seq: 28
+http:
+  method: POST
+  url: '{{baseUrl}}/users'
+  headers:
+    - name: Authorization
+      value: Bearer {{adminToken}}
+  body:
+    type: json
+    data: |-
+      {
+        "name": "x",
+        "email": "big-{{runId}}@sandbox.local",
+        "password": "Sandbox-Pass-2026",
+        "role": "READER"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: before-request
+      code: 'req.setBody({ name: "x".repeat(1100000), email: "big-" + bru.getVar("runId") + "@sandbox.local", password: "Sandbox-Pass-2026", role: "READER" });'
+    - type: tests
+      code: |-
+        test("status 413", function () { expect(res.status).to.equal(413); });
+        test("error body has code PAYLOAD_TOO_LARGE, message and details", function () {
+          expect(res.body.code).to.equal("PAYLOAD_TOO_LARGE");
+          expect(res.body.message).to.be.a("string").and.not.empty;
+          expect(res.body).to.have.property("details");
+        });
+        test("message asks to shorten the text", function () { expect(res.body.message).to.equal("This is too much text to save at once. Shorten the longest fields and try again."); });
+settings:
+  encodeUrl: true
