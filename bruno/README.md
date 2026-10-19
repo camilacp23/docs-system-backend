@@ -1,12 +1,13 @@
 # API tests with Bruno
 
-The collection `docs-system-api/` (Bruno OpenCollection YAML, created with Bruno 4.2.1) checks the **Auth** and
-**Users** endpoints of the API against an isolated database. It never touches `docs_system`.
+The collection `docs-system-api/` (Bruno OpenCollection YAML, created with Bruno 4.2.1) checks the **Auth**,
+**Users** and **Applications** endpoints of the API against an isolated database. It never touches `docs_system`.
 
 | Folder | Requests | Covers |
 |---|---|---|
 | `Auth` | 22 | login, refresh with rotation and reuse detection, logout, Origin check, login rate limit |
 | `Users` | 36 | create, list, read, update with `If-Match`, role change, logical deactivation, reserved account, last administrator, session revocation, 413 |
+| `Applications` | 32 | register (App (OnStart) screen, `Location`, `ETag`), duplicate name, list with `q` / `status`, get, `If-Match` 412, full replacement, archive and unarchive, role matrix (Developer and Reader read, cannot write) |
 
 Every request asserts status code, response body (error `code`, `message`, `details`) and the relevant headers
 (`ETag`, `Location`, `Set-Cookie`, `Cache-Control`, `Retry-After`). Requests run in folder order: later ones use the
@@ -34,7 +35,7 @@ single request out of order.
 3. In Bruno (4.2.1): *Open Collection* → `bruno/docs-system-api`, choose the **sandbox** environment, then *Run*
    the collection or a folder. Close and reopen the collection after step 1 so Bruno re-reads `.env`.
 
-The run can be repeated on the same database: each run creates users with random e-mails. The collection makes a few
+The run can be repeated on the same database: each run creates users with random e-mails and applications with a random name (`SAR <suffix>`). The collection makes a few
 failed logins on purpose (administrator, reserved account), and the login limit is 5 failures per e-mail in 15
 minutes. After about five runs in a row, run `npm run sandbox:db` again (and restart the API) or wait 15 minutes.
 

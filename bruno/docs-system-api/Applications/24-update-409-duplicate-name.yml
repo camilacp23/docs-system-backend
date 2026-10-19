@@ -1,0 +1,34 @@
+info:
+  name: 24 Update 409 (DUPLICATE_NAME)
+  type: http
+  seq: 24
+http:
+  method: PUT
+  url: '{{baseUrl}}/applications/{{appId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{appAdminToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{appName}} B",
+        "platform": "Power Apps 2",
+        "status": "ACTIVE"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 409", function () { expect(res.status).to.equal(409); });
+        test("error body has code DUPLICATE_NAME, message and details", function () {
+          expect(res.body.code).to.equal("DUPLICATE_NAME");
+          expect(res.body.message).to.be.a("string").and.not.empty;
+          expect(res.body).to.have.property("details");
+        });
+        test("message", function () {
+          expect(res.body.message).to.equal("An application named " + bru.getVar("appName") + " B already exists in Documentación técnica.");
+        });
+settings:
+  encodeUrl: true

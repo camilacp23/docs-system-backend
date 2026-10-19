@@ -6,6 +6,7 @@
  */
 import type { Database } from '../db/prisma.js';
 import type { OperationHandlers } from '../http/operations.js';
+import { applicationsHandlers } from './applications/routes.js';
 import { authHandlers } from './auth/routes.js';
 import { usersHandlers } from './users/routes.js';
 
@@ -15,5 +16,5 @@ import { usersHandlers } from './users/routes.js';
  * @param deps - The database the services use.
  */
 export function createModuleHandlers(deps: { db: Database }): OperationHandlers {
-  return { ...authHandlers(deps.db), ...usersHandlers(deps.db) };
+  return { ...authHandlers(deps.db), ...usersHandlers(deps.db), ...applicationsHandlers(deps.db) };
 }

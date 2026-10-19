@@ -1,0 +1,37 @@
+info:
+  name: 01 Setup · administrator login 200
+  type: http
+  seq: 1
+http:
+  method: POST
+  url: '{{baseUrl}}/auth/login'
+  headers:
+    - name: Origin
+      value: '{{origin}}'
+  body:
+    type: json
+    data: |-
+      {
+        "email": "{{adminEmail}}",
+        "password": "{{adminPassword}}"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 200) {
+          bru.setVar("appAdminToken", res.body.data.accessToken);
+        }
+        const run = Math.random().toString(36).slice(2, 10);
+        bru.setVar("appRun", run);
+        bru.setVar("appName", "SAR " + run);
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("a token and a unique application name are ready", function () {
+          expect(bru.getVar("appAdminToken")).to.be.a("string").and.not.empty;
+          expect(bru.getVar("appName")).to.match(/^SAR [a-z0-9]+$/);
+        });
+settings:
+  encodeUrl: true
