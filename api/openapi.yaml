@@ -38,7 +38,8 @@ info:
     gains the required `sessionExpiresIn` (seconds until the absolute end of the
     12 h session; returned by login and refresh). `CONTEXT_SCREEN_MISMATCH` also
     covers a context variable that has no origin screen, with its own message and
-    `details`. No operation was added or removed (50).
+    `details`. The `ETag` header is now documented on the 201 of `POST /users` and
+    on the 200 of `PUT /users/{id}/role`. No operation was added or removed (50).
 
     Error catalog (`code` -> HTTP status: `message`):
 
@@ -258,6 +259,7 @@ paths:
           description: Created
           headers:
             Location: { $ref: '#/components/headers/Location' }
+            ETag: { $ref: '#/components/headers/ETag' }
           content:
             application/json:
               schema: { $ref: '#/components/schemas/UserEnvelope' }
@@ -370,6 +372,8 @@ paths:
       responses:
         '200':
           description: Role changed
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
           content:
             application/json:
               schema: { $ref: '#/components/schemas/UserEnvelope' }
