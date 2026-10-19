@@ -3,6 +3,9 @@
  * Messages in English (CP-04), with the text of the error catalog in openapi.yaml
  * (info.description). Values in <...> in the catalog are filled in from `details`.
  */
+/** One entry of `details.fields` in a VALIDATION_ERROR (SDD Table 59). */
+export type FieldError = { field: string; rule: string; message: string };
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -16,7 +19,7 @@ export class ApiError extends Error {
 
 export const E = {
   // 400
-  validation: (fields: unknown[] = []) =>
+  validation: (fields: FieldError[] = []) =>
     new ApiError(400, 'VALIDATION_ERROR', 'Check the highlighted fields.', { fields }),
   // 401
   invalidCredentials: () => new ApiError(401, 'INVALID_CREDENTIALS', 'The email or password is incorrect.'),
@@ -35,14 +38,37 @@ export const E = {
       element,
       id: id ?? null,
     }),
-  // 409
-  duplicateName: (type: string, name: string, application: string) =>
-    new ApiError(409, 'DUPLICATE_NAME', `A ${type} named ${name} already exists in ${application}.`, {
-      field: 'name',
-      type,
-      name,
-      application,
+  /** Phase 3 decision: a contract operation without a module handler yet (development only). */
+  notImplemented: () =>
+    new ApiError(404, 'NOT_FOUND', "This resource doesn't exist. It may have been deleted.", {
+      element: 'resource',
+      id: null,
+      reason: 'NOT_IMPLEMENTED',
     }),
+  /** Phase 3 decision: no route (or no method) in the contract matches the request. */
+  routeNotFound: () =>
+    new ApiError(404, 'NOT_FOUND', "This resource doesn't exist. It may have been deleted.", {
+      element: 'resource',
+      id: null,
+      reason: 'ROUTE_NOT_FOUND',
+    }),
+  // 409
+  /**
+   * D-63: `type` is the lowercase noun ("global variable"), `application` is the scope where the name must be
+   * unique (application, screen, collection or the product) and `container` says which one it is.
+   */
+  duplicateName: (
+    type: string,
+    name: string,
+    application: string,
+    container: 'application' | 'screen' | 'collection' | 'system' = 'application',
+  ) =>
+    new ApiError(
+      409,
+      'DUPLICATE_NAME',
+      `${/^[aeiou]/i.test(type) ? 'An' : 'A'} ${type} named ${name} already exists in ${application}.`,
+      { field: 'name', type, name, application, container },
+    ),
   emailTaken: () => new ApiError(409, 'EMAIL_TAKEN', 'A user with this email already exists.', { field: 'email' }),
   reportNotReady: (status: string) =>
     new ApiError(409, 'REPORT_NOT_READY', 'Only ready reports can be published or downloaded.', { status }),
@@ -80,20 +106,45 @@ export const E = {
     new ApiError(422, 'INVALID_ORIGIN_SCREEN', 'Context variables are created inside a screen, not in App (OnStart).', {
       field: 'originScreenId',
     }),
-  /** CP-07. Raised from the database (constraint context_screen_mismatch) and translated by errorHandler. */
+  /**
+   * CP-07 / D-64. Raised from the database (trigger check_context_screen_links) and translated by errorHandler.
+   * `originScreen` is the name of the variable's origin screen (null when it has none); `screenId` and
+   * `targetScreen` identify the screen where the link was attempted.
+   */
   contextScreenMismatch: (d: {
     variableId: number;
     variable: string;
     originScreenId: number | null;
-    screen: string;
+    originScreen: string | null;
     screenId: number;
+    targetScreen: string;
   }) =>
-    new ApiError(
-      422,
-      'CONTEXT_SCREEN_MISMATCH',
-      `${d.variable} belongs to ${d.screen}. From here you can only write it with Navigate.`,
-      d,
-    ),
+    d.originScreenId === null || d.originScreen === null
+      ? new ApiError(
+          422,
+          'CONTEXT_SCREEN_MISMATCH',
+          `${d.variable} has no origin screen. Set its origin screen before linking it.`,
+          {
+            variableId: d.variableId,
+            variable: d.variable,
+            originScreenId: null,
+            screenId: d.screenId,
+            targetScreen: d.targetScreen,
+          },
+        )
+      : new ApiError(
+          422,
+          'CONTEXT_SCREEN_MISMATCH',
+          `${d.variable} belongs to ${d.originScreen}. From here you can only write it with Navigate.`,
+          {
+            variableId: d.variableId,
+            variable: d.variable,
+            originScreenId: d.originScreenId,
+            screen: d.originScreen,
+            screenId: d.screenId,
+            targetScreen: d.targetScreen,
+          },
+        ),
   lastActiveAdmin: () =>
     new ApiError(
       422,
