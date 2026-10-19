@@ -2,8 +2,11 @@
 .env
 .env.*
 !.env.example
+!.env.test.example
 # Dependencies and generated code (recreated by npm install / npx prisma generate)
 node_modules/
 src/generated/
 # Local outputs
 *.log
+dist/
+coverage/

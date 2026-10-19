@@ -11,27 +11,43 @@ export type DocStatus = 'UNDOCUMENTED' | 'DRAFT' | 'IN_PROGRESS' | 'IN_REVIEW' |
 export type Role = 'ADMINISTRATOR' | 'DEVELOPER' | 'READER';
 export type Trigger = 'STATUS' | 'REVIEW_APPROVE' | 'REVIEW_RETURN' | 'EDIT';
 
-type Rule = { from: DocStatus; to: DocStatus; trigger: Trigger; roles: Role[]; requires?: 'COMPLETE_TEMPLATE' | 'COMMENT' };
+type Rule = {
+  from: DocStatus;
+  to: DocStatus;
+  trigger: Trigger;
+  roles: Role[];
+  requires?: 'COMPLETE_TEMPLATE' | 'COMMENT';
+};
 const AD: Role[] = ['ADMINISTRATOR', 'DEVELOPER'];
 
 export const TRANSITIONS: readonly Rule[] = [
-  { from: 'UNDOCUMENTED', to: 'DRAFT',        trigger: 'STATUS', roles: AD },
-  { from: 'DRAFT',        to: 'UNDOCUMENTED', trigger: 'STATUS', roles: AD },
-  { from: 'DRAFT',        to: 'IN_PROGRESS',  trigger: 'STATUS', roles: AD },
-  { from: 'IN_PROGRESS',  to: 'DRAFT',        trigger: 'STATUS', roles: AD },
-  { from: 'IN_PROGRESS',  to: 'IN_REVIEW',    trigger: 'STATUS', roles: AD, requires: 'COMPLETE_TEMPLATE' },
-  { from: 'IN_REVIEW',    to: 'IN_PROGRESS',  trigger: 'STATUS', roles: AD },              // withdraw
-  { from: 'APPROVED',     to: 'IN_PROGRESS',  trigger: 'STATUS', roles: AD },              // reopen
-  { from: 'IN_REVIEW',    to: 'APPROVED',     trigger: 'REVIEW_APPROVE', roles: ['ADMINISTRATOR'] },
-  { from: 'IN_REVIEW',    to: 'IN_PROGRESS',  trigger: 'REVIEW_RETURN',  roles: ['ADMINISTRATOR'], requires: 'COMMENT' },
-  { from: 'UNDOCUMENTED', to: 'DRAFT',        trigger: 'EDIT', roles: AD },                // first content saved
-  { from: 'APPROVED',     to: 'IN_PROGRESS',  trigger: 'EDIT', roles: AD },                // approved content changed
+  { from: 'UNDOCUMENTED', to: 'DRAFT', trigger: 'STATUS', roles: AD },
+  { from: 'DRAFT', to: 'UNDOCUMENTED', trigger: 'STATUS', roles: AD },
+  { from: 'DRAFT', to: 'IN_PROGRESS', trigger: 'STATUS', roles: AD },
+  { from: 'IN_PROGRESS', to: 'DRAFT', trigger: 'STATUS', roles: AD },
+  { from: 'IN_PROGRESS', to: 'IN_REVIEW', trigger: 'STATUS', roles: AD, requires: 'COMPLETE_TEMPLATE' },
+  { from: 'IN_REVIEW', to: 'IN_PROGRESS', trigger: 'STATUS', roles: AD }, // withdraw
+  { from: 'APPROVED', to: 'IN_PROGRESS', trigger: 'STATUS', roles: AD }, // reopen
+  { from: 'IN_REVIEW', to: 'APPROVED', trigger: 'REVIEW_APPROVE', roles: ['ADMINISTRATOR'] },
+  { from: 'IN_REVIEW', to: 'IN_PROGRESS', trigger: 'REVIEW_RETURN', roles: ['ADMINISTRATOR'], requires: 'COMMENT' },
+  { from: 'UNDOCUMENTED', to: 'DRAFT', trigger: 'EDIT', roles: AD }, // first content saved
+  { from: 'APPROVED', to: 'IN_PROGRESS', trigger: 'EDIT', roles: AD }, // approved content changed
 ];
 
-export type Outcome = { ok: true; to: DocStatus } | { ok: false; code: 'INVALID_TRANSITION' | 'FORBIDDEN' | 'TEMPLATE_INCOMPLETE' | 'COMMENT_REQUIRED' | 'NOT_IN_REVIEW' };
+export type Outcome =
+  | { ok: true; to: DocStatus }
+  | {
+      ok: false;
+      code: 'INVALID_TRANSITION' | 'FORBIDDEN' | 'TEMPLATE_INCOMPLETE' | 'COMMENT_REQUIRED' | 'NOT_IN_REVIEW';
+    };
 
-export function transition(from: DocStatus, to: DocStatus | null, trigger: Trigger, role: Role,
-                           ctx: { templateComplete?: boolean; comment?: string | null } = {}): Outcome {
+export function transition(
+  from: DocStatus,
+  to: DocStatus | null,
+  trigger: Trigger,
+  role: Role,
+  ctx: { templateComplete?: boolean; comment?: string | null } = {},
+): Outcome {
   const target = to ?? TRANSITIONS.find((r) => r.from === from && r.trigger === trigger)?.to ?? null;
   const rule = TRANSITIONS.find((r) => r.from === from && r.to === target && r.trigger === trigger);
   if (!rule) return { ok: false, code: trigger.startsWith('REVIEW') ? 'NOT_IN_REVIEW' : 'INVALID_TRANSITION' };
