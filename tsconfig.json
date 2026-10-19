@@ -13,6 +13,6 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["src/**/*", "tests/**/*"],
+  "include": ["src/**/*", "tests/**/*", "scripts/**/*.ts"],
   "exclude": ["node_modules", "dist", "tests/04_prisma_audit_e2e.test.ts", "tests/07_auth_rbac.test.ts"]
 }

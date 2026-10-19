@@ -51,6 +51,12 @@ export default tseslint.config(
     },
   },
   {
+    // node:test's describe()/it() return promises that the runner itself tracks; awaiting them is not possible
+    // inside describe callbacks. R-1 (awaited writes) is enforced on src/, where it matters.
+    files: ['tests/**/*.test.ts'],
+    rules: { '@typescript-eslint/no-floating-promises': 'off' },
+  },
+  {
     // Plain JS/MJS files (configs, Phase 2 .mjs test) are not part of a TypeScript project.
     files: ['**/*.{js,mjs}', 'prisma.config.ts'],
     extends: [tseslint.configs.disableTypeChecked],
