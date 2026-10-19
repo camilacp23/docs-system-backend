@@ -25,12 +25,15 @@
     "prisma:generate": "prisma generate",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx src/scripts/seed.ts",
+    "sandbox:db": "tsx scripts/sandbox-db.ts",
+    "sandbox:api": "tsx scripts/sandbox-api.ts",
     "db:drift": "prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --exit-code",
     "test:audit-e2e": "tsx tests/04_prisma_audit_e2e.test.ts",
     "test:jira-signature": "tsx tests/05_jira_signature.test.ts",
     "test:workflow": "tsx tests/06_documentation_workflow.test.ts",
     "test:auth": "tsx tests/07_auth_rbac.test.ts",
-    "test:validation": "node tests/08_request_validation.test.mjs"
+    "test:validation": "node tests/08_request_validation.test.mjs",
+    "test:api": "bash scripts/test-api.sh"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.0",
@@ -59,6 +62,7 @@
     "@types/node": "22.20.5",
     "@types/pg": "8.23.1",
     "@types/supertest": "7.2.1",
+    "@usebruno/cli": "4.2.1",
     "dotenv": "18.0.4",
     "eslint": "10.13.0",
     "eslint-config-prettier": "10.1.8",

@@ -1,0 +1,26 @@
+info:
+  name: 13 List 400 (pageSize above 100)
+  type: http
+  seq: 13
+http:
+  method: GET
+  url: '{{baseUrl}}/users?pageSize=101'
+  headers:
+    - name: Authorization
+      value: Bearer {{adminToken}}
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 400", function () { expect(res.status).to.equal(400); });
+        test("error body has code VALIDATION_ERROR, message and details", function () {
+          expect(res.body.code).to.equal("VALIDATION_ERROR");
+          expect(res.body.message).to.be.a("string").and.not.empty;
+          expect(res.body).to.have.property("details");
+        });
+        test("details.fields names pageSize", function () {
+          expect(res.body.details.fields.map(function (f) { return f.field; })).to.include("pageSize");
+        });
+settings:
+  encodeUrl: true

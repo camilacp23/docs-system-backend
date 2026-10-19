@@ -1,0 +1,14 @@
+name: sandbox
+variables:
+  - name: baseUrl
+    value: http://localhost:3001/api/v1
+  - name: origin
+    value: http://localhost:5173
+  - name: adminEmail
+    value: '{{process.env.SANDBOX_ADMIN_EMAIL}}'
+  - name: adminPassword
+    value: '{{process.env.SANDBOX_ADMIN_PASSWORD}}'
+  - name: reservedEmail
+    value: '{{process.env.SANDBOX_RESERVED_EMAIL}}'
+  - name: reservedId
+    value: '{{process.env.SANDBOX_RESERVED_ID}}'

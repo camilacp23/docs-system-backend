@@ -1,0 +1,27 @@
+info:
+  name: 08 Refresh 401 (reuse revoked the whole family)
+  type: http
+  seq: 8
+http:
+  method: POST
+  url: '{{baseUrl}}/auth/refresh'
+  headers:
+    - name: Origin
+      value: '{{origin}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        const jar = bru.cookies.jar();
+        await jar.setCookie(bru.getEnvVar("baseUrl") + "/auth", { key: "rt", value: bru.getVar("rt2"), path: "/api/v1/auth", secure: true, httpOnly: true });
+    - type: tests
+      code: |-
+        test("status 401", function () { expect(res.status).to.equal(401); });
+        test("error body has code REFRESH_INVALID, message and details", function () {
+          expect(res.body.code).to.equal("REFRESH_INVALID");
+          expect(res.body.message).to.be.a("string").and.not.empty;
+          expect(res.body).to.have.property("details");
+        });
+settings:
+  encodeUrl: true

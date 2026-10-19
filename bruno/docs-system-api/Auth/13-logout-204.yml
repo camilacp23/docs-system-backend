@@ -1,0 +1,33 @@
+info:
+  name: 13 Logout 204
+  type: http
+  seq: 13
+http:
+  method: POST
+  url: '{{baseUrl}}/auth/logout'
+  headers:
+    - name: Origin
+      value: '{{origin}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        const jar = bru.cookies.jar();
+        await jar.setCookie(bru.getEnvVar("baseUrl") + "/auth", { key: "rt", value: bru.getVar("rt3"), path: "/api/v1/auth", secure: true, httpOnly: true });
+    - type: tests
+      code: |-
+        test("status 204 without body", function () {
+          expect(res.status).to.equal(204);
+          expect(res.body === "" || res.body === undefined || res.body === null).to.equal(true);
+        });
+        test("the rt cookie is cleared", function () {
+          const sc = [].concat(res.headers["set-cookie"] || []).find(function (c) { return c.startsWith("rt="); });
+          expect(sc, "rt cookie").to.be.a("string");
+          expect(sc).to.match(/^rt=;/);
+          expect(sc).to.include("Path=/api/v1/auth");
+          expect(sc).to.include("Expires=Thu, 01 Jan 1970");
+        });
+        test("response is not cacheable", function () { expect(res.headers["cache-control"]).to.equal("no-store"); });
+settings:
+  encodeUrl: true

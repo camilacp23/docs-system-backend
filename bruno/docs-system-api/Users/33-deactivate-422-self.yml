@@ -1,0 +1,23 @@
+info:
+  name: 33 Deactivate 422 (CANNOT_DEACTIVATE_SELF, DELETE own id)
+  type: http
+  seq: 33
+http:
+  method: DELETE
+  url: '{{baseUrl}}/users/{{adminId}}'
+  headers:
+    - name: Authorization
+      value: Bearer {{adminToken}}
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 422", function () { expect(res.status).to.equal(422); });
+        test("error body has code CANNOT_DEACTIVATE_SELF, message and details", function () {
+          expect(res.body.code).to.equal("CANNOT_DEACTIVATE_SELF");
+          expect(res.body.message).to.be.a("string").and.not.empty;
+          expect(res.body).to.have.property("details");
+        });
+settings:
+  encodeUrl: true

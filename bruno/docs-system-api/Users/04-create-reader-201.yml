@@ -1,0 +1,34 @@
+info:
+  name: 04 Create reader 201
+  type: http
+  seq: 4
+http:
+  method: POST
+  url: '{{baseUrl}}/users'
+  headers:
+    - name: Authorization
+      value: Bearer {{adminToken}}
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Run Reader",
+        "email": "reader-{{runId}}@sandbox.local",
+        "password": "Sandbox-Pass-2026",
+        "role": "READER"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: if (res.status === 201) { bru.setVar("readerId", res.body.data.id); }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("body is the created user", function () {
+          expect(res.body.data.role).to.equal("READER");
+          expect(res.body.data).to.not.have.property("passwordHash");
+        });
+        test("Location points to the new user", function () { expect(res.headers["location"]).to.equal("/api/v1/users/" + res.body.data.id); });
+settings:
+  encodeUrl: true

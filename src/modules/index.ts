@@ -4,6 +4,16 @@
  *
  * @module modules
  */
+import type { Database } from '../db/prisma.js';
 import type { OperationHandlers } from '../http/operations.js';
+import { authHandlers } from './auth/routes.js';
+import { usersHandlers } from './users/routes.js';
 
-export const moduleHandlers: OperationHandlers = {};
+/**
+ * Builds the handlers of every implemented module.
+ *
+ * @param deps - The database the services use.
+ */
+export function createModuleHandlers(deps: { db: Database }): OperationHandlers {
+  return { ...authHandlers(deps.db), ...usersHandlers(deps.db) };
+}
