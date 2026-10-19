@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Technical Documentation System API
-  version: 0.3.0
+  version: 0.3.1
   summary: REST API contracts — SDD Interface Viewpoint (Bitácora 3, Activities 5 and 6)
   description: |
     Contracts of the eleven modules (41 operations of SRS Table 25), the
@@ -34,6 +34,12 @@ info:
     report `parameters` in the detail (CP-10); review decision on comments (CP-11).
     No operation was added or removed (50).
 
+    Changes in 0.3.1 (Phase 3 decisions D-61 and D-64): `SessionResponse.data`
+    gains the required `sessionExpiresIn` (seconds until the absolute end of the
+    12 h session; returned by login and refresh). `CONTEXT_SCREEN_MISMATCH` also
+    covers a context variable that has no origin screen, with its own message and
+    `details`. No operation was added or removed (50).
+
     Error catalog (`code` -> HTTP status: `message`):
 
     | Code | HTTP | Message |
@@ -54,7 +60,8 @@ info:
     | SCOPE_CONFLICT | 422 | You can't change the scope while collections assign this variable with <function>. Update those assignments first. |
     | CROSS_APPLICATION | 422 | You can only link elements of the same application. |
     | INVALID_ORIGIN_SCREEN | 422 | Context variables are created inside a screen, not in App (OnStart). |
-    | CONTEXT_SCREEN_MISMATCH | 422 | <variable> belongs to <screen>. From here you can only write it with Navigate. |
+    | CONTEXT_SCREEN_MISMATCH | 422 | <variable> belongs to <screen>. From here you can only write it with Navigate. (`details`: variableId, variable, originScreenId, screen, screenId, targetScreen) |
+    | CONTEXT_SCREEN_MISMATCH (no origin screen) | 422 | <variable> has no origin screen. Set its origin screen before linking it. (`details`: variableId, variable, originScreenId: null, screenId, targetScreen) |
     | LAST_ACTIVE_ADMIN | 422 | There must be at least one active administrator. Promote another user first. |
     | CANNOT_DEACTIVATE_SELF | 422 | You can't deactivate your own account. |
     | RESERVED_ACCOUNT | 422 | This is a system account and can't be changed. |
@@ -1820,7 +1827,9 @@ components:
             INVALID_ORIGIN_SCREEN:
               value: { code: INVALID_ORIGIN_SCREEN, message: "Context variables are created inside a screen, not in App (OnStart).", details: { field: originScreenId } }
             CONTEXT_SCREEN_MISMATCH:
-              value: { code: CONTEXT_SCREEN_MISMATCH, message: "locFiltro belongs to Solicitudes. From here you can only write it with Navigate.", details: { variableId: 15, variable: locFiltro, originScreenId: 3, screen: Solicitudes, screenId: 4 } }
+              value: { code: CONTEXT_SCREEN_MISMATCH, message: "locFiltro belongs to Solicitudes. From here you can only write it with Navigate.", details: { variableId: 15, variable: locFiltro, originScreenId: 3, screen: Solicitudes, screenId: 4, targetScreen: Detalle } }
+            CONTEXT_SCREEN_MISMATCH_NO_ORIGIN:
+              value: { code: CONTEXT_SCREEN_MISMATCH, message: "locFiltro has no origin screen. Set its origin screen before linking it.", details: { variableId: 15, variable: locFiltro, originScreenId: null, screenId: 4, targetScreen: Detalle } }
             LAST_ACTIVE_ADMIN:
               value: { code: LAST_ACTIVE_ADMIN, message: "There must be at least one active administrator. Promote another user first.", details: null }
             CANNOT_DEACTIVATE_SELF:
@@ -1963,11 +1972,18 @@ components:
       properties:
         data:
           type: object
-          required: [accessToken, tokenType, expiresIn, user]
+          required: [accessToken, tokenType, expiresIn, sessionExpiresIn, user]
           properties:
             accessToken: { type: string, description: JWT }
             tokenType: { type: string, const: Bearer }
             expiresIn: { type: integer, description: Seconds, example: 28800 }
+            sessionExpiresIn:
+              type: integer
+              description: >-
+                Seconds left until the absolute end of the session (12 hours after login,
+                never extended by refresh). Relative, so it does not depend on the client clock.
+                The frontend uses it to warn before the session ends.
+              example: 39600
             user: { $ref: '#/components/schemas/User' }
 
     # ------------------------------------------------------------ users
