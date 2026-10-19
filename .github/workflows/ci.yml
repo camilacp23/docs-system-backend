@@ -21,7 +21,8 @@ permissions:
 jobs:
   verify:
     name: Verify backend
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest moves to Ubuntu 26, where the PGDG client install below may break.
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
 
     env:
@@ -78,9 +79,16 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
 
       - name: Audit all dependencies (informational)
-        # The remaining findings belong to the Bruno CLI (development only, no fix available).
-        continue-on-error: true
-        run: npm audit --audit-level=high
+        # The remaining findings belong to the Bruno CLI (development only, no fix available). They are reported as
+        # a warning annotation and never fail the job.
+        run: |
+          if report="$(npm audit --audit-level=high 2>&1)"; then
+            echo "$report"
+          else
+            echo "$report"
+            summary="$(echo "$report" | grep -E '^[0-9]+ vulnerabilities' | head -n 1)"
+            echo "::warning title=npm audit (all dependencies)::${summary:-Vulnerabilities found}. Development-only; production dependencies are checked in the blocking step."
+          fi
 
       - name: Generate passwords for docs_owner and docs_app
         run: |
