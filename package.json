@@ -85,5 +85,16 @@
     "*.{json,yml,yaml}": [
       "node node_modules/prettier/bin/prettier.cjs --write"
     ]
+  },
+  "overrides": {
+    "@usebruno/cli": {
+      "axios": "1.20.0",
+      "form-data": "4.0.6",
+      "js-yaml": "4.3.2",
+      "uuid": "11.1.1",
+      "yaml": "2.9.1",
+      "csv-parse": "7.0.3",
+      "@faker-js/faker": "10.6.0"
+    }
   }
 }

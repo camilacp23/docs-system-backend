@@ -75,20 +75,8 @@ jobs:
           npm ci
           pip install pyyaml==6.0.3
 
-      - name: Audit production dependencies (blocking)
-        run: npm audit --omit=dev --audit-level=high
-
-      - name: Audit all dependencies (informational)
-        # The remaining findings belong to the Bruno CLI (development only, no fix available). They are reported as
-        # a warning annotation and never fail the job.
-        run: |
-          if report="$(npm audit --audit-level=high 2>&1)"; then
-            echo "$report"
-          else
-            echo "$report"
-            summary="$(echo "$report" | grep -E '^[0-9]+ vulnerabilities' | head -n 1)"
-            echo "::warning title=npm audit (all dependencies)::${summary:-Vulnerabilities found}. Development-only; production dependencies are checked in the blocking step."
-          fi
+      - name: Audit all dependencies (blocking)
+        run: npm audit --audit-level=high
 
       - name: Generate passwords for docs_owner and docs_app
         run: |
