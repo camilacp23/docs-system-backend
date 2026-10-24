@@ -6,6 +6,7 @@
  */
 import type { Prisma, PrismaClient, UserRole, UserStatus } from '../../generated/prisma/client.js';
 import { USER_VIEW_SELECT } from '../auth/repository.js';
+import { escapeLike } from '../../http/like.js';
 
 /** Clients accepted by the queries: the plain client or the transaction client of `auditedTransaction`. */
 export type UsersClient = Pick<PrismaClient, 'user' | 'refreshToken' | '$queryRaw'>;
@@ -23,9 +24,6 @@ export type UserListQuery = {
   skip: number;
   take: number;
 };
-
-/** Escapes the LIKE wildcards: Prisma's `contains` does not, so `q=%` would match every user. */
-const escapeLike = (text: string): string => text.replace(/[\\%_]/g, (c) => `\\${c}`);
 
 /** A page of users and the total that matches the filters. */
 export async function listUsers(client: UsersClient, query: UserListQuery): Promise<[UserView[], number]> {

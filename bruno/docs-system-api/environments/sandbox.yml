@@ -12,3 +12,15 @@ variables:
     value: '{{process.env.SANDBOX_RESERVED_EMAIL}}'
   - name: reservedId
     value: '{{process.env.SANDBOX_RESERVED_ID}}'
+  - name: fixturesAppId
+    value: '{{process.env.SANDBOX_FIXTURES_APP_ID}}'
+  - name: screenAId
+    value: '{{process.env.SANDBOX_FIXTURES_SCREEN_A_ID}}'
+  - name: screenBId
+    value: '{{process.env.SANDBOX_FIXTURES_SCREEN_B_ID}}'
+  - name: sharedVariableId
+    value: '{{process.env.SANDBOX_FIXTURES_VARIABLE_ID}}'
+  - name: linkedVariableId
+    value: '{{process.env.SANDBOX_FIXTURES_LINKED_VARIABLE_ID}}'
+  - name: collectionId
+    value: '{{process.env.SANDBOX_FIXTURES_COLLECTION_ID}}'

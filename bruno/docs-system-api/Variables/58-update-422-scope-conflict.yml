@@ -1,0 +1,37 @@
+info:
+  name: '58 Update 422 (SCOPE_CONFLICT: gSandboxShared has a SET assignment)'
+  type: http
+  seq: 58
+http:
+  method: PUT
+  url: '{{baseUrl}}/variables/{{sharedVariableId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "gSandboxShared",
+        "dataType": "TEXT",
+        "scope": "CONTEXT",
+        "originScreenId": {{screenAId}},
+        "environments": [{ "environment": "DEV" }, { "environment": "PROD" }]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 422", function () { expect(res.status).to.equal(422); });
+        test("error body has code SCOPE_CONFLICT, message and details", function () {
+          expect(res.body.code).to.equal("SCOPE_CONFLICT");
+          expect(res.body.message).to.be.a("string").and.not.empty;
+          expect(res.body).to.have.property("details");
+        });
+        test("message and details name the function", function () {
+          expect(res.body.message).to.equal("You can't change the scope while collections assign this variable with Set. Update those assignments first.");
+          expect(res.body.details).to.deep.equal({ function: "Set" });
+        });
+settings:
+  encodeUrl: true

@@ -1,0 +1,47 @@
+info:
+  name: 51 Update 200 (matching If-Match; adds PROD and a description)
+  type: http
+  seq: 51
+http:
+  method: PUT
+  url: '{{baseUrl}}/variables/{{varGlobalId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+    - name: If-Match
+      value: '{{varGlobalEtag}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{varPrefix}}Global",
+        "dataType": "TEXT",
+        "scope": "GLOBAL",
+        "description": "Edited by the collection",
+        "originScreenId": null,
+        "environments": [{ "environment": "DEV", "notes": "Dev note" }, { "environment": "PROD", "notes": "Added" }]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 200) {
+          bru.setVar("varGlobalEtagOld", bru.getVar("varGlobalEtag"));
+          bru.setVar("varGlobalEtag", res.headers["etag"]);
+        }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the body is the updated variable", function () {
+          const d = res.body.data;
+          expect(d.description).to.equal("Edited by the collection");
+          expect(d.environments).to.have.members(["DEV", "PROD"]);
+          expect(d.environmentDetails).to.deep.equal([{ environment: "DEV", notes: "Dev note" }, { environment: "PROD", notes: "Added" }]);
+        });
+        test("the ETag changed", function () {
+          expect(res.headers["etag"]).to.match(/^W\/"\d+"$/);
+          expect(res.headers["etag"]).to.not.equal(bru.getVar("varGlobalEtagOld"));
+        });
+settings:
+  encodeUrl: true

@@ -1,0 +1,19 @@
+info:
+  name: '49 List 200 (a filter that matches nothing: empty page)'
+  type: http
+  seq: 49
+http:
+  method: GET
+  url: '{{baseUrl}}/variables?applicationId={{fixturesAppId}}&q={{varPrefix}}zzzz'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("an empty page, not an error", function () { expect(res.body).to.deep.equal({ data: [], page: 1, pageSize: 20, total: 0 }); });
+settings:
+  encodeUrl: true

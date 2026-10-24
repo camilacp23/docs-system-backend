@@ -1,0 +1,23 @@
+info:
+  name: 42 List 200 (environment=PROD)
+  type: http
+  seq: 42
+http:
+  method: GET
+  url: '{{baseUrl}}/variables?applicationId={{fixturesAppId}}&q={{varPrefix}}&environment=PROD'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("total", function () { expect(res.body.total).to.equal(1); });
+        test("names", function () {
+          const p = bru.getVar("varPrefix");
+          expect(res.body.data.map(function (x) { return x.name; })).to.deep.equal(["Ctx"].map(function (n) { return p + n; }));
+        });
+settings:
+  encodeUrl: true

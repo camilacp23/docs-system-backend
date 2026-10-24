@@ -1,0 +1,20 @@
+info:
+  name: 53 Get 304 (the new ETag is the validator)
+  type: http
+  seq: 53
+http:
+  method: GET
+  url: '{{baseUrl}}/variables/{{varGlobalId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varReaderToken}}'
+    - name: If-None-Match
+      value: '{{varGlobalEtag}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 304", function () { expect(res.status).to.equal(304); });
+settings:
+  encodeUrl: true

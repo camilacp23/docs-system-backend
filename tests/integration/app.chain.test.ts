@@ -115,7 +115,7 @@ describe('application chain', () => {
 
     it('right role, valid request, no module yet -> 404 NOT_FOUND / NOT_IMPLEMENTED (after validation)', async () => {
       const res = await t.http
-        .get('/api/v1/variables?applicationId=1')
+        .get('/api/v1/onboarding/summary?applicationId=1')
         .set('Authorization', bearer(t.users.admin.token));
       assert.equal(res.status, 404);
       assert.equal(bodyOf(res).code, 'NOT_FOUND');

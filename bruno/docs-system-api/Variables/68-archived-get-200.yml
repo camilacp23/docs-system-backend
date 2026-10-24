@@ -1,0 +1,18 @@
+info:
+  name: 68 Archived · get 200 (reading is still allowed)
+  type: http
+  seq: 68
+http:
+  method: GET
+  url: '{{baseUrl}}/variables/{{varArchivedVarId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+settings:
+  encodeUrl: true

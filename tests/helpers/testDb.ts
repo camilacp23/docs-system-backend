@@ -41,8 +41,8 @@ export type TestDb = {
   appUrl: string;
   /** Connection URL of the owner role (docs_owner): for fixtures that docs_app may not write. */
   ownerUrl: string;
-  /** Drops the database (idempotent). */
-  drop: () => Promise<void>;
+  /** Drops the database (idempotent), after waiting up to `waitMs` for its sessions to close. */
+  drop: (waitMs?: number) => Promise<void>;
 };
 
 function requireEnv(name: string): string {
@@ -154,6 +154,51 @@ export async function ensureTemplate(): Promise<{ reused: boolean }> {
   }
 }
 
+/** A session connected to a disposable database, as `pg_stat_activity` shows it to docs_owner. */
+type Session = {
+  usename: string | null;
+  state: string | null;
+  application_name: string;
+  backend_type: string;
+};
+
+/** The sessions connected to `database` other than `client` (to name whoever keeps it from being dropped). */
+async function sessionsOf(client: pg.Client, database: string): Promise<Session[]> {
+  const r = await client.query<Session>(
+    `SELECT usename, state, application_name, backend_type FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()`,
+    [database],
+  );
+  return r.rows;
+}
+
+/**
+ * Drops `database` with `WITH (FORCE)`. A client that has closed its socket (or an autovacuum worker) may still be
+ * shutting down for a few milliseconds after `pg_stat_activity` stops listing it; FORCE then tries to terminate it
+ * and docs_owner may not signal other roles' backends (42501 "permission denied to terminate process"). That
+ * error is retried until `waitMs` has passed. Anything else, or a session that never goes away (a leak), is an
+ * error that names the open sessions; nothing is ignored.
+ */
+async function dropDatabase(client: pg.Client, database: string, waitMs: number): Promise<void> {
+  const deadline = Date.now() + waitMs;
+  for (;;) {
+    try {
+      await client.query(`DROP DATABASE IF EXISTS ${database} WITH (FORCE)`);
+      return;
+    } catch (error) {
+      const retryable = (error as { code?: string }).code === '42501' && Date.now() < deadline;
+      if (retryable) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        continue;
+      }
+      const open = await sessionsOf(client, database).catch(() => []);
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new Error(`could not drop ${database}: ${reason}. Sessions still open: ${JSON.stringify(open)}`, {
+        cause: error,
+      });
+    }
+  }
+}
+
 /** Clones the template into a new `docs_test_<random>` database. Call `drop()` when the test file ends. */
 export async function createTestDb(): Promise<TestDb> {
   await ensureTemplate();
@@ -173,12 +218,12 @@ export async function createTestDb(): Promise<TestDb> {
     name,
     appUrl: withDatabase(requireEnv('APP_DATABASE_URL'), name),
     ownerUrl: withDatabase(requireEnv('DATABASE_URL'), name),
-    drop: async () => {
+    drop: async (waitMs = 10_000) => {
       if (dropped) return;
       assertTestDatabase(name);
       const dropper = await connectMaintenance();
       try {
-        await dropper.query(`DROP DATABASE IF EXISTS ${name} WITH (FORCE)`);
+        await dropDatabase(dropper, name, waitMs);
         dropped = true;
       } finally {
         await dropper.end();

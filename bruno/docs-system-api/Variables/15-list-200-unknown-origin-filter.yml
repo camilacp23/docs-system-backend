@@ -1,0 +1,19 @@
+info:
+  name: '15 List 200 (originScreenId of a screen that does not exist: empty page)'
+  type: http
+  seq: 15
+http:
+  method: GET
+  url: '{{baseUrl}}/variables?applicationId={{fixturesAppId}}&originScreenId=999999999'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("an empty page, not an error", function () { expect(res.body).to.deep.equal({ data: [], page: 1, pageSize: 20, total: 0 }); });
+settings:
+  encodeUrl: true

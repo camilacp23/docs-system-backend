@@ -1,0 +1,40 @@
+info:
+  name: 50 Update 412 (stale If-Match)
+  type: http
+  seq: 50
+http:
+  method: PUT
+  url: '{{baseUrl}}/variables/{{varGlobalId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+    - name: If-Match
+      value: 'W/"1"'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{varPrefix}}Global",
+        "dataType": "TEXT",
+        "scope": "GLOBAL",
+        "description": "Stale write",
+        "originScreenId": null,
+        "environments": [{ "environment": "DEV", "notes": "Dev note" }]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 412", function () { expect(res.status).to.equal(412); });
+        test("error body has code PRECONDITION_FAILED, message and details", function () {
+          expect(res.body.code).to.equal("PRECONDITION_FAILED");
+          expect(res.body.message).to.be.a("string").and.not.empty;
+          expect(res.body).to.have.property("details");
+        });
+        test("details carry the current ETag", function () {
+          expect(res.body.details.element).to.equal("variable");
+          expect(res.body.details.currentETag).to.equal(bru.getVar("varGlobalEtag"));
+        });
+settings:
+  encodeUrl: true
