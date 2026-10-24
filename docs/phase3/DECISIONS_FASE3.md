@@ -77,7 +77,7 @@ No se editó `api/openapi.yaml` en esa tarea.
 - `listCollections`: declarar la respuesta 404 por `applicationId` inexistente o fuera de rango (D-70) y documentar que `undocumented=false` equivale a omitir el parámetro.
 - `POST /collections`: declarar la respuesta 404 (aplicación, variable, pantalla o colección de origen inexistentes), la cabecera `ETag` del 201 (D-62) y `DUPLICATE_NAME` en `x-error-codes`; `DUPLICATE_NAME` con `container: application` (D-63).
 - `POST` y `PUT /collections`: `CROSS_APPLICATION` lleva ahora `details { field }`; `SCOPE_MISMATCH` lleva `details { field }`; `CONTEXT_SCREEN_MISMATCH` agrega `field` a los details de D-64 (D-76). Documentar el orden de las reglas.
-- `PUT /collections/{id}`: documentar que un arreglo ausente equivale a un arreglo vacío (reemplaza toda la representación editable), D-26 (reconciliación por id), D-71 (If-Match siempre verificado, PUT sin cambios devuelve el mismo ETag) y D-62 (un cambio en cualquier arreglo anidado mueve el ETag de la colección).
+- `PUT /collections/{id}`: documentar que omitir `fields`, `variableAssignments` o `derivedFrom` borra los existentes (un arreglo ausente equivale a un arreglo vacío; reemplaza toda la representación editable), D-26 (reconciliación por id), D-71 (If-Match siempre verificado, PUT sin cambios devuelve el mismo ETag) y D-62 (un cambio en cualquier arreglo anidado mueve el ETag de la colección).
 - D-75: el 404 de un id anidado ajeno declara `details { element, id, field }`.
 - D-74: `derivedFrom` es un conjunto de ids de colección (sin id de fila), la colección editada es el origen, la autoderivación es 400 y los ciclos están permitidos. **Mensaje del frontend:** la regla nueva es `rule: "self"` en `field: "derivedFrom[i]"` (i = posición del id repetido), con `message: "A collection cannot derive from itself."`, dentro de `details.fields` de un 400 `VALIDATION_ERROR`.
 - `CollectionWrite.environments` y `derivedFrom`: `uniqueItems` solo cubre elementos idénticos y no informa la posición; el servicio lo vuelve a verificar con 400 `unique` en `environments[i].environment` / `derivedFrom[i]`.
@@ -87,6 +87,6 @@ No se editó `api/openapi.yaml` en esa tarea.
 
 D-74 permite ciclos entre colecciones (`DERIVES_FROM`). Todo lector recursivo futuro (análisis de impacto, recorridos transitivos del grafo) debe ser seguro ante ciclos (conjunto de visitados o `CYCLE` en la consulta recursiva). `graph.sql` actual no es recursivo.
 
-### Pendiente por decidir (dbRules, D-65)
+### Pendiente para el Módulo 4 (pantallas)
 
-`dependency_no_self_chk` se traduce hoy a 500 `INTERNAL_ERROR` (`DEPENDENCY_DERIVED`). `PUT /collections` ya no puede llegar a él (D-74 lo valida antes). El constraint también cubre `NAVIGATES_TO` (pantalla → sí misma) en `PUT /screens` (Módulo 4): cambiar su traducción de respaldo exige un campo por operación (`updateCollection` → `derivedFrom[]`, `updateScreen` → `navigations[].targetScreenId`). Pendiente de aprobación; no se cambió.
+`dependency_no_self_chk` (D-65) ya se traduce a 400 `VALIDATION_ERROR` `rule: "self"` en `derivedFrom[i]` para `createCollection` y `updateCollection` (la posición se toma del cuerpo; `derivedFrom[]` si no se encuentra). Cualquier otra operación sigue en 500 de respaldo (`DEPENDENCY_DERIVED`). Cuando exista `PUT /screens`, agregar `updateScreen: 'navigations'` (campo `navigations[i]`) a `fields` de esa regla en `src/http/dbRules.ts`, validar la autonavegación en el servicio y actualizar la prueba de `dbErrors.test.ts`.

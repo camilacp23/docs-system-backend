@@ -216,6 +216,15 @@ async function applyRule(rule: ConstraintRule, facts: DbFacts, ctx: TranslationC
       return duplicateName(rule, ctx);
     case 'validation':
       return api(E.validation([{ field: rule.field, rule: rule.rule, message: rule.message }]));
+    case 'operationValidation': {
+      const array = operationId === undefined ? undefined : rule.fields[operationId];
+      if (array === undefined) return { kind: 'internal', reason: rule.reason };
+      const items = Array.isArray(body[array]) ? (body[array] as unknown[]) : [];
+      // The database does not say which item it was: for a self-reference it is the id of the resource itself.
+      const position = paramId === undefined ? -1 : items.indexOf(paramId);
+      const field = position < 0 ? `${array}[]` : `${array}[${position}]`;
+      return api(E.validation([{ field, rule: 'self', message: rule.message }]));
+    }
     case 'notFound':
       return api(E.notFound((operationId !== undefined ? rule.byOperation?.[operationId] : undefined) ?? rule.element));
     case 'scope': {
