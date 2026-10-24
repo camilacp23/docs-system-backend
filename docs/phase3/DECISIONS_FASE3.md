@@ -55,33 +55,33 @@ D-60 a D-76 (y la ampliación de la Tabla 59 de D-64); Tabla 7 (helmet/cors marc
 (rutas `/apps/:appId` → rutas de D-57); §7.3.2 (el archivo de Figma no tiene página "Design system"
 ni variables; los tokens viven en `docs/design/DESIGN_REFERENCE.md` del frontend).
 
-## Pendientes del contrato (0.3.3, al final del backend)
+## Pendientes del contrato (resueltos en 0.3.3)
 
-Detectados en B-09 (Módulo 2: variables). No se editó `api/openapi.yaml` en esa tarea.
+Los pendientes de los Módulos 2 y 3 quedaron publicados en `api/openapi.yaml` 0.3.3 (B-13). Se conservan abajo como registro; los que siguen abiertos están en las secciones de los módulos futuros. Además, 0.3.3 cubre tres arreglos pendientes desde el SDD v1.1: el ejemplo 401 `REFRESH_INVALID` de `POST /auth/refresh`, la cabecera `X-Request-Id` en todas las respuestas y `details.container` en los ejemplos de `DUPLICATE_NAME`; y corrige el ejemplo de `ValidationError` (`rule: minItems`, mensaje del validador, en lugar de `issue: min_items`).
 
-- `POST /variables`: quitar `CROSS_APPLICATION` de `x-error-codes` (y de la Tabla 48 del SDD); lo reemplaza el segundo caso de `INVALID_ORIGIN_SCREEN` (D-68).
-- `RuleViolation`: agregar el segundo mensaje de `INVALID_ORIGIN_SCREEN` y su ejemplo con `details { field, screenId, screen, application }` (D-68).
-- `DUPLICATE_NAME`: describir D-69 (variable de contexto sin origen → ámbito `application`) y el valor `container`.
-- `POST /variables`: declarar la respuesta 404 (aplicación u `originScreenId` inexistente), que hoy falta, y la cabecera `ETag` del 201 (D-62).
-- `listVariables`, `listScreens` y los listados del Módulo 3: declarar la respuesta 404 por `applicationId` inexistente o fuera de rango (D-70).
-- `VariableDependenciesEnvelope.screens`: la descripción dice "including the origin row", pero la fila de origen se excluye (SDD §10.1; la informa `originScreen`).
-- `VariableWrite.environments`: `uniqueItems` solo rechaza elementos idénticos; el mismo ambiente con notas distintas lo rechaza el servicio con 400 `unique` en `environments[i].environment`. Documentarlo.
-- `PUT /variables/{id}`: documentar D-71 (If-Match siempre verificado, PUT sin cambios devuelve el mismo ETag).
-- `listVariables.untraced`: el contrato solo dice "true = only variables without an origin screen". Documentar que `untraced=false` equivale a omitir el parámetro (sin filtro). La misma regla aplicará a `undocumented` en el Módulo 3.
-- ETag de los GET (D-72): declarar la cabecera `ETag` en la respuesta 200 de todos los GET (hoy solo la declaran los de un recurso con `updatedAt`), el parámetro `If-None-Match` y la respuesta `304`.
+Detectados en B-09 (Módulo 2: variables).
+
+- **Resuelto en 0.3.3.** `POST /variables`: quitar `CROSS_APPLICATION` de `x-error-codes` (y de la Tabla 48 del SDD); lo reemplaza el segundo caso de `INVALID_ORIGIN_SCREEN` (D-68).
+- **Resuelto en 0.3.3.** `RuleViolation`: agregar el segundo mensaje de `INVALID_ORIGIN_SCREEN` y su ejemplo con `details { field, screenId, screen, application }` (D-68).
+- **Resuelto en 0.3.3.** `DUPLICATE_NAME`: describir D-69 (variable de contexto sin origen → ámbito `application`) y el valor `container`.
+- **Resuelto en 0.3.3.** `POST /variables`: declarar la respuesta 404 (aplicación u `originScreenId` inexistente), que hoy falta, y la cabecera `ETag` del 201 (D-62).
+- **Resuelto en 0.3.3.** `listVariables`, `listScreens` y los listados del Módulo 3: declarar la respuesta 404 por `applicationId` inexistente o fuera de rango (D-70).
+- **Resuelto en 0.3.3.** `VariableDependenciesEnvelope.screens`: la descripción dice "including the origin row", pero la fila de origen se excluye (SDD §10.1; la informa `originScreen`).
+- **Resuelto en 0.3.3.** `VariableWrite.environments`: `uniqueItems` solo rechaza elementos idénticos; el mismo ambiente con notas distintas lo rechaza el servicio con 400 `unique` en `environments[i].environment`. Documentarlo.
+- **Resuelto en 0.3.3.** `PUT /variables/{id}`: documentar D-71 (If-Match siempre verificado, PUT sin cambios devuelve el mismo ETag).
+- **Resuelto en 0.3.3.** `listVariables.untraced`: el contrato solo dice "true = only variables without an origin screen". Documentar que `untraced=false` equivale a omitir el parámetro (sin filtro). La misma regla aplicará a `undocumented` en el Módulo 3.
+- **Resuelto en 0.3.3.** ETag de los GET (D-72): declarar la cabecera `ETag` en la respuesta 200 de todos los GET (hoy solo la declaran los de un recurso con `updatedAt`), el parámetro `If-None-Match` y la respuesta `304`.
 
 ### Módulo 3: colecciones (B-11)
 
-No se editó `api/openapi.yaml` en esa tarea.
-
-- `listCollections`: declarar la respuesta 404 por `applicationId` inexistente o fuera de rango (D-70) y documentar que `undocumented=false` equivale a omitir el parámetro.
-- `POST /collections`: declarar la respuesta 404 (aplicación, variable, pantalla o colección de origen inexistentes), la cabecera `ETag` del 201 (D-62) y `DUPLICATE_NAME` en `x-error-codes`; `DUPLICATE_NAME` con `container: application` (D-63).
-- `POST` y `PUT /collections`: `CROSS_APPLICATION` lleva ahora `details { field }`; `SCOPE_MISMATCH` lleva `details { field }`; `CONTEXT_SCREEN_MISMATCH` agrega `field` a los details de D-64 (D-76). Documentar el orden de las reglas.
-- `PUT /collections/{id}`: documentar que omitir `fields`, `variableAssignments` o `derivedFrom` borra los existentes (un arreglo ausente equivale a un arreglo vacío; reemplaza toda la representación editable), D-26 (reconciliación por id), D-71 (If-Match siempre verificado, PUT sin cambios devuelve el mismo ETag) y D-62 (un cambio en cualquier arreglo anidado mueve el ETag de la colección).
-- D-75: el 404 de un id anidado ajeno declara `details { element, id, field }`.
-- D-74: `derivedFrom` es un conjunto de ids de colección (sin id de fila), la colección editada es el origen, la autoderivación es 400 y los ciclos están permitidos. **Mensaje del frontend:** la regla nueva es `rule: "self"` en `field: "derivedFrom[i]"` (i = posición del id repetido), con `message: "A collection cannot derive from itself."`, dentro de `details.fields` de un 400 `VALIDATION_ERROR`.
-- `CollectionWrite.environments` y `derivedFrom`: `uniqueItems` solo cubre elementos idénticos y no informa la posición; el servicio lo vuelve a verificar con 400 `unique` en `environments[i].environment` / `derivedFrom[i]`.
-- `listCollectionFields`, `getCollection` y `listCollections`: ETag/304 según D-72 (ya pendiente arriba).
+- **Resuelto en 0.3.3.** `listCollections`: declarar la respuesta 404 por `applicationId` inexistente o fuera de rango (D-70) y documentar que `undocumented=false` equivale a omitir el parámetro.
+- **Resuelto en 0.3.3.** `POST /collections`: declarar la respuesta 404 (aplicación, variable, pantalla o colección de origen inexistentes), la cabecera `ETag` del 201 (D-62) y `DUPLICATE_NAME` en `x-error-codes`; `DUPLICATE_NAME` con `container: application` (D-63).
+- **Resuelto en 0.3.3.** `POST` y `PUT /collections`: `CROSS_APPLICATION` lleva ahora `details { field }`; `SCOPE_MISMATCH` lleva `details { field }`; `CONTEXT_SCREEN_MISMATCH` agrega `field` a los details de D-64 (D-76). Documentar el orden de las reglas.
+- **Resuelto en 0.3.3.** `PUT /collections/{id}`: documentar que omitir `fields`, `variableAssignments` o `derivedFrom` borra los existentes (un arreglo ausente equivale a un arreglo vacío; reemplaza toda la representación editable), D-26 (reconciliación por id), D-71 (If-Match siempre verificado, PUT sin cambios devuelve el mismo ETag) y D-62 (un cambio en cualquier arreglo anidado mueve el ETag de la colección).
+- **Resuelto en 0.3.3.** D-75: el 404 de un id anidado ajeno declara `details { element, id, field }`.
+- **Resuelto en 0.3.3.** D-74: `derivedFrom` es un conjunto de ids de colección (sin id de fila), la colección editada es el origen, la autoderivación es 400 y los ciclos están permitidos. **Mensaje del frontend:** la regla nueva es `rule: "self"` en `field: "derivedFrom[i]"` (i = posición del id repetido), con `message: "A collection cannot derive from itself."`, dentro de `details.fields` de un 400 `VALIDATION_ERROR`.
+- **Resuelto en 0.3.3.** `CollectionWrite.environments` y `derivedFrom` (y `VariableWrite.environments`): se quitó `uniqueItems`, que solo cubría elementos idénticos y rechazaba sin posición; ahora todo duplicado es 400 `unique` en `environments[i].environment` / `derivedFrom[i]`, con prueba de integración y la solicitud 20 de Bruno.
+- **Resuelto en 0.3.3.** `listCollectionFields`, `getCollection` y `listCollections`: ETag/304 según D-72 (ya pendiente arriba).
 
 ### Pendiente para el Módulo 5 (grafo de dependencias)
 
@@ -90,3 +90,9 @@ D-74 permite ciclos entre colecciones (`DERIVES_FROM`). Todo lector recursivo fu
 ### Pendiente para el Módulo 4 (pantallas)
 
 `dependency_no_self_chk` (D-65) ya se traduce a 400 `VALIDATION_ERROR` `rule: "self"` en `derivedFrom[i]` para `createCollection` y `updateCollection` (la posición se toma del cuerpo; `derivedFrom[]` si no se encuentra). Cualquier otra operación sigue en 500 de respaldo (`DEPENDENCY_DERIVED`). Cuando exista `PUT /screens`, agregar `updateScreen: 'navigations'` (campo `navigations[i]`) a `fields` de esa regla en `src/http/dbRules.ts`, validar la autonavegación en el servicio y actualizar la prueba de `dbErrors.test.ts`.
+
+Abiertos en el contrato (no se describieron en 0.3.3 porque el código aún no los emite):
+
+- `components[i].name` repetido (400 `unique`, D-63) y los ids anidados de `PUT /screens` (D-75): describirlos cuando exista el Módulo 4.
+- `DUPLICATE_NAME` de pantallas (`container: application`, regla `screen_application_id_name_key`): describirlo cuando exista `POST /screens`. El valor `collection` de `container` está permitido en el tipo de `E.duplicateName` pero ningún código lo emite; el contrato declara solo `application`, `screen` y `system`.
+- `POST /auth/refresh` y `POST /auth/logout` pueden responder `403 FORBIDDEN` con `details.reason = "ORIGIN"` (guarda CSRF, `E.originRejected`); el contrato no lo declara. Decidir si se documenta (no está en el catálogo de usuario).
