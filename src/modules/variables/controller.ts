@@ -6,11 +6,12 @@
  */
 import type { Request, Response } from 'express';
 import type { DataType, Environment, VariableScope } from '../../generated/prisma/client.js';
-import { etagOf, setEtag } from '../../http/etag.js';
+import { assertIfMatch, etagOf, setEtag, setLocation } from '../../http/etag.js';
 import { paged, parsePagination, parseSort } from '../../http/pagination.js';
 import type { VariableListQuery, VariableView } from './repository.js';
 import type { VariableService } from './service.js';
 
+const ELEMENT = 'variable';
 const DEFAULT_SORT: VariableListQuery['sort'] = { field: 'name', direction: 'asc' };
 
 const idOf = (req: Request): number => Number(req.params.id);
@@ -61,6 +62,26 @@ export function createVariablesController(service: VariableService) {
     /** GET /variables/:id */
     get: async (req: Request, res: Response): Promise<void> => {
       sendVariable(res, await service.get(idOf(req)));
+    },
+    /** POST /variables */
+    create: async (req: Request, res: Response): Promise<void> => {
+      const variable = await service.create(req.body as Parameters<VariableService['create']>[0]);
+      setLocation(res, '/variables', variable.id);
+      sendVariable(res, variable, 201);
+    },
+    /** PUT /variables/:id */
+    update: async (req: Request, res: Response): Promise<void> => {
+      const variable = await service.update(
+        idOf(req),
+        req.body as Parameters<VariableService['update']>[1],
+        (currentETag) => assertIfMatch(req, ELEMENT, currentETag),
+      );
+      sendVariable(res, variable);
+    },
+    /** DELETE /variables/:id */
+    remove: async (req: Request, res: Response): Promise<void> => {
+      await service.remove(idOf(req));
+      res.status(204).end();
     },
     /** GET /variables/:id/dependencies */
     dependencies: async (req: Request, res: Response): Promise<void> => {

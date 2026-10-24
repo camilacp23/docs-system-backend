@@ -56,3 +56,33 @@ export const variableNames = (res: { body: unknown }): string[] => variablesPage
 /** Typed view of a dependencies response. */
 export const dependenciesOf = (res: { body: unknown }): DependenciesBody =>
   (res.body as { data: DependenciesBody }).data;
+
+let counter = 0;
+
+/** A unique valid variable name. */
+export const uniqueVariableName = (prefix = 'gVar'): string => `${prefix}${(counter += 1)}`;
+
+/** The `details` of an error response, untyped. */
+export const detailsOf = (res: { body: unknown }): Record<string, unknown> =>
+  (res.body as { details: Record<string, unknown> }).details;
+
+/** A valid `POST /variables` body with optional overrides. */
+export const createBodyOf = (applicationId: number, over: Record<string, unknown> = {}) => ({
+  applicationId,
+  name: uniqueVariableName(),
+  dataType: 'TEXT',
+  scope: 'GLOBAL',
+  environments: [{ environment: 'DEV' }],
+  ...over,
+});
+
+/** The body of a `PUT /variables/{id}` that changes nothing, with optional overrides. */
+export const putBodyOf = (v: VariableBody, over: Record<string, unknown> = {}) => ({
+  name: v.name,
+  dataType: v.dataType,
+  scope: v.scope,
+  description: v.description,
+  originScreenId: v.originScreen?.id ?? null,
+  environments: v.environmentDetails,
+  ...over,
+});

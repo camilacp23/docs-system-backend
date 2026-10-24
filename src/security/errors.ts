@@ -107,6 +107,17 @@ export const E = {
       field: 'originScreenId',
     }),
   /**
+   * D-68: the origin screen belongs to another application. `screen` and `application` are names (the frontend fills
+   * the message from `details`); `application` is the application of the variable.
+   */
+  invalidOriginScreenOtherApplication: (screenId: number, screen: string, application: string) =>
+    new ApiError(
+      422,
+      'INVALID_ORIGIN_SCREEN',
+      `${screen} belongs to another application. Choose a screen of ${application}.`,
+      { field: 'originScreenId', screenId, screen, application },
+    ),
+  /**
    * CP-07 / D-64. Raised from the database (trigger check_context_screen_links) and translated by errorHandler.
    * `originScreen` is the name of the variable's origin screen (null when it has none); `screenId` and
    * `targetScreen` identify the screen where the link was attempted.

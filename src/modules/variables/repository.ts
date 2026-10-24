@@ -13,8 +13,18 @@ import { escapeLike } from '../../http/like.js';
 /** Clients accepted by the queries: the plain client or the transaction client of `auditedTransaction`. */
 export type VariablesClient = Pick<
   PrismaClient,
-  'variable' | 'screenVariable' | 'variableCollection' | 'dependency' | '$queryRaw'
+  | 'variable'
+  | 'documentedElement'
+  | 'elementEnvironment'
+  | 'screenVariable'
+  | 'variableCollection'
+  | 'dependency'
+  | '$queryRaw'
+  | '$executeRaw'
 >;
+
+/** First argument of `pg_advisory_xact_lock` reserved for the names of context variables without origin (D-69). */
+export const VARIABLE_NAME_LOCK_SPACE = 20_261_069;
 
 /** Reference to another resource (contract schema `Ref`). */
 export type Ref = { id: number; name: string };
@@ -230,4 +240,166 @@ export async function findVariableDependencies(
         : [];
     }),
   };
+}
+
+/** Presence to write for one environment. */
+export type EnvironmentInput = { environment: Environment; notes: string | null };
+
+/** The first link that the context-screen rule (CP-07, D-52) would reject, or `null` when there is none. */
+export type ForbiddenContextLink = { screenId: number; screenName: string };
+
+/** Locks the variable row until the end of the transaction (PUT, DELETE), so the ETag and the links read are current. */
+export async function lockVariableForUpdate(client: Pick<VariablesClient, '$queryRaw'>, id: number): Promise<void> {
+  await client.$queryRaw`SELECT id FROM variable WHERE id = ${id} FOR UPDATE`;
+}
+
+/**
+ * Serializes the writers of context variables WITHOUT origin screen of one application until the end of the
+ * transaction (D-69): the unique index does not compare NULL, so the service checks the name itself.
+ */
+export async function lockNamelessContextNames(
+  client: Pick<VariablesClient, '$executeRaw'>,
+  applicationId: number,
+): Promise<void> {
+  await client.$executeRaw`SELECT pg_advisory_xact_lock(${VARIABLE_NAME_LOCK_SPACE}::int, ${applicationId}::int)`;
+}
+
+/**
+ * Whether another variable already holds the name where it must be unique (SDD Table 31, D-63, D-69): GLOBAL, in the
+ * application; CONTEXT with origin, in that screen; CONTEXT without origin, among the nameless ones of the application.
+ *
+ * @param exceptId - The variable being updated (it does not collide with itself); `undefined` on create.
+ */
+export async function nameIsTaken(
+  client: Pick<VariablesClient, 'variable'>,
+  key: { applicationId: number; name: string; scope: VariableScope; originScreenId: number | null },
+  exceptId: number | undefined,
+): Promise<boolean> {
+  const where: Prisma.VariableWhereInput = {
+    name: key.name,
+    scope: key.scope,
+    ...(exceptId === undefined ? {} : { id: { not: exceptId } }),
+    ...(key.scope === 'CONTEXT' && key.originScreenId !== null
+      ? { originScreenId: key.originScreenId }
+      : { applicationId: key.applicationId, ...(key.scope === 'CONTEXT' ? { originScreenId: null } : {}) }),
+  };
+  return (await client.variable.findFirst({ where, select: { id: true } })) !== null;
+}
+
+/** Whether the variable has assignments (`variable_collection`) made with `assignmentFunction`. */
+export async function hasAssignmentsWith(
+  client: Pick<VariablesClient, 'variableCollection'>,
+  variableId: number,
+  assignmentFunction: 'SET' | 'UPDATE_CONTEXT',
+): Promise<boolean> {
+  return (
+    (await client.variableCollection.findFirst({ where: { variableId, assignmentFunction }, select: { id: true } })) !==
+    null
+  );
+}
+
+/**
+ * The first link that would break the rule "a context variable is used only in its origin screen" if its origin were
+ * `originScreenId` (CP-07, D-52; same judgement and order as `check_context_screen_links`): a READ or READ_WRITE
+ * `screen_variable` row or any `variable_collection` row in another screen, or any link at all when there is no origin.
+ * The `origin` row of `screen_variable` is ignored: the trigger `ensure_origin_write_link` moves or removes it.
+ */
+export async function findForbiddenContextLink(
+  client: Pick<VariablesClient, 'screenVariable' | 'variableCollection'>,
+  variableId: number,
+  originScreenId: number | null,
+): Promise<ForbiddenContextLink | null> {
+  const screenLink = await client.screenVariable.findFirst({
+    where: {
+      variableId,
+      usedIn: { not: 'origin' },
+      ...(originScreenId === null
+        ? {}
+        : { screenId: { not: originScreenId }, accessMode: { in: ['READ', 'READ_WRITE'] } }),
+    },
+    orderBy: { id: 'asc' },
+    select: { screenId: true, screen: { select: { name: true } } },
+  });
+  if (screenLink) return { screenId: screenLink.screenId, screenName: screenLink.screen.name };
+  const assignment = await client.variableCollection.findFirst({
+    where: { variableId, ...(originScreenId === null ? {} : { screenId: { not: originScreenId } }) },
+    orderBy: { id: 'asc' },
+    select: { screenId: true, screen: { select: { name: true } } },
+  });
+  return assignment ? { screenId: assignment.screenId, screenName: assignment.screen.name } : null;
+}
+
+/** Inserts the element, the variable and its environments in one nested write; returns the id. */
+export async function createVariable(
+  client: Pick<VariablesClient, 'documentedElement'>,
+  applicationId: number,
+  data: VariableData,
+  environments: readonly EnvironmentInput[],
+): Promise<number> {
+  const element = await client.documentedElement.create({
+    data: {
+      type: 'VARIABLE',
+      applicationId,
+      variable: {
+        create: {
+          name: data.name,
+          dataType: data.dataType,
+          scope: data.scope,
+          description: data.description,
+          ...(data.originScreenId === null ? {} : { originScreen: { connect: { id: data.originScreenId } } }),
+        },
+      },
+      environments: {
+        create: environments.map((e) => ({ environment: e.environment, notes: e.notes })),
+      },
+    },
+    select: { id: true },
+  });
+  return element.id;
+}
+
+/** Writes only the given columns (`updated_at` follows by `@updatedAt`). */
+export async function updateVariableColumns(
+  client: Pick<VariablesClient, 'variable'>,
+  id: number,
+  changes: Partial<VariableData>,
+): Promise<void> {
+  await client.variable.update({ where: { id }, data: changes });
+}
+
+/** Touches `updated_at` of the variable, so a change of its environments changes its ETag (D-62). */
+export async function touchVariable(client: Pick<VariablesClient, 'variable'>, id: number): Promise<void> {
+  await client.variable.update({ where: { id }, data: { updatedAt: new Date() } });
+}
+
+/** Makes the environments of the variable equal to `wanted` by difference: delete, update notes, insert. */
+export async function replaceEnvironments(
+  client: Pick<VariablesClient, 'elementEnvironment'>,
+  variableId: number,
+  current: readonly EnvironmentInput[],
+  wanted: readonly EnvironmentInput[],
+): Promise<void> {
+  const wantedNames = wanted.map((e) => e.environment);
+  const gone = current.filter((e) => !wantedNames.includes(e.environment)).map((e) => e.environment);
+  if (gone.length > 0) {
+    await client.elementEnvironment.deleteMany({ where: { elementId: variableId, environment: { in: gone } } });
+  }
+  for (const e of wanted) {
+    const existing = current.find((c) => c.environment === e.environment);
+    if (existing === undefined) {
+      await client.elementEnvironment.create({
+        data: { elementId: variableId, elementType: 'VARIABLE', environment: e.environment, notes: e.notes },
+      });
+    } else if (existing.notes !== e.notes) {
+      await client.elementEnvironment.update({
+        where: { elementId_environment: { elementId: variableId, environment: e.environment } },
+        data: { notes: e.notes },
+      });
+    }
+  }
+}
+
+/** Deletes the variable; the database cascades its links, assignments, environments and dependencies. */
+export async function deleteVariable(client: Pick<VariablesClient, 'variable'>, id: number): Promise<void> {
+  await client.variable.delete({ where: { id } });
 }
