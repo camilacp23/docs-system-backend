@@ -129,6 +129,7 @@ SANDBOX_FIXTURES_VARIABLE_ID=${fixtures.sharedVariableId}
 ` +
       `SANDBOX_FIXTURES_LINKED_VARIABLE_ID=${fixtures.linkedVariableId}
 SANDBOX_FIXTURES_COLLECTION_ID=${fixtures.collectionId}
+SANDBOX_FIXTURES_DOCUMENTED_COLLECTION_ID=${fixtures.documentedCollectionId}
 `,
     { mode: 0o600 },
   );

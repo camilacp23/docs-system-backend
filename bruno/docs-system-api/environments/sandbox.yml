@@ -24,3 +24,5 @@ variables:
     value: '{{process.env.SANDBOX_FIXTURES_LINKED_VARIABLE_ID}}'
   - name: collectionId
     value: '{{process.env.SANDBOX_FIXTURES_COLLECTION_ID}}'
+  - name: documentedCollectionId
+    value: '{{process.env.SANDBOX_FIXTURES_DOCUMENTED_COLLECTION_ID}}'
