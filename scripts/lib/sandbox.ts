@@ -13,9 +13,10 @@ import { loadPasswordPattern } from '../../src/config/seed.js';
 import { createPrisma } from '../../src/db/prisma.js';
 import { runSeed } from '../../src/db/seed.js';
 import { connectMaintenance, ensureTemplate, TEMPLATE_NAME, withDatabase } from '../../tests/helpers/testDb.js';
+import { insertSandboxFixtures, SANDBOX_DB } from './sandboxFixtures.js';
 
-/** The only database these scripts create or drop. */
-export const SANDBOX_DB = 'docs_sandbox';
+export { SANDBOX_DB };
+
 /** Port of the sandbox API (the development API uses 3000). */
 export const SANDBOX_PORT = 3001;
 export const SANDBOX_ADMIN_NAME = 'Sandbox Administrator';
@@ -58,6 +59,13 @@ export function sandboxAppUrl(): string {
   return withDatabase(base, SANDBOX_DB);
 }
 
+/** Connection URL of docs_owner (host and credentials of the development env; the database is replaced by the caller). */
+function requireOwnerUrl(): string {
+  const base = process.env.DATABASE_URL;
+  if (!base) throw new Error('DATABASE_URL is not set (see .env.example)');
+  return base;
+}
+
 /** Drops `docs_sandbox` (no error when it does not exist). */
 export async function dropSandbox(): Promise<void> {
   assertSandbox(SANDBOX_DB);
@@ -70,7 +78,7 @@ export async function dropSandbox(): Promise<void> {
 }
 
 /**
- * Recreates `docs_sandbox` from `docs_test_template`, seeds the administrator and the reserved account, and writes the
+ * Recreates `docs_sandbox` from `docs_test_template`, seeds the administrator and the reserved account, inserts the "Sandbox Fixtures" application, and writes the
  * credentials file of the collection.
  *
  * @returns Nothing; the generated password is only written to {@link SANDBOX_ENV_FILE}.
@@ -107,9 +115,21 @@ export async function recreateSandbox(): Promise<void> {
     await db.base.$disconnect();
   }
 
+  const fixtures = await insertSandboxFixtures(withDatabase(requireOwnerUrl(), SANDBOX_DB), SANDBOX_ADMIN_EMAIL);
+
   writeFileSync(
     SANDBOX_ENV_FILE,
-    `SANDBOX_ADMIN_EMAIL=${SANDBOX_ADMIN_EMAIL}\nSANDBOX_ADMIN_PASSWORD=${password}\nSANDBOX_RESERVED_EMAIL=${SANDBOX_RESERVED_EMAIL}\nSANDBOX_RESERVED_ID=${reservedId}\n`,
+    `SANDBOX_ADMIN_EMAIL=${SANDBOX_ADMIN_EMAIL}\nSANDBOX_ADMIN_PASSWORD=${password}\nSANDBOX_RESERVED_EMAIL=${SANDBOX_RESERVED_EMAIL}\nSANDBOX_RESERVED_ID=${reservedId}
+` +
+      `SANDBOX_FIXTURES_APP_ID=${fixtures.applicationId}
+SANDBOX_FIXTURES_SCREEN_A_ID=${fixtures.screenAId}
+` +
+      `SANDBOX_FIXTURES_SCREEN_B_ID=${fixtures.screenBId}
+SANDBOX_FIXTURES_VARIABLE_ID=${fixtures.sharedVariableId}
+` +
+      `SANDBOX_FIXTURES_LINKED_VARIABLE_ID=${fixtures.linkedVariableId}
+SANDBOX_FIXTURES_COLLECTION_ID=${fixtures.collectionId}
+`,
     { mode: 0o600 },
   );
 }
