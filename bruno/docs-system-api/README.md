@@ -1,7 +1,7 @@
 # docs-system-api (Bruno collection)
 
 Requests and assertions for every implemented operation, grouped by module: `Auth`, `Users`, `Applications`,
-`Screens` (only the listing, until the screens module arrives) and `Variables`. It runs against the isolated database
+`Screens` (only the listing, until the screens module arrives), `Variables` and `Collections`. It runs against the isolated database
 `docs_sandbox`, never against `docs_system`.
 
 ```bash
@@ -15,7 +15,7 @@ only rows with its own prefix, which no later run reads.
 
 ## Sandbox Fixtures
 
-The API cannot yet create screens, links or assignments (they arrive with the screens and collections modules), so
+The API cannot yet create screens or screen links (they arrive with the screens module), so
 `npm run sandbox:db` inserts them directly, after the seed, as an application named **Sandbox Fixtures**
 (`scripts/lib/sandboxFixtures.ts`, which reuses `tests/helpers/fixtures.ts`). Its data is fixed and the requests never
 change it; the requests that fail on purpose are rolled back.
@@ -25,10 +25,14 @@ change it; the requests that fail on purpose are rolled back.
 | Screens `Sandbox Screen A` and `B`   | Two screens besides App (OnStart)                                                                                     | Origin screens of variables; `GET /screens`                                                                            |
 | Variable `gSandboxShared`            | GLOBAL, TEXT, DEV and PROD, origin A, READ link from B, SET assignment in `colSandbox` (screen A, `OnVisible`)        | Dependencies of a variable; `SCOPE_CONFLICT` (a PUT to CONTEXT collides with the SET assignment)                       |
 | Variable `gSandboxLinked`            | GLOBAL, TEXT, DEV and PROD, origin A, READ link from B, no assignments                                                | `CONTEXT_SCREEN_MISMATCH`, with origin (PUT to CONTEXT, origin A) and without it (PUT to CONTEXT, no origin)           |
-| Collection `colSandbox`              | DEV                                                                                                                   | Holds the assignment of `gSandboxShared`                                                                               |
+| Collection `colSandbox`              | DEV, no screen link (undocumented)                                                                                    | Holds the assignment of `gSandboxShared`; `undocumented=true`                                                          |
+| Collection `colSandboxDocumented`    | DEV, READ link from screen A (documented)                                                                             | `undocumented=false` vs `true` (the API cannot create a `screen_collection` link)                                      |
 
 `gSandboxLinked` exists apart from `gSandboxShared` because the SET assignment makes `SCOPE_CONFLICT` come first on any
 PUT to CONTEXT, so the screen mismatch cannot be reached through that variable.
+
+The `Collections` folder lists `q=colSandbox` (a contains search), so no name created by a run may contain
+"colSandbox"; it never derives from, or assigns variables to, either fixture collection.
 
 The variables a run creates (`<prefix>Global`, `Other`, `Ctx`, `Free`, with a random prefix such as `qk3j9x2a`) also live
 in Sandbox Fixtures, because only its screens can be an origin screen; the run deletes them at the end and its lists
@@ -57,3 +61,4 @@ before connecting and `current_database()` after connecting, and refuses anythin
 | `SANDBOX_FIXTURES_VARIABLE_ID`         | `sharedVariableId` | `gSandboxShared`                   |
 | `SANDBOX_FIXTURES_LINKED_VARIABLE_ID`  | `linkedVariableId` | `gSandboxLinked`                   |
 | `SANDBOX_FIXTURES_COLLECTION_ID`       | `collectionId`     | `colSandbox`                       |
+| `SANDBOX_FIXTURES_DOCUMENTED_COLLECTION_ID` | `documentedCollectionId` | `colSandboxDocumented`  |
