@@ -27,12 +27,13 @@ const integerQuery = (value: unknown, name: string, min: number, max: number, fa
  * Reads `page` and `pageSize` (the request validator already enforces the range; this guards direct use).
  *
  * @param query - `req.query`.
+ * @param defaultPageSize - `pageSize` when absent (the contract gives 100 to `GET /collections/{id}/fields`).
  * @returns Page numbers plus `skip` / `take` for Prisma.
  * @throws {ApiError} 400 VALIDATION_ERROR when out of range.
  */
-export function parsePagination(query: Request['query']): PageParams {
+export function parsePagination(query: Request['query'], defaultPageSize = DEFAULT_PAGE_SIZE): PageParams {
   const page = integerQuery(query.page, 'page', 1, 1_000_000, 1);
-  const pageSize = integerQuery(query.pageSize, 'pageSize', 1, MAX_PAGE_SIZE, DEFAULT_PAGE_SIZE);
+  const pageSize = integerQuery(query.pageSize, 'pageSize', 1, MAX_PAGE_SIZE, defaultPageSize);
   return { page, pageSize, skip: (page - 1) * pageSize, take: pageSize };
 }
 
