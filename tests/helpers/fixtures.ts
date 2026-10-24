@@ -196,6 +196,19 @@ export async function insertScreenVariable(
   return r.rows[0]!.id;
 }
 
+/** Links a screen to a collection (`screen_collection`) and returns the row id. */
+export async function insertScreenCollection(
+  t: FixtureContext,
+  link: { screenId: number; collectionId: number; accessMode: 'READ' | 'WRITE' | 'READ_WRITE'; usedIn: string },
+): Promise<number> {
+  const r = await t.owner.query<{ id: number }>(
+    `INSERT INTO screen_collection (screen_id, collection_id, access_mode, used_in)
+     VALUES ($1, $2, $3::access_mode, $4) RETURNING id`,
+    [link.screenId, link.collectionId, link.accessMode, link.usedIn],
+  );
+  return r.rows[0]!.id;
+}
+
 /** Assigns a variable from a collection (`variable_collection`) and returns the row id. */
 export async function insertVariableCollection(
   t: FixtureContext,

@@ -8,6 +8,7 @@ import type { Database } from '../db/prisma.js';
 import type { OperationHandlers } from '../http/operations.js';
 import { applicationsHandlers } from './applications/routes.js';
 import { authHandlers } from './auth/routes.js';
+import { collectionsHandlers } from './collections/routes.js';
 import { screensHandlers } from './screens/routes.js';
 import { usersHandlers } from './users/routes.js';
 import { variablesHandlers } from './variables/routes.js';
@@ -24,5 +25,6 @@ export function createModuleHandlers(deps: { db: Database }): OperationHandlers 
     ...applicationsHandlers(deps.db),
     ...screensHandlers(deps.db),
     ...variablesHandlers(deps.db),
+    ...collectionsHandlers(deps.db),
   };
 }
