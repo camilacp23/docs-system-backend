@@ -6,6 +6,7 @@
  * @module modules/applications/repository
  */
 import type { ApplicationStatus, Prisma, PrismaClient } from '../../generated/prisma/client.js';
+import { escapeLike } from '../../http/like.js';
 
 /** Clients accepted by the queries: the plain client or the transaction client of `auditedTransaction`. */
 export type ApplicationsClient = Pick<PrismaClient, 'application' | 'screen' | '$queryRaw'>;
@@ -57,9 +58,6 @@ const ROW_SELECT = {
 } as const;
 
 type Row = Prisma.ApplicationGetPayload<{ select: typeof ROW_SELECT }>;
-
-/** Escapes the LIKE wildcards: Prisma's `contains` does not, so `q=%` would match every application. */
-const escapeLike = (text: string): string => text.replace(/[\\%_]/g, (c) => `\\${c}`);
 
 /** Screens flagged App (OnStart), by application id. Every application has exactly one (database trigger). */
 async function appContextScreens(client: ApplicationsClient, applicationIds: number[]): Promise<Map<number, Ref>> {
