@@ -1,0 +1,18 @@
+info:
+  name: '102 Cleanup · delete variable Glob 204'
+  type: http
+  seq: 102
+http:
+  method: DELETE
+  url: '{{baseUrl}}/variables/{{varGlobId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varAdminToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 204", function () { expect(res.status).to.equal(204); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,23 @@
+info:
+  name: '92 Archived · update 200 once unarchived'
+  type: http
+  seq: 92
+http:
+  method: PUT
+  url: '{{baseUrl}}/collections/{{varForeignId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "name": "{{varPrefix}}Foreign", "description": "Writable again", "environments": [{ "environment": "DEV" }] }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the change was saved", function () { expect(res.body.data.description).to.equal("Writable again"); });
+settings:
+  encodeUrl: true

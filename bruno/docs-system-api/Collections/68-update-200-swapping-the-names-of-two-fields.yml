@@ -1,0 +1,36 @@
+info:
+  name: '68 Update 200 (swapping the names of two fields)'
+  type: http
+  seq: 68
+http:
+  method: PUT
+  url: '{{baseUrl}}/collections/{{varColAId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+    - name: If-Match
+      value: '{{varColAEtag}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{varPrefix}}ColA",
+        "creationCondition": "ClearCollect on entering the screen",
+        "description": "Main collection of the run",
+        "environments": [{ "environment": "DEV", "notes": "Dev note" }, { "environment": "PROD", "notes": "Prod note" }],
+        "fields": [{ "id": {{varFieldIdId}}, "name": "FullName", "dataType": "NUMBER", "position": 0 }, { "id": {{varFieldNameId}}, "name": "Id", "dataType": "TEXT", "description": "Display name", "position": 1 }, { "id": {{varFieldNewId}}, "name": "CreatedAt", "dataType": "DATE_TIME", "position": 2 }],
+        "variableAssignments": [{ "id": {{varAsgGlobId}}, "variableId": {{varGlobId}}, "screenId": {{screenAId}}, "assignmentFunction": "SET", "tableFunction": "First", "usedIn": "OnVisible" }, { "id": {{varAsgNewId}}, "variableId": {{varCtxId}}, "screenId": {{screenAId}}, "assignmentFunction": "UPDATE_CONTEXT", "tableFunction": null, "usedIn": "btnNew.OnSelect" }],
+        "derivedFrom": [{{varColBId}}]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 200) { bru.setVar("varColAEtag", res.headers["etag"]); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("each field kept its id and took the other name", function () { const f = res.body.data.fields; expect(f.find(function (x) { return x.id === Number(bru.interpolate("{{varFieldIdId}}")); }).name).to.equal("FullName"); expect(f.find(function (x) { return x.id === Number(bru.interpolate("{{varFieldNameId}}")); }).name).to.equal("Id"); expect(f.find(function (x) { return x.id === Number(bru.interpolate("{{varFieldIdId}}")); }).dataType).to.equal("NUMBER"); });
+settings:
+  encodeUrl: true

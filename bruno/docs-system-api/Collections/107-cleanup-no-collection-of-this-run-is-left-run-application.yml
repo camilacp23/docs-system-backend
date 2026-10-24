@@ -1,0 +1,19 @@
+info:
+  name: '107 Cleanup · no collection of this run is left (run application)'
+  type: http
+  seq: 107
+http:
+  method: GET
+  url: '{{baseUrl}}/collections?applicationId={{varAppId}}&q={{varPrefix}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("total", function () { expect(res.body.total).to.equal(0); });
+settings:
+  encodeUrl: true

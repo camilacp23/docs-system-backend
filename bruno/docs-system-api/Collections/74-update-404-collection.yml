@@ -1,0 +1,32 @@
+info:
+  name: '74 Update 404 (collection)'
+  type: http
+  seq: 74
+http:
+  method: PUT
+  url: '{{baseUrl}}/collections/999999'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{varPrefix}}ColA",
+        "creationCondition": "ClearCollect on entering the screen",
+        "description": "Main collection of the run",
+        "environments": [{ "environment": "DEV", "notes": "Dev note" }, { "environment": "PROD", "notes": "Prod note" }],
+        "fields": [{ "id": {{varFieldIdId}}, "name": "Id", "dataType": "NUMBER", "position": 0 }, { "id": {{varFieldNameId}}, "name": "Name", "dataType": "TEXT", "description": "Display name", "position": 1 }, { "id": {{varFieldStatusId}}, "name": "Status", "dataType": "TEXT", "position": 2 }],
+        "variableAssignments": [{ "id": {{varAsgGlobId}}, "variableId": {{varGlobId}}, "screenId": {{screenAId}}, "assignmentFunction": "SET", "tableFunction": "CountRows", "usedIn": "OnVisible" }, { "id": {{varAsgCtxId}}, "variableId": {{varCtxId}}, "screenId": {{screenAId}}, "assignmentFunction": "UPDATE_CONTEXT", "tableFunction": null, "usedIn": "btnSave.OnSelect" }],
+        "derivedFrom": [{{varColBId}}]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 404", function () { expect(res.status).to.equal(404); });
+        test("error body has code NOT_FOUND, message and details", function () { expect(res.body.code).to.equal("NOT_FOUND"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("message and details name the missing element", function () { expect(res.body.message).to.equal("This collection doesn't exist. It may have been deleted."); expect(res.body.details.element).to.equal("collection"); expect(res.body.details.id).to.equal(999999); });
+settings:
+  encodeUrl: true

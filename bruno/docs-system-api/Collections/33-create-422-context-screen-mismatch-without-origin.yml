@@ -1,0 +1,24 @@
+info:
+  name: '33 Create 422 (CONTEXT_SCREEN_MISMATCH without origin)'
+  type: http
+  seq: 33
+http:
+  method: POST
+  url: '{{baseUrl}}/collections'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "applicationId": {{fixturesAppId}}, "name": "{{varPrefix}}Ghost", "environments": [{ "environment": "DEV" }], "variableAssignments": [{ "variableId": {{varCtxFreeId}}, "screenId": {{screenAId}}, "assignmentFunction": "UPDATE_CONTEXT", "tableFunction": null, "usedIn": "OnVisible" }] }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 422", function () { expect(res.status).to.equal(422); });
+        test("error body has code CONTEXT_SCREEN_MISMATCH, message and details", function () { expect(res.body.code).to.equal("CONTEXT_SCREEN_MISMATCH"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("message and details", function () { expect(res.body.message).to.equal(bru.getVar("varPrefix") + "CtxFree has no origin screen. Set its origin screen before linking it."); expect(res.body.details).to.deep.equal({ variableId: Number(bru.interpolate("{{varCtxFreeId}}")), variable: bru.getVar("varPrefix") + "CtxFree", originScreenId: null, screenId: Number(bru.interpolate("{{screenAId}}")), targetScreen: "Sandbox Screen A", field: "variableAssignments[0].screenId" }); });
+settings:
+  encodeUrl: true

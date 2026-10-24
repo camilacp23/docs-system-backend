@@ -1,0 +1,32 @@
+info:
+  name: '79 Update 422 (SCOPE_MISMATCH: Set on a context variable)'
+  type: http
+  seq: 79
+http:
+  method: PUT
+  url: '{{baseUrl}}/collections/{{varColAId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{varPrefix}}ColA",
+        "creationCondition": "ClearCollect on entering the screen",
+        "description": "Main collection of the run",
+        "environments": [{ "environment": "DEV", "notes": "Dev note" }, { "environment": "PROD", "notes": "Prod note" }],
+        "fields": [{ "id": {{varFieldIdId}}, "name": "FullName", "dataType": "NUMBER", "position": 0 }, { "id": {{varFieldNameId}}, "name": "Id", "dataType": "TEXT", "description": "Display name", "position": 1 }, { "id": {{varFieldNewId}}, "name": "CreatedAt", "dataType": "DATE_TIME", "position": 2 }],
+        "variableAssignments": [{ "variableId": {{varCtxId}}, "screenId": {{screenAId}}, "assignmentFunction": "SET", "tableFunction": null, "usedIn": "OnVisible" }],
+        "derivedFrom": [{{varColBId}}]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 422", function () { expect(res.status).to.equal(422); });
+        test("error body has code SCOPE_MISMATCH, message and details", function () { expect(res.body.code).to.equal("SCOPE_MISMATCH"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("message and details", function () { expect(res.body.message).to.equal("Set applies to global variables and UpdateContext to context variables."); expect(res.body.details).to.deep.equal({ field: "variableAssignments[0].assignmentFunction" }); });
+settings:
+  encodeUrl: true

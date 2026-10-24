@@ -1,0 +1,19 @@
+info:
+  name: '109 Cleanup · the fixtures are untouched'
+  type: http
+  seq: 109
+http:
+  method: GET
+  url: '{{baseUrl}}/collections?applicationId={{fixturesAppId}}&q=colSandbox'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("both fixtures are still there", function () { expect(res.body.total).to.equal(2); });
+settings:
+  encodeUrl: true

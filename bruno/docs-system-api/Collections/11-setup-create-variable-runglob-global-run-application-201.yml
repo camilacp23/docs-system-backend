@@ -1,0 +1,26 @@
+info:
+  name: '11 Setup · create variable RunGlob (GLOBAL, run application) 201'
+  type: http
+  seq: 11
+http:
+  method: POST
+  url: '{{baseUrl}}/variables'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "applicationId": {{varAppId}}, "name": "{{varPrefix}}RunGlob", "dataType": "TEXT", "scope": "GLOBAL", "environments": [{ "environment": "DEV" }] }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) { bru.setVar("varRunVarId", res.body.data.id); }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("the variable is ready", function () { expect(bru.getVar("varRunVarId")).to.be.a("number"); });
+settings:
+  encodeUrl: true

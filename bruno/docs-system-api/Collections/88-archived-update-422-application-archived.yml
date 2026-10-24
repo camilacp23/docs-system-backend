@@ -1,0 +1,24 @@
+info:
+  name: '88 Archived · update 422 (APPLICATION_ARCHIVED)'
+  type: http
+  seq: 88
+http:
+  method: PUT
+  url: '{{baseUrl}}/collections/{{varForeignId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "name": "{{varPrefix}}Foreign", "description": "Blocked", "environments": [{ "environment": "DEV" }] }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 422", function () { expect(res.status).to.equal(422); });
+        test("error body has code APPLICATION_ARCHIVED, message and details", function () { expect(res.body.code).to.equal("APPLICATION_ARCHIVED"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("message and details", function () { expect(res.body.message).to.equal("This application is archived, so its documentation can't be changed."); expect(res.body.details).to.deep.equal({ applicationId: bru.getVar("varAppId") }); });
+settings:
+  encodeUrl: true

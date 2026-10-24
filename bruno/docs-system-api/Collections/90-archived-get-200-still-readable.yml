@@ -1,0 +1,19 @@
+info:
+  name: '90 Archived · get 200 (still readable)'
+  type: http
+  seq: 90
+http:
+  method: GET
+  url: '{{baseUrl}}/collections/{{varForeignId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the collection is unchanged", function () { expect(res.body.data.name).to.equal(bru.getVar("varPrefix") + "Foreign"); expect(res.body.data.description).to.equal(null); });
+settings:
+  encodeUrl: true

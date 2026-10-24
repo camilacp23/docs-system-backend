@@ -1,0 +1,32 @@
+info:
+  name: '75 Update 400 (applicationId in the body)'
+  type: http
+  seq: 75
+http:
+  method: PUT
+  url: '{{baseUrl}}/collections/{{varColAId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{varPrefix}}ColA",
+        "creationCondition": "ClearCollect on entering the screen",
+        "description": "Main collection of the run",
+        "environments": [{ "environment": "DEV", "notes": "Dev note" }, { "environment": "PROD", "notes": "Prod note" }],
+        "fields": [{ "id": {{varFieldIdId}}, "name": "Id", "dataType": "NUMBER", "position": 0 }, { "id": {{varFieldNameId}}, "name": "Name", "dataType": "TEXT", "description": "Display name", "position": 1 }, { "id": {{varFieldStatusId}}, "name": "Status", "dataType": "TEXT", "position": 2 }],
+        "variableAssignments": [{ "id": {{varAsgGlobId}}, "variableId": {{varGlobId}}, "screenId": {{screenAId}}, "assignmentFunction": "SET", "tableFunction": "CountRows", "usedIn": "OnVisible" }, { "id": {{varAsgCtxId}}, "variableId": {{varCtxId}}, "screenId": {{screenAId}}, "assignmentFunction": "UPDATE_CONTEXT", "tableFunction": null, "usedIn": "btnSave.OnSelect" }],
+        "derivedFrom": [{{varColBId}}], "applicationId": {{fixturesAppId}}
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 400", function () { expect(res.status).to.equal(400); });
+        test("error body has code VALIDATION_ERROR, message and details", function () { expect(res.body.code).to.equal("VALIDATION_ERROR"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("details.fields names applicationId", function () { expect(res.body.details.fields.map(function (f) { return f.field; }).join(" ")).to.include("applicationId"); });
+settings:
+  encodeUrl: true
