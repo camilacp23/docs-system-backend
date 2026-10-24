@@ -62,4 +62,31 @@ describe('testDb helper', () => {
     const check = await owner.query('SELECT 1 FROM pg_database WHERE datname = $1', [extra.name]);
     assert.equal(check.rowCount, 0);
   });
+
+  it('drop() waits for a docs_app session that is still closing instead of failing with 42501', async () => {
+    const extra = await createTestDb();
+    const session = new pg.Client({ connectionString: extra.appUrl });
+    await session.connect();
+    // docs_owner may not terminate docs_app backends, so a plain DROP ... WITH (FORCE) would fail while it is open.
+    const closing = new Promise<void>((resolve) => setTimeout(resolve, 400)).then(() => session.end());
+    await extra.drop();
+    await closing;
+    const check = await owner.query('SELECT 1 FROM pg_database WHERE datname = $1', [extra.name]);
+    assert.equal(check.rowCount, 0);
+  });
+
+  it('drop() reports the sessions that never close (a leak) instead of ignoring the error', async () => {
+    const extra = await createTestDb();
+    const leaked = new pg.Client({ connectionString: extra.appUrl });
+    await leaked.connect();
+    try {
+      await assert.rejects(
+        () => extra.drop(500),
+        (error: Error) => /could not drop docs_test_/.test(error.message) && error.message.includes('docs_app'),
+      );
+    } finally {
+      await leaked.end();
+      await extra.drop();
+    }
+  });
 });
