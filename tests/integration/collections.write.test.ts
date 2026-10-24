@@ -219,10 +219,23 @@ describe('collections: create and rules', () => {
       ]);
     });
 
-    it('400 for the same derivation twice', async () => {
+    it('400 names the POSITION of the same derivation twice and of an environment repeated with identical content', async () => {
       const other = await create();
-      const res = await dev().post('/collections', createBodyOf(app.id, { derivedFrom: [other.id, other.id] }));
-      assert.equal(res.status, 400);
+      const unique = (field: string) => ({
+        field,
+        rule: 'unique',
+        message: 'This value is repeated. Each one must be unique.',
+      });
+      const derived = await dev().post('/collections', createBodyOf(app.id, { derivedFrom: [other.id, other.id] }));
+      assert.equal(derived.status, 400);
+      assert.deepEqual(bodyOf(derived).details.fields, [unique('derivedFrom[1]')]);
+
+      const environments = await dev().post(
+        '/collections',
+        createBodyOf(app.id, { environments: [{ environment: 'PROD' }, { environment: 'PROD' }] }),
+      );
+      assert.equal(environments.status, 400);
+      assert.deepEqual(bodyOf(environments).details.fields, [unique('environments[1].environment')]);
     });
 
     it('404 for an unknown application, variable, screen or source of a derivation, with the position (D-75)', async () => {
@@ -475,6 +488,28 @@ describe('collections: create and rules', () => {
   });
 
   describe('rules shared by PUT', () => {
+    it('400 names the position of a repeated derivation and of identical environments on PUT too', async () => {
+      const c = await create();
+      const other = await create();
+      const res = await dev().put(
+        `/collections/${c.id}`,
+        putBodyOf(c, {
+          derivedFrom: [other.id, other.id],
+          environments: [{ environment: 'DEV' }, { environment: 'DEV' }],
+        }),
+      );
+      assert.equal(res.status, 400);
+      assert.deepEqual(
+        bodyOf(res)
+          .details.fields.map((f) => [f.field, f.rule])
+          .sort(),
+        [
+          ['derivedFrom[1]', 'unique'],
+          ['environments[1].environment', 'unique'],
+        ],
+      );
+    });
+
     it('applies the same 404, 422 and 409 checks on PUT, with positions', async () => {
       const c = await create({ fields: [{ name: 'F', dataType: 'TEXT' }] });
       const other = await create();

@@ -73,6 +73,10 @@ info:
     `PUT /collections/{id}` document `If-Match` and the update that changes
     nothing; `PUT /collections/{id}` documents that omitted arrays are emptied,
     and its nested ids answer 404 `details.field` when they are not found.
+    `derivedFrom` states its direction, that a collection cannot derive from
+    itself (400, rule `self`) and that cycles are allowed. A repeated environment
+    or `derivedFrom` item is a 400 with its position: `uniqueItems` was removed
+    from those three arrays so that the server reports them all the same way.
     `untraced=false` and `undocumented=false` are the same as omitting them, and
     a filter by an id that does not exist returns an empty page. The `screens`
     of `GET /variables/{id}/dependencies` no longer say they include the origin
@@ -2403,7 +2407,7 @@ components:
           type: array
           minItems: 1
           maxItems: 2
-          uniqueItems: true
+          description: At most one entry per environment. A repeated environment (even with different notes) is a 400 that names its position, for example `environments[1].environment`.
           items: { $ref: '#/components/schemas/EnvironmentPresence' }
     VariableCreate:
       allOf:
@@ -2533,21 +2537,30 @@ components:
           type: array
           minItems: 1
           maxItems: 2
-          uniqueItems: true
+          description: At most one entry per environment. A repeated environment (even with different notes) is a 400 that names its position, for example `environments[1].environment`.
           items: { $ref: '#/components/schemas/EnvironmentPresence' }
         fields:
           type: array
           maxItems: 200
+          description: A repeated field `name` or `id` is a 400 that names its position, for example `fields[1].name`. Omitted = empty (PUT deletes the existing fields).
           items: { $ref: '#/components/schemas/CollectionFieldWrite' }
         variableAssignments:
           type: array
           maxItems: 200
+          description: A repeated `id`, or a repeated combination of `variableId`, `screenId` and `usedIn`, is a 400 that names its position. Omitted = empty (PUT deletes the existing assignments).
           items: { $ref: '#/components/schemas/VariableAssignmentWrite' }
         derivedFrom:
           type: array
-          description: Collections this one is built from (dependency DERIVES_FROM, SDD D-29)
+          description: |
+            Ids of the collections this one is built from (dependency DERIVES_FROM, SDD D-29). The
+            collection being written is the source and each id is a target: `colActivos` is built from
+            `colClientes`. It is a set, so a repeated id is a 400 that names its position
+            (`derivedFrom[1]`, rule `unique`), and a collection that lists itself is a 400 on
+            `derivedFrom[i]` with rule `self` ("A collection cannot derive from itself."; PUT only).
+            Cycles between two or more collections are allowed. A collection of another application is
+            422 CROSS_APPLICATION and one that does not exist is 404, both with `details.field`.
+            Omitted = empty (PUT deletes the existing derivations).
           maxItems: 50
-          uniqueItems: true
           items: { type: integer, minimum: 1 }
     CollectionCreate:
       allOf:
