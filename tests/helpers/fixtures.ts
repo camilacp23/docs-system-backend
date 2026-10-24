@@ -5,7 +5,13 @@
  * Each helper runs in its own transaction, so the deferred constraint triggers (subtype, environment, context
  * screen) are judged at its COMMIT, like in the API. Inserts by the owner are audited with a NULL actor.
  */
-import type { TestApp } from './app.js';
+import type pg from 'pg';
+
+/**
+ * What the fixtures need: a docs_owner connection and the user that authors what they insert. `TestApp` fits, and so
+ * does the sandbox tooling (scripts/lib/sandboxFixtures.ts), which has no application.
+ */
+export type FixtureContext = { owner: Pick<pg.Client, 'query'>; users: { admin: { id: number } } };
 
 type Environment = 'DEV' | 'PROD';
 
@@ -13,7 +19,7 @@ let counter = 0;
 const next = (): number => (counter += 1);
 
 /** Runs `fn` in a transaction on the owner connection. */
-async function transaction<T>(t: TestApp, fn: () => Promise<T>): Promise<T> {
+async function transaction<T>(t: FixtureContext, fn: () => Promise<T>): Promise<T> {
   await t.owner.query('BEGIN');
   try {
     const result = await fn();
@@ -26,7 +32,7 @@ async function transaction<T>(t: TestApp, fn: () => Promise<T>): Promise<T> {
 }
 
 /** Inserts the supertype row of an element and returns its id. */
-async function insertElement(t: TestApp, type: string, applicationId: number): Promise<number> {
+async function insertElement(t: FixtureContext, type: string, applicationId: number): Promise<number> {
   const r = await t.owner.query<{ id: number }>(
     `INSERT INTO documented_element (type, application_id) VALUES ($1::element_type, $2) RETURNING id`,
     [type, applicationId],
@@ -36,7 +42,7 @@ async function insertElement(t: TestApp, type: string, applicationId: number): P
 
 /** Inserts the environments of a variable or collection. */
 async function insertEnvironments(
-  t: TestApp,
+  t: FixtureContext,
   id: number,
   type: 'VARIABLE' | 'COLLECTION',
   environments: readonly { environment: Environment; notes?: string | null }[],
@@ -51,7 +57,7 @@ async function insertEnvironments(
 
 /** Creates an extra application (with its App (OnStart) screen, made by the trigger) as `createdBy`. */
 export async function insertApplication(
-  t: TestApp,
+  t: FixtureContext,
   over: { name?: string; createdBy?: number; status?: 'ACTIVE' | 'ARCHIVED' } = {},
 ): Promise<{ id: number; name: string; appContextScreenId: number }> {
   const name = over.name ?? `Fixture app ${next()}`;
@@ -68,7 +74,7 @@ export async function insertApplication(
 
 /** Archives or reactivates an application directly in the database. */
 export async function setApplicationStatus(
-  t: TestApp,
+  t: FixtureContext,
   applicationId: number,
   status: 'ACTIVE' | 'ARCHIVED',
 ): Promise<void> {
@@ -77,7 +83,7 @@ export async function setApplicationStatus(
 
 /** Inserts a screen (not App (OnStart)) and returns its id. */
 export async function insertScreen(
-  t: TestApp,
+  t: FixtureContext,
   applicationId: number,
   over: {
     name?: string;
@@ -99,13 +105,13 @@ export async function insertScreen(
 }
 
 /** Deletes a screen directly in the database (the variables that originate in it keep existing, without origin). */
-export async function deleteScreen(t: TestApp, screenId: number): Promise<void> {
+export async function deleteScreen(t: FixtureContext, screenId: number): Promise<void> {
   await t.owner.query(`DELETE FROM screen WHERE id = $1`, [screenId]);
 }
 
 /** Inserts a variable with its environments (default DEV) and returns its id. */
 export async function insertVariable(
-  t: TestApp,
+  t: FixtureContext,
   applicationId: number,
   over: {
     name?: string;
@@ -140,7 +146,7 @@ export async function insertVariable(
 
 /** Inserts a collection with its environments (default DEV) and returns its id. */
 export async function insertCollection(
-  t: TestApp,
+  t: FixtureContext,
   applicationId: number,
   over: { name?: string; environments?: readonly { environment: Environment; notes?: string | null }[] } = {},
 ): Promise<{ id: number; name: string }> {
@@ -160,7 +166,7 @@ export async function insertCollection(
 
 /** Inserts a component of a screen and returns its id. */
 export async function insertComponent(
-  t: TestApp,
+  t: FixtureContext,
   applicationId: number,
   screenId: number,
   over: { name?: string; type?: string } = {},
@@ -179,7 +185,7 @@ export async function insertComponent(
 
 /** Links a screen to a variable (`screen_variable`) and returns the row id. */
 export async function insertScreenVariable(
-  t: TestApp,
+  t: FixtureContext,
   link: { screenId: number; variableId: number; accessMode: 'READ' | 'WRITE' | 'READ_WRITE'; usedIn: string },
 ): Promise<number> {
   const r = await t.owner.query<{ id: number }>(
@@ -192,7 +198,7 @@ export async function insertScreenVariable(
 
 /** Assigns a variable from a collection (`variable_collection`) and returns the row id. */
 export async function insertVariableCollection(
-  t: TestApp,
+  t: FixtureContext,
   link: {
     variableId: number;
     collectionId: number;
@@ -219,7 +225,7 @@ export async function insertVariableCollection(
 
 /** Inserts a dependency between two elements; the types are read from `documented_element`. */
 export async function insertDependency(
-  t: TestApp,
+  t: FixtureContext,
   dependency: {
     sourceId: number;
     targetId: number;
@@ -242,7 +248,7 @@ export async function insertDependency(
  * @returns The ids of the Subtask rows, in the order given.
  */
 export async function insertSubtasks(
-  t: TestApp,
+  t: FixtureContext,
   screenId: number,
   categories: readonly ('TO_DO' | 'IN_PROGRESS' | 'DONE')[],
 ): Promise<number[]> {
@@ -269,7 +275,11 @@ export async function insertSubtasks(
 }
 
 /** Inserts `count` comments on a screen (every row of `comment` counts, review decisions included). */
-export async function insertComments(t: TestApp, screenId: number, count: number): Promise<void> {
+export async function insertComments(
+  t: FixtureContext & { users: { developer: { id: number } } },
+  screenId: number,
+  count: number,
+): Promise<void> {
   for (let i = 0; i < count; i += 1) {
     await t.owner.query(
       `INSERT INTO comment (screen_id, user_id, text, review_decision)
