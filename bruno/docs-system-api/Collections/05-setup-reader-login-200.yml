@@ -1,5 +1,5 @@
 info:
-  name: '05 Setup · reader login 200'
+  name: '05 Setup Â· reader login 200'
   type: http
   seq: 5
 http:

@@ -1,10 +1,10 @@
 info:
-  name: '108 Cleanup · no variable of this run is left'
+  name: '106 Omit Â· the variable no longer lists the assignment'
   type: http
-  seq: 108
+  seq: 106
 http:
   method: GET
-  url: '{{baseUrl}}/variables?applicationId={{fixturesAppId}}&q={{varPrefix}}'
+  url: '{{baseUrl}}/variables/{{varGlobId}}/dependencies'
   headers:
     - name: Authorization
       value: 'Bearer {{varReaderToken}}'
@@ -14,6 +14,6 @@ runtime:
     - type: tests
       code: |-
         test("status 200", function () { expect(res.status).to.equal(200); });
-        test("total", function () { expect(res.body.total).to.equal(0); });
+        test("no collection assigns the variable", function () { expect(res.body.data.collections).to.deep.equal([]); });
 settings:
   encodeUrl: true

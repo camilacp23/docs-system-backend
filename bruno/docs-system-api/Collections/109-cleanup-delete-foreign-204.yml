@@ -1,7 +1,7 @@
 info:
-  name: '101 Cleanup · delete Foreign 204'
+  name: '109 Cleanup Â· delete Foreign 204'
   type: http
-  seq: 101
+  seq: 109
 http:
   method: DELETE
   url: '{{baseUrl}}/collections/{{varForeignId}}'

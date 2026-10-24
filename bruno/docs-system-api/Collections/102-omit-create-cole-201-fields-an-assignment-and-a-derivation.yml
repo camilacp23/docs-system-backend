@@ -1,0 +1,26 @@
+info:
+  name: '102 Omit · create ColE 201 (fields, an assignment and a derivation)'
+  type: http
+  seq: 102
+http:
+  method: POST
+  url: '{{baseUrl}}/collections'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "applicationId": {{fixturesAppId}}, "name": "{{varPrefix}}ColE", "environments": [{ "environment": "DEV" }], "fields": [{ "name": "A", "dataType": "TEXT" }, { "name": "B", "dataType": "NUMBER" }], "variableAssignments": [{ "variableId": {{varGlobId}}, "screenId": {{screenAId}}, "assignmentFunction": "SET", "tableFunction": null, "usedIn": "OnVisible" }], "derivedFrom": [{{varColFId}}] }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) { bru.setVar("varColEId", res.body.data.id); bru.setVar("varColEEtag", res.headers["etag"]); }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("the three arrays are filled", function () { const d = res.body.data; expect(d.fields).to.have.length(2); expect(d.variableAssignments).to.have.length(1); expect(d.derivedFrom).to.deep.equal([{ id: Number(bru.interpolate("{{varColFId}}")), name: bru.getVar("varPrefix") + "ColF" }]); expect(d.fieldCount).to.equal(2); });
+settings:
+  encodeUrl: true

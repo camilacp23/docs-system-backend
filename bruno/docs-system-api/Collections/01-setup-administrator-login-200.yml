@@ -1,5 +1,5 @@
 info:
-  name: '01 Setup · administrator login 200'
+  name: '01 Setup Â· administrator login 200'
   type: http
   seq: 1
 http:

@@ -1,7 +1,7 @@
 info:
-  name: '102 Cleanup · delete variable Glob 204'
+  name: '110 Cleanup Â· delete variable Glob 204'
   type: http
-  seq: 102
+  seq: 110
 http:
   method: DELETE
   url: '{{baseUrl}}/variables/{{varGlobId}}'

@@ -1,10 +1,10 @@
 info:
-  name: '104 Cleanup · delete variable CtxFree 204'
+  name: '113 Cleanup Â· delete variable RunGlob 204'
   type: http
-  seq: 104
+  seq: 113
 http:
   method: DELETE
-  url: '{{baseUrl}}/variables/{{varCtxFreeId}}'
+  url: '{{baseUrl}}/variables/{{varRunVarId}}'
   headers:
     - name: Authorization
       value: 'Bearer {{varAdminToken}}'

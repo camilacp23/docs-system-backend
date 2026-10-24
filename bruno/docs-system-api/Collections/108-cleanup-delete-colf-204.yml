@@ -1,10 +1,10 @@
 info:
-  name: '103 Cleanup · delete variable Ctx 204'
+  name: '108 Cleanup Â· delete ColF 204'
   type: http
-  seq: 103
+  seq: 108
 http:
   method: DELETE
-  url: '{{baseUrl}}/variables/{{varCtxId}}'
+  url: '{{baseUrl}}/collections/{{varColFId}}'
   headers:
     - name: Authorization
       value: 'Bearer {{varAdminToken}}'

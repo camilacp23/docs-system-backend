@@ -1,5 +1,5 @@
 info:
-  name: '96 Delete · get 404 afterwards'
+  name: '96 Delete Â· get 404 afterwards'
   type: http
   seq: 96
 http:
