@@ -248,6 +248,41 @@ describe('variables: read', () => {
     });
   });
 
+  describe('ETag and If-None-Match (D-72)', () => {
+    it('a resource with updatedAt keeps the ETag of D-62 (not the Express hash) and answers 304 to a matching If-None-Match', async () => {
+      const first = await admin().get(`/variables/${v.gUser}`);
+      const etag = first.headers.etag as string;
+      assert.equal(etag, `W/"${new Date(variableOf(first).updatedAt).getTime()}"`);
+      const conditional = await t.http
+        .get(`/api/v1/variables/${v.gUser}`)
+        .set('Authorization', `Bearer ${t.users.admin.token}`)
+        .set('If-None-Match', etag);
+      assert.equal(conditional.status, 304);
+      assert.equal(conditional.headers.etag, etag);
+      assert.equal(conditional.text, '');
+      const other = await t.http
+        .get(`/api/v1/variables/${v.gUser}`)
+        .set('Authorization', `Bearer ${t.users.admin.token}`)
+        .set('If-None-Match', 'W/"1"');
+      assert.equal(other.status, 200);
+      assert.equal(other.headers.etag, etag);
+    });
+
+    it('listings and dependencies carry the weak hash ETag of Express and also answer 304', async () => {
+      for (const path of [`/variables?applicationId=${app.id}`, `/variables/${v.gUser}/dependencies`]) {
+        const first = await admin().get(path);
+        const etag = first.headers.etag as string;
+        assert.match(etag, /^W\/"[0-9a-f]+-[A-Za-z0-9+/]+"$/, path);
+        const conditional = await t.http
+          .get(`/api/v1${path}`)
+          .set('Authorization', `Bearer ${t.users.admin.token}`)
+          .set('If-None-Match', etag);
+        assert.equal(conditional.status, 304, path);
+        assert.equal(conditional.text, '', path);
+      }
+    });
+  });
+
   describe('GET /variables/{id}/dependencies', () => {
     it('screens come from screen_variable WITHOUT the origin row; collections and components are filled', async () => {
       const col = await insertCollection(t, app.id, { name: 'colClientes' });
