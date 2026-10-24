@@ -1,0 +1,38 @@
+info:
+  name: 24 Create 404 (origin screen does not exist)
+  type: http
+  seq: 24
+http:
+  method: POST
+  url: '{{baseUrl}}/variables'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{fixturesAppId}},
+        "name": "{{varPrefix}}Ghost",
+        "dataType": "TEXT",
+        "scope": "GLOBAL",
+        "originScreenId": 999999999,
+        "environments": [{ "environment": "DEV" }]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 404", function () { expect(res.status).to.equal(404); });
+        test("error body has code NOT_FOUND, message and details", function () {
+          expect(res.body.code).to.equal("NOT_FOUND");
+          expect(res.body.message).to.be.a("string").and.not.empty;
+          expect(res.body).to.have.property("details");
+        });
+        test("the missing element is the screen", function () {
+          expect(res.body.message).to.equal("This screen doesn't exist. It may have been deleted.");
+          expect(res.body.details.element).to.equal("screen");
+        });
+settings:
+  encodeUrl: true

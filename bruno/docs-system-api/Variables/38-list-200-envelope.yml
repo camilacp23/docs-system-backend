@@ -1,0 +1,38 @@
+info:
+  name: '38 List 200 (reader: envelope, default sort by name)'
+  type: http
+  seq: 38
+http:
+  method: GET
+  url: '{{baseUrl}}/variables?applicationId={{fixturesAppId}}&q={{varPrefix}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 200) { bru.setVar("varListEtag", res.headers["etag"]); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("collection envelope", function () {
+          expect(res.body).to.include.keys("data", "page", "pageSize", "total");
+          expect(res.body.page).to.equal(1);
+          expect(res.body.pageSize).to.equal(20);
+        });
+        test("total", function () { expect(res.body.total).to.equal(4); });
+        test("names", function () {
+          const p = bru.getVar("varPrefix");
+          expect(res.body.data.map(function (x) { return x.name; })).to.deep.equal(["Ctx", "Free", "Global", "Other"].map(function (n) { return p + n; }));
+        });
+        test("each item has the variable summary shape", function () {
+          res.body.data.forEach(function (x) {
+            expect(x).to.include.keys("id", "applicationId", "name", "dataType", "scope", "originScreen", "fullTraceability", "environments", "createdAt", "updatedAt");
+            expect(x).to.not.have.any.keys("description", "environmentDetails");
+          });
+        });
+        test("the list has an ETag", function () { expect(res.headers["etag"]).to.be.a("string").and.not.empty; });
+settings:
+  encodeUrl: true

@@ -1,0 +1,23 @@
+info:
+  name: 61 Get 200 (gSandboxShared was not changed by the failed updates)
+  type: http
+  seq: 61
+http:
+  method: GET
+  url: '{{baseUrl}}/variables/{{sharedVariableId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("gSandboxShared is still GLOBAL with its origin and environments", function () {
+          expect(res.body.data.scope).to.equal("GLOBAL");
+          expect(res.body.data.originScreen.id).to.equal(Number(bru.interpolate("{{screenAId}}")));
+          expect(res.body.data.environments).to.have.members(["DEV", "PROD"]);
+        });
+settings:
+  encodeUrl: true

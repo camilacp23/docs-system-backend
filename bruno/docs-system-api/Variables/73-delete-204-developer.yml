@@ -1,0 +1,19 @@
+info:
+  name: 73 Delete 204 (developer)
+  type: http
+  seq: 73
+http:
+  method: DELETE
+  url: '{{baseUrl}}/variables/{{varGlobalId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 204", function () { expect(res.status).to.equal(204); });
+        test("no body", function () { expect(res.body === "" || res.body === undefined || res.body === null).to.equal(true); });
+settings:
+  encodeUrl: true

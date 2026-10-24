@@ -1,0 +1,25 @@
+info:
+  name: 30 Get 200 (reader, with ETag)
+  type: http
+  seq: 30
+http:
+  method: GET
+  url: '{{baseUrl}}/variables/{{varGlobalId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("body is the created variable", function () {
+          const d = res.body.data;
+          expect(d.id).to.equal(bru.getVar("varGlobalId"));
+          expect(d.name).to.equal(bru.getVar("varPrefix") + "Global");
+          expect(d).to.include.keys("description", "environmentDetails", "originScreen", "fullTraceability");
+        });
+        test("ETag is the one the creation returned", function () { expect(res.headers["etag"]).to.equal(bru.getVar("varGlobalEtag")); });
+settings:
+  encodeUrl: true

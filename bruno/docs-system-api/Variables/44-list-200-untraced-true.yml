@@ -1,0 +1,24 @@
+info:
+  name: '44 List 200 (untraced=true: without origin screen)'
+  type: http
+  seq: 44
+http:
+  method: GET
+  url: '{{baseUrl}}/variables?applicationId={{fixturesAppId}}&q={{varPrefix}}&untraced=true'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("total", function () { expect(res.body.total).to.equal(3); });
+        test("names", function () {
+          const p = bru.getVar("varPrefix");
+          expect(res.body.data.map(function (x) { return x.name; })).to.deep.equal(["Free", "Global", "Other"].map(function (n) { return p + n; }));
+        });
+        test("none has an origin", function () { res.body.data.forEach(function (x) { expect(x.originScreen).to.equal(null); expect(x.fullTraceability).to.equal(false); }); });
+settings:
+  encodeUrl: true
