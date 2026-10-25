@@ -60,7 +60,9 @@ info:
     Changes in 0.3.3 (variables and collections): every response documents the
     `X-Request-Id` header, and every GET documents the `ETag` header, the
     `If-None-Match` parameter and the 304 response. The 401 of
-    `POST /auth/refresh` is `REFRESH_INVALID`. Listings answer 404 for an
+    `POST /auth/refresh` is `REFRESH_INVALID`, and `POST /auth/refresh` and
+    `POST /auth/logout` declare the 403 FORBIDDEN (`details.reason = ORIGIN`) they
+    return when the request does not come from the frontend's Origin. Listings answer 404 for an
     `applicationId` that does not exist, and `POST /variables` and
     `POST /collections` answer 404 for a referenced resource that does not exist
     and send the `ETag` of the created resource. `DUPLICATE_NAME` states the
@@ -80,7 +82,9 @@ info:
     `untraced=false` and `undocumented=false` are the same as omitting them, and
     a filter by an id that does not exist returns an empty page. The `screens`
     of `GET /variables/{id}/dependencies` no longer say they include the origin
-    row. No operation was added or removed (50).
+    row. `x-error-codes` now lists `DUPLICATE_NAME` on the operations that can
+    return it and no longer lists `CROSS_APPLICATION` on `PUT /variables/{id}`.
+    No operation was added or removed (50).
 
     Error catalog (`code` -> HTTP status: `message`):
 
@@ -91,7 +95,8 @@ info:
     | UNAUTHENTICATED, TOKEN_EXPIRED | 401 | Your session is not valid. Sign in again. |
     | REFRESH_INVALID | 401 | Your session ended. Sign in again to continue. |
     | INVALID_SIGNATURE | 401 | Invalid webhook signature. (Jira only) |
-    | FORBIDDEN | 403 | Your role doesn't allow this action. |
+    | FORBIDDEN | 403 | Your role doesn't allow this action. (`details`: requiredRoles) |
+    | FORBIDDEN (origin) | 403 | This request's origin isn't allowed. (`details`: reason = ORIGIN; refresh and logout only) |
     | NOT_FOUND | 404 | This <element> doesn't exist. It may have been deleted. |
     | DUPLICATE_NAME | 409 | A <type> named <name> already exists in <application>. (`details`: field, type, name, application, container) |
     | EMAIL_TAKEN | 409 | A user with this email already exists. |
@@ -224,6 +229,8 @@ paths:
       description: |
         Rotates the refresh token (the old one is revoked). Presenting a refresh
         token that was already rotated revokes its whole family and returns 401.
+        The request must carry the frontend's `Origin` header (CSRF defense):
+        otherwise 403 FORBIDDEN with `details.reason = ORIGIN`.
       security: [{ refreshCookie: [] }]
       responses:
         '200':
@@ -236,6 +243,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/SessionResponse' }
         '401': { $ref: '#/components/responses/RefreshInvalid' }
+        '403': { $ref: '#/components/responses/OriginRejected' }
         '429': { $ref: '#/components/responses/RateLimited' }
         '500': { $ref: '#/components/responses/InternalError' }
   /auth/logout:
@@ -245,10 +253,14 @@ paths:
       x-capability: 'Authentication (public)'
       x-roles: []
       summary: End the session
-      description: Revokes the refresh token and clears the cookie. Idempotent.
+      description: |
+        Revokes the refresh token and clears the cookie. Idempotent. The request must
+        carry the frontend's `Origin` header (CSRF defense): otherwise 403 FORBIDDEN
+        with `details.reason = ORIGIN`.
       security: [{ refreshCookie: [] }, {}]
       responses:
         '204': { description: Session closed, headers: { X-Request-Id: { $ref: '#/components/headers/XRequestId' } } }
+        '403': { $ref: '#/components/responses/OriginRejected' }
         '429': { $ref: '#/components/responses/RateLimited' }
         '500': { $ref: '#/components/responses/InternalError' }
 
@@ -639,7 +651,7 @@ paths:
       x-capability: 'CRUD of variables and collections'
       x-roles: [ADMINISTRATOR, DEVELOPER]
       summary: Register a variable (FR-05, FR-07)
-      x-error-codes: [APPLICATION_ARCHIVED, INVALID_ORIGIN_SCREEN]
+      x-error-codes: [APPLICATION_ARCHIVED, INVALID_ORIGIN_SCREEN, DUPLICATE_NAME]
       description: |
         Roles: Administrator, Developer. The variable is linked to the dependency
         map automatically (FR-06): it becomes a node, and its origin screen gets a
@@ -711,7 +723,7 @@ paths:
       x-capability: 'CRUD of variables and collections'
       x-roles: [ADMINISTRATOR, DEVELOPER]
       summary: Replace a variable's editable data
-      x-error-codes: [APPLICATION_ARCHIVED, CROSS_APPLICATION, INVALID_ORIGIN_SCREEN, SCOPE_CONFLICT, CONTEXT_SCREEN_MISMATCH]
+      x-error-codes: [APPLICATION_ARCHIVED, INVALID_ORIGIN_SCREEN, SCOPE_CONFLICT, CONTEXT_SCREEN_MISMATCH, DUPLICATE_NAME]
       description: |
         Roles: Administrator, Developer. `applicationId` cannot change.
         Changing `scope` is rejected (422 SCOPE_CONFLICT) while Set/UpdateContext
@@ -726,9 +738,10 @@ paths:
         `If-Match` is always checked when sent, also when the body changes nothing.
         An update that changes nothing writes nothing: it answers 200 with the same
         `ETag` and `updatedAt`. The business rules are applied in this order:
-        INVALID_ORIGIN_SCREEN, SCOPE_CONFLICT, CONTEXT_SCREEN_MISMATCH. The
-        environments are replaced by difference, and a change in them also moves the
-        `ETag`.
+        INVALID_ORIGIN_SCREEN (the origin screen follows the same rules as in
+        `POST /variables`), SCOPE_CONFLICT, CONTEXT_SCREEN_MISMATCH. The name must be
+        free where DUPLICATE_NAME says (409). The environments are replaced by
+        difference, and a change in them also moves the `ETag`.
       parameters:
         - $ref: '#/components/parameters/IfMatch'
       requestBody:
@@ -929,7 +942,7 @@ paths:
       x-capability: 'CRUD of variables and collections'
       x-roles: [ADMINISTRATOR, DEVELOPER]
       summary: Replace a collection, its fields and its assignments
-      x-error-codes: [APPLICATION_ARCHIVED, SCOPE_MISMATCH, CROSS_APPLICATION, CONTEXT_SCREEN_MISMATCH]
+      x-error-codes: [APPLICATION_ARCHIVED, SCOPE_MISMATCH, CROSS_APPLICATION, CONTEXT_SCREEN_MISMATCH, DUPLICATE_NAME]
       description: |
         Roles: Administrator, Developer. The body replaces the whole editable
         representation: an omitted `fields`, `variableAssignments` or `derivedFrom`
@@ -2054,6 +2067,14 @@ components:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
           example: { code: REFRESH_INVALID, message: "Your session ended. Sign in again to continue.", details: null }
+    OriginRejected:
+      description: The request does not come from the frontend's Origin (cookie endpoints only)
+      headers:
+        X-Request-Id: { $ref: '#/components/headers/XRequestId' }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { code: FORBIDDEN, message: "This request's origin isn't allowed.", details: { reason: ORIGIN } }
     NotModified:
       description: The resource did not change since the `If-None-Match` value (no body)
       headers:
