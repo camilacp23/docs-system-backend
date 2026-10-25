@@ -1,0 +1,29 @@
+info:
+  name: '13 Create 201 (minimal: one field, default position)'
+  type: http
+  seq: 13
+http:
+  method: POST
+  url: '{{baseUrl}}/collections'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "applicationId": {{fixturesAppId}}, "name": "{{varPrefix}}ColB", "environments": [{ "environment": "DEV" }], "fields": [{ "name": "Code", "dataType": "TEXT" }] }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) { bru.setVar("varColBId", res.body.data.id); bru.setVar("varColBFieldId", res.body.data.fields[0].id); }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("body is the collection", function () { const d = res.body.data; expect(d).to.include.keys("id", "applicationId", "name", "environments", "documented", "fieldCount", "createdAt", "updatedAt", "creationCondition", "description", "environmentDetails", "fields", "variableAssignments", "derivedFrom"); expect(d).to.not.have.any.keys("passwordHash"); expect(d.applicationId).to.equal(Number(bru.interpolate("{{fixturesAppId}}"))); });
+        test("Location points to the new collection", function () { expect(res.headers["location"]).to.equal("/api/v1/collections/" + res.body.data.id); });
+        test("ETag is a weak validator", function () { expect(res.headers["etag"]).to.match(/^W\/"\d+"$/); });
+        test("the field takes position 0, nothing else was created", function () { const d = res.body.data; expect(d.name).to.equal(bru.getVar("varPrefix") + "ColB"); expect(d.environments).to.deep.equal(["DEV"]); expect(d.fields.map(function (f) { return [f.name, f.dataType, f.description, f.position]; })).to.deep.equal([["Code", "TEXT", null, 0]]); expect(d.variableAssignments).to.deep.equal([]); expect(d.derivedFrom).to.deep.equal([]); expect(d.documented).to.equal(false); expect(d.fieldCount).to.equal(1); });
+settings:
+  encodeUrl: true

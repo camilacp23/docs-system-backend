@@ -11,6 +11,7 @@ import {
   insertApplication,
   insertCollection,
   insertScreen,
+  insertScreenCollection,
   insertScreenVariable,
   insertVariable,
   insertVariableCollection,
@@ -27,6 +28,7 @@ export const FIXTURE_NAMES = {
   sharedVariable: 'gSandboxShared',
   linkedVariable: 'gSandboxLinked',
   collection: 'colSandbox',
+  documentedCollection: 'colSandboxDocumented',
 } as const;
 
 /** Ids of the fixed data, written to the collection's `.env` as `SANDBOX_FIXTURES_*`. */
@@ -37,6 +39,7 @@ export type SandboxFixtureIds = {
   sharedVariableId: number;
   linkedVariableId: number;
   collectionId: number;
+  documentedCollectionId: number;
 };
 
 /**
@@ -59,7 +62,8 @@ export function assertSandboxUrl(url: string): void {
 /**
  * Inserts "Sandbox Fixtures": two screens besides App (OnStart); `gSandboxShared` (GLOBAL, origin A, READ from B, SET
  * assignment in `colSandbox`, to try SCOPE_CONFLICT and the dependencies) and `gSandboxLinked` (GLOBAL, origin A, READ
- * from B, no assignments, to try CONTEXT_SCREEN_MISMATCH).
+ * from B, no assignments, to try CONTEXT_SCREEN_MISMATCH); `colSandbox` (no screen link: undocumented) and
+ * `colSandboxDocumented` (linked to screen A: documented), to try the `undocumented` filter.
  *
  * @param ownerUrl - docs_owner connection URL of `docs_sandbox`.
  * @param adminEmail - E-mail of the administrator that authors the data.
@@ -91,6 +95,13 @@ export async function insertSandboxFixtures(ownerUrl: string, adminEmail: string
       environments,
     });
     const collection = await insertCollection(t, app.id, { name: FIXTURE_NAMES.collection });
+    const documented = await insertCollection(t, app.id, { name: FIXTURE_NAMES.documentedCollection });
+    await insertScreenCollection(t, {
+      screenId: screenA.id,
+      collectionId: documented.id,
+      accessMode: 'READ',
+      usedIn: 'Label',
+    });
     for (const variable of [shared, linked]) {
       await insertScreenVariable(t, {
         screenId: screenB.id,
@@ -113,6 +124,7 @@ export async function insertSandboxFixtures(ownerUrl: string, adminEmail: string
       sharedVariableId: shared.id,
       linkedVariableId: linked.id,
       collectionId: collection.id,
+      documentedCollectionId: documented.id,
     };
   } finally {
     await owner.end();

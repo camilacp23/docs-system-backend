@@ -73,6 +73,24 @@ describe('refresh, logout and session end', () => {
     assert.equal(bodyOf(next).code, 'REFRESH_INVALID');
   });
 
+  it('refresh and logout accept only the frontend Origin: another one or none -> 403 FORBIDDEN, reason ORIGIN', async () => {
+    const cookie = rtPair(await login(t, EMAILS.admin));
+    for (const op of ['refresh', 'logout']) {
+      for (const origin of [undefined, 'https://evil.example']) {
+        const req = t.http.post(`/api/v1/auth/${op}`).set('Cookie', cookie);
+        const res = await (origin === undefined ? req : req.set('Origin', origin));
+        assert.equal(res.status, 403, `${op} ${origin}`);
+        assert.deepEqual(bodyOf(res), {
+          code: 'FORBIDDEN',
+          message: "This request's origin isn't allowed.",
+          details: { reason: 'ORIGIN' },
+        });
+      }
+    }
+    // The rejected requests did not consume the token.
+    assert.equal((await refresh(t, cookie)).status, 200);
+  });
+
   it('a missing, malformed or unknown cookie -> 401 REFRESH_INVALID', async () => {
     const none = await t.http.post('/api/v1/auth/refresh').set('Origin', TEST_ORIGIN);
     assert.equal(none.status, 401);

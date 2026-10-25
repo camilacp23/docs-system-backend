@@ -1,0 +1,24 @@
+info:
+  name: '32 Create 422 (CONTEXT_SCREEN_MISMATCH with origin)'
+  type: http
+  seq: 32
+http:
+  method: POST
+  url: '{{baseUrl}}/collections'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "applicationId": {{fixturesAppId}}, "name": "{{varPrefix}}Ghost", "environments": [{ "environment": "DEV" }], "variableAssignments": [{ "variableId": {{varCtxId}}, "screenId": {{screenBId}}, "assignmentFunction": "UPDATE_CONTEXT", "tableFunction": null, "usedIn": "OnVisible" }] }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 422", function () { expect(res.status).to.equal(422); });
+        test("error body has code CONTEXT_SCREEN_MISMATCH, message and details", function () { expect(res.body.code).to.equal("CONTEXT_SCREEN_MISMATCH"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("message and details", function () { expect(res.body.message).to.equal(bru.getVar("varPrefix") + "Ctx belongs to Sandbox Screen A. From here you can only write it with Navigate."); expect(res.body.details).to.deep.equal({ variableId: Number(bru.interpolate("{{varCtxId}}")), variable: bru.getVar("varPrefix") + "Ctx", originScreenId: Number(bru.interpolate("{{screenAId}}")), screen: "Sandbox Screen A", screenId: Number(bru.interpolate("{{screenBId}}")), targetScreen: "Sandbox Screen B", field: "variableAssignments[0].screenId" }); });
+settings:
+  encodeUrl: true

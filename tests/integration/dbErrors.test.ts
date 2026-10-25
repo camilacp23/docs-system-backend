@@ -218,6 +218,38 @@ describe('database error table', () => {
     }
   });
 
+  it('dependency_no_self_chk is translated per operation: collections give 400, every other operation stays 500', async () => {
+    const facts: DbFacts = { sqlstate: '23514', constraint: 'dependency_no_self_chk' };
+    const outcomeOf = (operationId: string, body: object, id?: number) =>
+      translateDbError(facts, {
+        req: { body, policy: { operationId, path: '/x' } } as never,
+        res: { locals: { pathParams: id === undefined ? {} : { id: String(id) } } },
+        db: t.db,
+      });
+    for (const operationId of ['updateCollection', 'createCollection', 'updateScreen', 'createVariable']) {
+      const outcome = await outcomeOf(
+        operationId,
+        { derivedFrom: [5, 7] },
+        operationId === 'createCollection' ? undefined : 7,
+      );
+      if (operationId.endsWith('Collection')) {
+        assert.equal(outcome.kind, 'api', operationId);
+        if (outcome.kind === 'api') {
+          assert.equal(outcome.error.status, 400);
+          assert.deepEqual((outcome.error.details as { fields: unknown[] }).fields, [
+            {
+              field: operationId === 'updateCollection' ? 'derivedFrom[1]' : 'derivedFrom[]',
+              rule: 'self',
+              message: 'A collection cannot derive from itself.',
+            },
+          ]);
+        }
+      } else {
+        assert.equal(outcome.kind, 'internal', operationId);
+      }
+    }
+  });
+
   it('a constraint that is not in the table is 500, never guessed', async () => {
     const outcome = await translateDbError(
       { sqlstate: '23505', constraint: 'brand_new_unique_idx' },
@@ -688,6 +720,24 @@ describe('database errors provoked on a real database', () => {
           `INSERT INTO dependency (source_id, source_type, target_id, target_type, relation_type) VALUES (${ids.cReq}, 'COLLECTION', 999999, 'COLLECTION', 'DERIVES_FROM')`,
         ),
         expect: notFound('collection'),
+      },
+      {
+        name: 'a collection derived from itself (CHECK, collection write): 400 at its position in derivedFrom (D-74)',
+        op: 'updateCollection',
+        body: { derivedFrom: [999999, ids.cReq] },
+        pathId: ids.cReq,
+        run: sql(
+          `INSERT INTO dependency (source_id, source_type, target_id, target_type, relation_type) VALUES (${ids.cReq}, 'COLLECTION', ${ids.cReq}, 'COLLECTION', 'DERIVES_FROM')`,
+        ),
+        expect: validation('derivedFrom[1]', 'self', 'A collection cannot derive from itself.'),
+      },
+      {
+        name: 'a screen navigating to itself (CHECK, screen write) stays a defect until Module 4 translates it',
+        op: 'updateScreen',
+        run: sql(
+          `INSERT INTO dependency (source_id, source_type, target_id, target_type, relation_type) VALUES (${ids.s1}, 'SCREEN', ${ids.s1}, 'SCREEN', 'NAVIGATES_TO')`,
+        ),
+        expect: internal('DEPENDENCY_DERIVED'),
       },
       {
         name: 'delete a referenced row (RESTRICT) is a defect',

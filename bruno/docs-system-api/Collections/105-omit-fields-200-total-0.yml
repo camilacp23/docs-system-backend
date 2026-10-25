@@ -1,0 +1,19 @@
+info:
+  name: '105 Omit · fields 200 (total 0)'
+  type: http
+  seq: 105
+http:
+  method: GET
+  url: '{{baseUrl}}/collections/{{varColEId}}/fields'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("no fields", function () { expect(res.body.total).to.equal(0); expect(res.body.data).to.deep.equal([]); });
+settings:
+  encodeUrl: true

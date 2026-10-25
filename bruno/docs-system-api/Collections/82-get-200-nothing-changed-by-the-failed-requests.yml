@@ -1,0 +1,20 @@
+info:
+  name: '82 Get 200 (nothing changed by the failed requests)'
+  type: http
+  seq: 82
+http:
+  method: GET
+  url: '{{baseUrl}}/collections/{{varColAId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the ETag is the one of the last successful PUT", function () { expect(res.headers["etag"]).to.equal(bru.getVar("varColAEtag")); });
+        test("fields, assignments and derivedFrom are the reconciled ones", function () { const d = res.body.data; expect(d.fields.map(function (f) { return [f.name, f.position]; })).to.deep.equal([["FullName", 0], ["Id", 1], ["CreatedAt", 2]]); expect(d.variableAssignments).to.have.length(2); expect(d.derivedFrom.map(function (c) { return c.id; })).to.deep.equal([Number(bru.interpolate("{{varColBId}}"))]); });
+settings:
+  encodeUrl: true

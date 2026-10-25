@@ -16,6 +16,11 @@ export type ConstraintRule =
   | { kind: 'duplicateName'; type: string; container: 'application' | 'screen' | 'collection' | 'system' }
   /** 400 VALIDATION_ERROR (D-65). The service validates first with the exact index; this is the fallback. */
   | { kind: 'validation'; field: string; rule: 'unique' | 'CHECK'; message: string }
+  /**
+   * 400 VALIDATION_ERROR (D-65) only for the operations listed in `fields`; any other operation is a defect (500
+   * `reason`). The field is the array the operation receives; its position is taken from the body when it can be found.
+   */
+  | { kind: 'operationValidation'; fields: Readonly<Record<string, string>>; message: string; reason: string }
   /** 404 NOT_FOUND on a reference to a row that does not exist. `byOperation` overrides `element`. */
   | { kind: 'notFound'; element: string; byOperation?: Readonly<Record<string, string>> }
   /** 422 SCOPE_MISMATCH, or SCOPE_CONFLICT when the scope of a variable is being changed. */
@@ -142,7 +147,14 @@ const RULES: Record<string, ConstraintRule> = {
   variable_collection_used_in_not_blank_chk: notBlank('variableAssignments[].usedIn'),
   comment_text_not_blank_chk: notBlank('text'),
   // The types of a dependency are derived by the service, never sent by the client (Table 32).
-  dependency_no_self_chk: internal('DEPENDENCY_DERIVED'),
+  // A collection derived from itself: PUT /collections validates it first (D-74); this is the backstop. The
+  // navigations of PUT /screens (screen -> itself) are added with Module 4; until then they stay 500.
+  dependency_no_self_chk: {
+    kind: 'operationValidation',
+    fields: { createCollection: 'derivedFrom', updateCollection: 'derivedFrom' },
+    message: 'A collection cannot derive from itself.',
+    reason: 'DEPENDENCY_DERIVED',
+  },
   dependency_allowed_pairs_chk: internal('DEPENDENCY_DERIVED'),
   jira_ticket_key_format_chk: internal('JIRA_KEY_FORMAT'),
   jira_ticket_hierarchy_chk: internal('JIRA_HIERARCHY'),

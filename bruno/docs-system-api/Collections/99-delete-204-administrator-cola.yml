@@ -1,0 +1,18 @@
+info:
+  name: '99 Delete 204 (administrator: ColA)'
+  type: http
+  seq: 99
+http:
+  method: DELETE
+  url: '{{baseUrl}}/collections/{{varColAId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varAdminToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 204", function () { expect(res.status).to.equal(204); });
+settings:
+  encodeUrl: true

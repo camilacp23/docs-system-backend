@@ -197,6 +197,25 @@ describe('variables: write', () => {
       ]);
     });
 
+    it('400 names the POSITION of an environment repeated with identical content, on POST and on PUT', async () => {
+      const identical = [{ environment: 'DEV' }, { environment: 'DEV' }];
+      const expected = [
+        {
+          field: 'environments[1].environment',
+          rule: 'unique',
+          message: 'This value is repeated. Each one must be unique.',
+        },
+      ];
+      const created = await dev().post('/variables', createBodyOf(app.id, { environments: identical }));
+      assert.equal(created.status, 400);
+      assert.deepEqual(bodyOf(created).details.fields, expected);
+
+      const { variable } = await create();
+      const updated = await dev().put(`/variables/${variable.id}`, putBodyOf(variable, { environments: identical }));
+      assert.equal(updated.status, 400);
+      assert.deepEqual(bodyOf(updated).details.fields, expected);
+    });
+
     it('404 for an unknown application or origin screen, also when the id is outside the integer range', async () => {
       for (const applicationId of [999999, 2147483648]) {
         const res = await dev().post('/variables', createBodyOf(applicationId));

@@ -1,0 +1,32 @@
+info:
+  name: '72 Update 404 (nested field id of another collection, D-75)'
+  type: http
+  seq: 72
+http:
+  method: PUT
+  url: '{{baseUrl}}/collections/{{varColAId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{varPrefix}}ColA",
+        "creationCondition": "ClearCollect on entering the screen",
+        "description": "Main collection of the run",
+        "environments": [{ "environment": "DEV", "notes": "Dev note" }, { "environment": "PROD", "notes": "Prod note" }],
+        "fields": [{ "id": {{varFieldIdId}}, "name": "FullName", "dataType": "NUMBER", "position": 0 }, { "id": {{varColBFieldId}}, "name": "Stolen", "dataType": "TEXT", "position": 1 }],
+        "variableAssignments": [{ "id": {{varAsgGlobId}}, "variableId": {{varGlobId}}, "screenId": {{screenAId}}, "assignmentFunction": "SET", "tableFunction": "First", "usedIn": "OnVisible" }, { "id": {{varAsgNewId}}, "variableId": {{varCtxId}}, "screenId": {{screenAId}}, "assignmentFunction": "UPDATE_CONTEXT", "tableFunction": null, "usedIn": "btnNew.OnSelect" }],
+        "derivedFrom": [{{varColBId}}]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 404", function () { expect(res.status).to.equal(404); });
+        test("error body has code NOT_FOUND, message and details", function () { expect(res.body.code).to.equal("NOT_FOUND"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("details name the field and its position", function () { expect(res.body.details).to.deep.equal({ element: "collection field", id: Number(bru.interpolate("{{varColBFieldId}}")), field: "fields[1].id" }); });
+settings:
+  encodeUrl: true

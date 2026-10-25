@@ -33,10 +33,12 @@ export const E = {
   /** CSRF guard of refresh/logout; not in the user catalog (the real frontend never triggers it). */
   originRejected: () => new ApiError(403, 'FORBIDDEN', "This request's origin isn't allowed.", { reason: 'ORIGIN' }),
   // 404
-  notFound: (element: string, id?: number | string) =>
+  /** `field` (D-75) names the position of a nested id in the payload (for example `fields[2].id`). */
+  notFound: (element: string, id?: number | string, field?: string) =>
     new ApiError(404, 'NOT_FOUND', `This ${element} doesn't exist. It may have been deleted.`, {
       element,
       id: id ?? null,
+      ...(field === undefined ? {} : { field }),
     }),
   /** Phase 3 decision: a contract operation without a module handler yet (development only). */
   notImplemented: () =>
@@ -101,7 +103,14 @@ export const E = {
       `You can't change the scope while collections assign this variable with ${fn}. Update those assignments first.`,
       { function: fn },
     ),
-  crossApplication: () => new ApiError(422, 'CROSS_APPLICATION', 'You can only link elements of the same application.'),
+  /** D-76: `field` is the position of the first element of another application in the payload. */
+  crossApplication: (field?: string) =>
+    new ApiError(
+      422,
+      'CROSS_APPLICATION',
+      'You can only link elements of the same application.',
+      field === undefined ? null : { field },
+    ),
   invalidOriginScreen: () =>
     new ApiError(422, 'INVALID_ORIGIN_SCREEN', 'Context variables are created inside a screen, not in App (OnStart).', {
       field: 'originScreenId',
@@ -129,6 +138,8 @@ export const E = {
     originScreen: string | null;
     screenId: number;
     targetScreen: string;
+    /** D-76: position of the assignment in the payload (absent when the database raises it). */
+    field?: string;
   }) =>
     d.originScreenId === null || d.originScreen === null
       ? new ApiError(
@@ -141,6 +152,7 @@ export const E = {
             originScreenId: null,
             screenId: d.screenId,
             targetScreen: d.targetScreen,
+            ...(d.field === undefined ? {} : { field: d.field }),
           },
         )
       : new ApiError(
@@ -154,6 +166,7 @@ export const E = {
             screen: d.originScreen,
             screenId: d.screenId,
             targetScreen: d.targetScreen,
+            ...(d.field === undefined ? {} : { field: d.field }),
           },
         ),
   lastActiveAdmin: () =>

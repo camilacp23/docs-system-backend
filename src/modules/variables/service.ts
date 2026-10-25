@@ -15,7 +15,8 @@ import type { Database } from '../../db/prisma.js';
 import type { DataType, Environment, VariableScope } from '../../generated/prisma/client.js';
 import { etagOf } from '../../http/etag.js';
 import { INT32_MAX, assertIdInRange } from '../../http/ids.js';
-import { E, type FieldError } from '../../security/errors.js';
+import { repeatedFields } from '../../http/repeats.js';
+import { E } from '../../security/errors.js';
 import { type ApplicationService } from '../applications/service.js';
 import type { ScreenService } from '../screens/service.js';
 import * as repo from './repository.js';
@@ -61,6 +62,11 @@ export type VariableService = {
   create(input: CreateVariableInput): Promise<repo.VariableView>;
   update(id: number, input: VariableInput, assertCurrent: PreconditionCheck): Promise<repo.VariableView>;
   remove(id: number): Promise<void>;
+  /**
+   * The variable a client points at (scope, application and origin), or `null` when it does not exist or its id cannot
+   * exist. Locks the row FOR SHARE: for modules that write links to a variable inside their own transaction.
+   */
+  findRef(client: Pick<repo.VariablesClient, '$queryRaw'>, id: number): Promise<repo.VariableRef | null>;
 };
 
 type Tx = Parameters<Parameters<Database['auditedTransaction']>[0]>[0];
@@ -70,18 +76,11 @@ type Target = { applicationId: number; applicationName: string; origin: { id: nu
 
 /** D-65: the same environment twice in one payload is a 400 that names the position of each repetition. */
 function assertDistinctEnvironments(environments: readonly { environment: Environment }[]): void {
-  const seen = new Set<Environment>();
-  const fields: FieldError[] = [];
-  environments.forEach((e, index) => {
-    if (seen.has(e.environment)) {
-      fields.push({
-        field: `environments[${index}].environment`,
-        rule: 'unique',
-        message: 'This value is repeated. Each one must be unique.',
-      });
-    }
-    seen.add(e.environment);
-  });
+  const fields = repeatedFields(
+    environments,
+    (e) => e.environment,
+    (index) => `environments[${index}].environment`,
+  );
   if (fields.length > 0) throw E.validation(fields);
 }
 
@@ -284,6 +283,8 @@ export function createVariableService(
         return updated;
       });
     },
+
+    findRef: (client, id) => (id > INT32_MAX ? Promise.resolve(null) : repo.findVariableRefShared(client, id)),
 
     async remove(id) {
       await db.auditedTransaction(async (tx) => {

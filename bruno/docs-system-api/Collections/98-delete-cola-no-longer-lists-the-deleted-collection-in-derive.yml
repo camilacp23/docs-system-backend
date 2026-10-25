@@ -1,0 +1,20 @@
+info:
+  name: '98 Delete · ColA no longer lists the deleted collection in derivedFrom'
+  type: http
+  seq: 98
+http:
+  method: GET
+  url: '{{baseUrl}}/collections/{{varColAId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("derivedFrom is empty", function () { expect(res.body.data.derivedFrom).to.deep.equal([]); });
+        test("the rest is intact", function () { expect(res.body.data.fields).to.have.length(3); expect(res.body.data.variableAssignments).to.have.length(2); });
+settings:
+  encodeUrl: true

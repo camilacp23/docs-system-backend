@@ -1,0 +1,20 @@
+info:
+  name: '43 Fields 400 (pageSize over 100)'
+  type: http
+  seq: 43
+http:
+  method: GET
+  url: '{{baseUrl}}/collections/{{varColAId}}/fields?pageSize=101'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 400", function () { expect(res.status).to.equal(400); });
+        test("error body has code VALIDATION_ERROR, message and details", function () { expect(res.body.code).to.equal("VALIDATION_ERROR"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("details.fields names pageSize", function () { expect(res.body.details.fields.map(function (f) { return f.field; }).join(" ")).to.include("pageSize"); });
+settings:
+  encodeUrl: true

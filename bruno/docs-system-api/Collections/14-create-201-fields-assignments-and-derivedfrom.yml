@@ -1,0 +1,56 @@
+info:
+  name: '14 Create 201 (fields, assignments and derivedFrom)'
+  type: http
+  seq: 14
+http:
+  method: POST
+  url: '{{baseUrl}}/collections'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{fixturesAppId}},
+        "name": "{{varPrefix}}ColA",
+        "creationCondition": "ClearCollect on entering the screen",
+        "description": "Main collection of the run",
+        "environments": [{ "environment": "DEV", "notes": "Dev note" }, { "environment": "PROD", "notes": "Prod note" }],
+        "fields": [
+          { "name": "Id", "dataType": "NUMBER", "position": 0 },
+          { "name": "Name", "dataType": "TEXT", "description": "Display name", "position": 1 },
+          { "name": "Status", "dataType": "TEXT", "position": 2 }
+        ],
+        "variableAssignments": [
+          { "variableId": {{varGlobId}}, "screenId": {{screenAId}}, "assignmentFunction": "SET", "tableFunction": "CountRows", "usedIn": "OnVisible" },
+          { "variableId": {{varCtxId}}, "screenId": {{screenAId}}, "assignmentFunction": "UPDATE_CONTEXT", "tableFunction": null, "usedIn": "btnSave.OnSelect" }
+        ],
+        "derivedFrom": [{{varColBId}}]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) {
+          const d = res.body.data;
+          bru.setVar("varColAId", d.id);
+          bru.setVar("varColAEtag", res.headers["etag"]);
+          bru.setVar("varColAEtag0", res.headers["etag"]);
+          const f = function (n) { return d.fields.find(function (x) { return x.name === n; }).id; };
+          bru.setVar("varFieldIdId", f("Id")); bru.setVar("varFieldNameId", f("Name")); bru.setVar("varFieldStatusId", f("Status"));
+          const a = function (v) { return d.variableAssignments.find(function (x) { return x.variable.id === v; }).id; };
+          bru.setVar("varAsgGlobId", a(Number(bru.getVar("varGlobId")))); bru.setVar("varAsgCtxId", a(Number(bru.getVar("varCtxId"))));
+        }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("body is the collection", function () { const d = res.body.data; expect(d).to.include.keys("id", "applicationId", "name", "environments", "documented", "fieldCount", "createdAt", "updatedAt", "creationCondition", "description", "environmentDetails", "fields", "variableAssignments", "derivedFrom"); expect(d).to.not.have.any.keys("passwordHash"); expect(d.applicationId).to.equal(Number(bru.interpolate("{{fixturesAppId}}"))); });
+        test("Location and ETag", function () { expect(res.headers["location"]).to.equal("/api/v1/collections/" + res.body.data.id); expect(res.headers["etag"]).to.match(/^W\/"\d+"$/); });
+        test("scalar fields and environments", function () { const d = res.body.data; expect(d.name).to.equal(bru.getVar("varPrefix") + "ColA"); expect(d.creationCondition).to.equal("ClearCollect on entering the screen"); expect(d.description).to.equal("Main collection of the run"); expect(d.environments).to.have.members(["DEV", "PROD"]); expect(d.environmentDetails).to.deep.have.members([{ environment: "DEV", notes: "Dev note" }, { environment: "PROD", notes: "Prod note" }]); expect(d.documented).to.equal(false); expect(d.fieldCount).to.equal(3); });
+        test("fields keep their position", function () { expect(res.body.data.fields.map(function (f) { return [f.name, f.dataType, f.description, f.position]; })).to.deep.equal([["Id", "NUMBER", null, 0], ["Name", "TEXT", "Display name", 1], ["Status", "TEXT", null, 2]]); });
+        test("assignments", function () { const d = res.body.data; expect(d.variableAssignments).to.have.length(2); const g = d.variableAssignments.find(function (a) { return a.assignmentFunction === "SET"; }); expect(g.variable).to.deep.equal({ id: Number(bru.interpolate("{{varGlobId}}")), name: bru.getVar("varPrefix") + "Glob" }); expect(g.collection).to.deep.equal({ id: d.id, name: bru.getVar("varPrefix") + "ColA" }); expect(g.screen).to.deep.equal({ id: Number(bru.interpolate("{{screenAId}}")), name: "Sandbox Screen A" }); expect(g.tableFunction).to.equal("CountRows"); expect(g.usedIn).to.equal("OnVisible"); const c = d.variableAssignments.find(function (a) { return a.assignmentFunction === "UPDATE_CONTEXT"; }); expect(c.variable.id).to.equal(Number(bru.interpolate("{{varCtxId}}"))); expect(c.tableFunction).to.equal(null); expect(c.usedIn).to.equal("btnSave.OnSelect"); });
+        test("derivedFrom lists the collection it is built from", function () { expect(res.body.data.derivedFrom).to.deep.equal([{ id: Number(bru.interpolate("{{varColBId}}")), name: bru.getVar("varPrefix") + "ColB" }]); });
+settings:
+  encodeUrl: true

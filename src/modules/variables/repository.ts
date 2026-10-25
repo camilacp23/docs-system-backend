@@ -8,7 +8,10 @@
  * @module modules/variables/repository
  */
 import type { DataType, Environment, Prisma, PrismaClient, VariableScope } from '../../generated/prisma/client.js';
+import { replaceElementEnvironments, type EnvironmentInput } from '../../db/elementEnvironments.js';
 import { escapeLike } from '../../http/like.js';
+
+export type { EnvironmentInput };
 
 /** Clients accepted by the queries: the plain client or the transaction client of `auditedTransaction`. */
 export type VariablesClient = Pick<
@@ -242,9 +245,6 @@ export async function findVariableDependencies(
   };
 }
 
-/** Presence to write for one environment. */
-export type EnvironmentInput = { environment: Environment; notes: string | null };
-
 /** The first link that the context-screen rule (CP-07, D-52) would reject, or `null` when there is none. */
 export type ForbiddenContextLink = { screenId: number; screenName: string };
 
@@ -373,30 +373,51 @@ export async function touchVariable(client: Pick<VariablesClient, 'variable'>, i
 }
 
 /** Makes the environments of the variable equal to `wanted` by difference: delete, update notes, insert. */
-export async function replaceEnvironments(
+export const replaceEnvironments = (
   client: Pick<VariablesClient, 'elementEnvironment'>,
   variableId: number,
   current: readonly EnvironmentInput[],
   wanted: readonly EnvironmentInput[],
-): Promise<void> {
-  const wantedNames = wanted.map((e) => e.environment);
-  const gone = current.filter((e) => !wantedNames.includes(e.environment)).map((e) => e.environment);
-  if (gone.length > 0) {
-    await client.elementEnvironment.deleteMany({ where: { elementId: variableId, environment: { in: gone } } });
-  }
-  for (const e of wanted) {
-    const existing = current.find((c) => c.environment === e.environment);
-    if (existing === undefined) {
-      await client.elementEnvironment.create({
-        data: { elementId: variableId, elementType: 'VARIABLE', environment: e.environment, notes: e.notes },
-      });
-    } else if (existing.notes !== e.notes) {
-      await client.elementEnvironment.update({
-        where: { elementId_environment: { elementId: variableId, environment: e.environment } },
-        data: { notes: e.notes },
-      });
-    }
-  }
+): Promise<void> => replaceElementEnvironments(client, variableId, 'VARIABLE', current, wanted);
+
+/** The columns of a variable that other modules need to validate a reference to it (CP-07, FR-09). */
+export type VariableRef = {
+  id: number;
+  name: string;
+  applicationId: number;
+  scope: VariableScope;
+  originScreen: Ref | null;
+};
+
+/**
+ * Reads a variable and locks its row FOR SHARE until the end of the transaction: a concurrent change of its scope or
+ * origin waits, and the reader sees the committed version if it had to wait.
+ */
+export async function findVariableRefShared(
+  client: Pick<VariablesClient, '$queryRaw'>,
+  id: number,
+): Promise<VariableRef | null> {
+  const rows = await client.$queryRaw<
+    {
+      id: number;
+      name: string;
+      application_id: number;
+      scope: VariableScope;
+      origin_id: number | null;
+      origin_name: string | null;
+    }[]
+  >`SELECT v.id, v.name, v.application_id, v.scope, s.id AS origin_id, s.name AS origin_name
+      FROM variable v LEFT JOIN screen s ON s.id = v.origin_screen_id
+     WHERE v.id = ${id} FOR SHARE OF v`;
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    id: row.id,
+    name: row.name,
+    applicationId: row.application_id,
+    scope: row.scope,
+    originScreen: row.origin_id === null ? null : { id: row.origin_id, name: row.origin_name! },
+  };
 }
 
 /** Deletes the variable; the database cascades its links, assignments, environments and dependencies. */
