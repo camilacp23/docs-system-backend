@@ -1,6 +1,6 @@
 # Plan aprobado — Bitácora 6 (Fase 3, inicio) · 18 al 20 de octubre de 2026
 
-Fuentes de verdad: SRS v1.3 y SDD v1.0. Decisiones posteriores: `DECISIONS_FASE3.md`.
+Fuentes de verdad: SRS v1.3 y SDD v1.2. Decisiones posteriores: `DECISIONS_FASE3.md`.
 INF = repositorio/infraestructura · BE = backend · FE = frontend.
 
 ## Domingo 18 — preparación

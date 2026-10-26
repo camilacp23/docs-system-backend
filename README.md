@@ -16,7 +16,7 @@ negociables, Git y definición de terminado. Toda la documentación está en **[
 | `api/` | Contrato OpenAPI 3.1 (`openapi.yaml`, 50 operaciones) y `check_contract_vs_db.py`, que lo compara con la base |
 | `bootstrap/` | `01_roles_and_database.sql`: roles `docs_owner` / `docs_app` y la base; lo ejecuta un DBA una sola vez |
 | `docs/requirements/` | SRS v1.3 (qué debe hacer el sistema) |
-| `docs/design/` | SDD v1.0 (cómo se construye) |
+| `docs/design/` | SDD v1.2 (cómo se construye) |
 | `docs/phase3/` | Decisiones posteriores al SDD (`DECISIONS_FASE3.md`) y plan semanal (`PLAN_SEMANA6.md`) |
 | `docs/guides/` | Guías de la Fase 2: instalación y verificación de la base (`00_LEEME_fase2.md`, `GUIA_CAMBIOS_CP01-CP11.md`) |
 | `docs/diagrams/` | Fuentes (Mermaid/Graphviz) e imágenes de las figuras del SDD |
