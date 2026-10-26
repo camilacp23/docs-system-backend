@@ -9,9 +9,9 @@ of the project. The design (Phase 2) is complete, verified and frozen: build on 
 | Priority | Source | Path | Governs |
 |---|---|---|---|
 | 1 | SRS v1.3 | `docs/requirements/SRS_v1.3.md` | WHAT the system must do (FR-01..FR-27, NFR-01..NFR-20, roles Table 26, standards §3.7) |
-| 2 | SDD v1.0 | `docs/design/SDD_v1.0.md` | HOW it is built (architecture §4, data §6, API conventions §7.1, errors Table 45, UI §7.3, workflow §9, security §11, decisions D-01..D-59 Table 70) |
+| 2 | SDD v1.2 | `docs/design/SDD_v1.2.md` | HOW it is built (architecture §4, data §6, API conventions §7.1, errors Table 45, UI §7.3, workflow §9, security §11, decisions D-01..D-59 Table 70) |
 | 3 | OpenAPI 3.1 contract | `api/openapi.yaml` | The API. **Where an SDD table and the contract differ, the contract prevails** (SDD §7). Authorization is generated from its `x-roles` / `x-rule`. |
-| 4 | Phase 3 decisions | `docs/phase3/DECISIONS_FASE3.md` | Decisions approved after SDD v1.0 (D-60, D-61, tooling). |
+| 4 | Phase 3 decisions | `docs/phase3/DECISIONS_FASE3.md` | Decisions approved after SDD v1.0 (incorporated in SDD v1.2) (D-60, D-61, tooling). |
 | 5 | Weekly plan | `docs/phase3/PLAN_SEMANA6.md` | Task scope (B-xx). |
 | — | Phase 2 guides | `docs/guides/` | How the baseline was installed and verified. |
 
