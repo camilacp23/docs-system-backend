@@ -136,7 +136,8 @@ export const E = {
     variable: string;
     originScreenId: number | null;
     originScreen: string | null;
-    screenId: number;
+    /** `null` when the screen is being created (D-85). */
+    screenId: number | null;
     targetScreen: string;
     /** D-76: position of the assignment in the payload (absent when the database raises it). */
     field?: string;
@@ -208,7 +209,13 @@ export const E = {
     new ApiError(422, 'COMMENT_REQUIRED', 'Write a comment: it is required to return the documentation.'),
   /** CP-11 */
   reviewCommentLocked: () => new ApiError(422, 'REVIEW_COMMENT_LOCKED', "Review decisions can't be edited."),
-  appContextProtected: () => new ApiError(422, 'APP_CONTEXT_PROTECTED', "The App (OnStart) screen can't be deleted."),
+  /** D-87: the App (OnStart) screen cannot be deleted (trigger) nor renamed (service). */
+  appContextProtected: (action: 'delete' | 'rename' = 'delete') =>
+    new ApiError(
+      422,
+      'APP_CONTEXT_PROTECTED',
+      action === 'rename' ? "The App (OnStart) screen can't be renamed." : "The App (OnStart) screen can't be deleted.",
+    ),
   storyNotInScreen: (storyId: number) =>
     new ApiError(
       422,

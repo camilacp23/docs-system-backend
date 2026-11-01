@@ -6,16 +6,25 @@
  */
 import type { Request, Response } from 'express';
 import type { DocumentationStatus } from '../../generated/prisma/client.js';
+import { assertIfMatch, etagOf, setEtag, setLocation } from '../../http/etag.js';
 import { paged, parsePagination, parseSort } from '../../http/pagination.js';
-import type { ScreenListQuery } from './repository.js';
+import type { ScreenListQuery, ScreenView } from './repository.js';
 import type { ScreenService } from './service.js';
 
+const ELEMENT = 'screen';
 const DEFAULT_SORT: ScreenListQuery['sort'] = { field: 'name', direction: 'asc' };
 
+const idOf = (req: Request): number => Number(req.params.id);
 const text = (value: unknown): string | undefined => (typeof value === 'string' ? value : undefined);
 /** The request validator may leave a numeric query value as a string or as a number. */
 const integer = (value: unknown): number | undefined =>
   typeof value === 'string' || typeof value === 'number' ? Number(value) : undefined;
+
+/** Sends a single screen with its ETag. */
+function sendScreen(res: Response, screen: ScreenView, status = 200): void {
+  setEtag(res, etagOf(screen));
+  res.status(status).json({ data: screen });
+}
 
 /**
  * Creates the handlers of the screens operations that exist so far.
@@ -38,6 +47,30 @@ export function createScreensController(service: ScreenService) {
         take: page.take,
       });
       res.json(paged(data, page, total));
+    },
+    /** GET /screens/:id */
+    get: async (req: Request, res: Response): Promise<void> => {
+      sendScreen(res, await service.get(idOf(req)));
+    },
+    /** POST /screens */
+    create: async (req: Request, res: Response): Promise<void> => {
+      const screen = await service.create(req.user!.id, req.body as Parameters<ScreenService['create']>[1]);
+      setLocation(res, '/screens', screen.id);
+      sendScreen(res, screen, 201);
+    },
+    /** PUT /screens/:id */
+    update: async (req: Request, res: Response): Promise<void> => {
+      const screen = await service.update(
+        idOf(req),
+        req.body as Parameters<ScreenService['update']>[1],
+        (currentETag) => assertIfMatch(req, ELEMENT, currentETag),
+      );
+      sendScreen(res, screen);
+    },
+    /** DELETE /screens/:id */
+    remove: async (req: Request, res: Response): Promise<void> => {
+      await service.remove(idOf(req));
+      res.status(204).end();
     },
   };
 }

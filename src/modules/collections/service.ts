@@ -89,6 +89,11 @@ export type CollectionService = {
   create(input: CreateCollectionInput): Promise<repo.CollectionView>;
   update(id: number, input: CollectionInput, assertCurrent: PreconditionCheck): Promise<repo.CollectionView>;
   remove(id: number): Promise<void>;
+  /**
+   * The collection a client points at (id, name, application), or `null` when it does not exist or its id cannot
+   * exist. Read-only (D-80); locks the row FOR SHARE for modules that write links to it in their own transaction.
+   */
+  findRef(client: Pick<repo.CollectionsClient, '$queryRaw'>, id: number): Promise<repo.CollectionRef | null>;
 };
 
 type Tx = Parameters<Parameters<Database['auditedTransaction']>[0]>[0];
@@ -481,6 +486,8 @@ export function createCollectionService(
         return updated;
       });
     },
+
+    findRef: (client, id) => (id > INT32_MAX ? Promise.resolve(null) : repo.findCollectionRefShared(client, id)),
 
     async remove(id) {
       await db.auditedTransaction(async (tx) => {
