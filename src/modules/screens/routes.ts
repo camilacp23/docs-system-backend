@@ -1,7 +1,7 @@
 /**
  * Routes of the screens module (Module 4): binds each implemented operationId of the contract to its handler. Roles
- * are not declared here; the contract (x-roles) is the only source of authorization (D-39). The status, review and
- * Jira operations of the module are not implemented yet (B-15, B-16).
+ * are not declared here; the contract (x-roles) is the only source of authorization (D-39). The review and the Jira
+ * operations of the module are not implemented yet.
  *
  * @module modules/screens/routes
  */
@@ -30,5 +30,6 @@ export function screensHandlers(db: Pick<Database, 'base' | 'prisma' | 'auditedT
     getScreen: controller.get,
     updateScreen: controller.update,
     deleteScreen: controller.remove,
+    changeScreenStatus: controller.changeStatus,
   };
 }

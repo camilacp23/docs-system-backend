@@ -135,10 +135,17 @@ describe('screens: GET /screens/{id}', () => {
     assert.equal((await t.http.get('/api/v1/screens/1')).status, 401);
   });
 
-  it('the five operations are implemented; status, review and Jira still answer NOT_IMPLEMENTED', () => {
-    const implemented = ['listScreens', 'createScreen', 'getScreen', 'updateScreen', 'deleteScreen'];
+  it('the six operations are implemented; review and Jira still answer NOT_IMPLEMENTED', () => {
+    const implemented = [
+      'listScreens',
+      'createScreen',
+      'getScreen',
+      'updateScreen',
+      'deleteScreen',
+      'changeScreenStatus',
+    ];
     for (const operationId of implemented) assert.ok(!t.built.notImplemented.includes(operationId), operationId);
-    for (const operationId of ['changeScreenStatus', 'reviewScreen', 'createJiraTicket', 'listJiraTickets']) {
+    for (const operationId of ['reviewScreen', 'createJiraTicket', 'listJiraTickets']) {
       assert.ok(t.built.notImplemented.includes(operationId), operationId);
     }
   });

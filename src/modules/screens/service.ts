@@ -8,7 +8,8 @@
  * variables, collections and target screens) -> 422 APPLICATION_ARCHIVED -> 412 (PUT; `If-Match` is always verified)
  * -> 422 business rules, rule by rule (PUT: APP_CONTEXT_PROTECTED on rename, SCREEN_IN_REVIEW; then CROSS_APPLICATION
  * and CONTEXT_SCREEN_MISMATCH) -> 409 DUPLICATE_NAME -> the write. DELETE: 404 -> APPLICATION_ARCHIVED ->
- * APP_CONTEXT_PROTECTED -> SCREEN_IN_REVIEW. The rules are checked here, BEFORE writing, because the context rule is a
+ * APP_CONTEXT_PROTECTED -> SCREEN_IN_REVIEW. STATUS (D-88): 404 -> APPLICATION_ARCHIVED -> 412 -> INVALID_TRANSITION ->
+ * TEMPLATE_INCOMPLETE, with the row locked FOR UPDATE. The rules are checked here, BEFORE writing, because the context rule is a
  * trigger deferred to COMMIT; the constraints and triggers of the database stay as a backstop.
  *
  * `PUT` replaces the whole editable representation. The nested arrays are reconciled by id (D-26, `db/reconcile`), so
@@ -28,12 +29,21 @@ import { E, type FieldError } from '../../security/errors.js';
 import type { ApplicationService } from '../applications/service.js';
 import type { CollectionService } from '../collections/service.js';
 import type { VariableService } from '../variables/service.js';
-import { assertEditable, initialStatus, statusAfterEdit, TEMPLATE_FIELDS } from './documentationWorkflow.js';
-import type { TemplateContent } from './documentationWorkflow.js';
+import {
+  assertEditable,
+  initialStatus,
+  planStatusChange,
+  statusAfterEdit,
+  TEMPLATE_FIELDS,
+} from './documentationWorkflow.js';
+import type { Role, TemplateContent } from './documentationWorkflow.js';
 import * as repo from './repository.js';
 
 /** Noun of the resource in messages. */
 const ELEMENT = 'screen';
+
+/** Roles of `x-roles` of `changeScreenStatus`; the contract gate already refused the others. */
+const STATUS_ROLES = ['ADMINISTRATOR', 'DEVELOPER'];
 
 /** Prefix of the temporary values that break a swap (see `db/reconcile`). */
 const PARK_PREFIX = '~swap~';
@@ -118,7 +128,20 @@ export type ScreenService = ScreenLookup & {
   create(actorId: number, input: CreateScreenInput): Promise<repo.ScreenView>;
   update(id: number, input: ScreenInput, assertCurrent: PreconditionCheck): Promise<repo.ScreenView>;
   remove(id: number): Promise<void>;
+  /** `PUT /screens/{id}/status` (D-88). */
+  changeStatus(
+    actor: Actor,
+    id: number,
+    status: RequestedStatus,
+    assertCurrent: PreconditionCheck,
+  ): Promise<repo.ScreenView>;
 };
+
+/** Who asks: the id and the role the authentication chain read from the database. */
+export type Actor = { id: number; role: string };
+
+/** A status a caller can ask for through `/status`: APPROVED is reached only through the review. */
+export type RequestedStatus = Exclude<DocumentationStatus, 'APPROVED'>;
 
 /** Creates the read-only screen lookup (D-80): it never writes and needs no database handle of its own. */
 export function createScreenLookup(): ScreenLookup {
@@ -719,6 +742,27 @@ export function createScreenService(
         if (current.isAppContext) throw E.appContextProtected();
         assertEditable(current.documentationStatus); // D-82
         await repo.deleteScreenRow(tx, id);
+      });
+    },
+
+    async changeStatus(actor, id, status, assertCurrent) {
+      return db.auditedTransaction(async (tx) => {
+        if (!(await repo.lockScreenForUpdate(tx, id))) throw E.notFound(ELEMENT, id);
+        const current = await repo.findScreenById(tx, id);
+        if (!current) throw E.notFound(ELEMENT, id);
+        await applications.assertApplicationActive(tx, current.applicationId);
+        assertCurrent(etagOf(current));
+
+        const outcome = planStatusChange(current.documentationStatus, status, actor.role as Role, current.template);
+        if (!outcome.ok) {
+          if (outcome.code === 'TEMPLATE_INCOMPLETE') throw E.templateIncomplete(outcome.fields);
+          if (outcome.code === 'FORBIDDEN') throw E.forbidden(STATUS_ROLES);
+          throw E.invalidTransition(current.documentationStatus, status);
+        }
+        await repo.updateScreenColumns(tx, id, { documentationStatus: outcome.to });
+        const updated = await repo.findScreenById(tx, id);
+        if (!updated) throw new Error(`screen ${id} vanished inside its own transaction`);
+        return updated;
       });
     },
   };

@@ -9,7 +9,7 @@ import type { DocumentationStatus } from '../../generated/prisma/client.js';
 import { assertIfMatch, etagOf, setEtag, setLocation } from '../../http/etag.js';
 import { paged, parsePagination, parseSort } from '../../http/pagination.js';
 import type { ScreenListQuery, ScreenView } from './repository.js';
-import type { ScreenService } from './service.js';
+import type { RequestedStatus, ScreenService } from './service.js';
 
 const ELEMENT = 'screen';
 const DEFAULT_SORT: ScreenListQuery['sort'] = { field: 'name', direction: 'asc' };
@@ -63,6 +63,17 @@ export function createScreensController(service: ScreenService) {
       const screen = await service.update(
         idOf(req),
         req.body as Parameters<ScreenService['update']>[1],
+        (currentETag) => assertIfMatch(req, ELEMENT, currentETag),
+      );
+      sendScreen(res, screen);
+    },
+    /** PUT /screens/:id/status */
+    changeStatus: async (req: Request, res: Response): Promise<void> => {
+      const body = req.body as { status: RequestedStatus };
+      const screen = await service.changeStatus(
+        { id: req.user!.id, role: req.user!.role },
+        idOf(req),
+        body.status,
         (currentETag) => assertIfMatch(req, ELEMENT, currentETag),
       );
       sendScreen(res, screen);
