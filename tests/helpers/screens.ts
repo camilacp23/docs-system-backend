@@ -152,3 +152,37 @@ export async function createScreenVia(
   if (res.status !== 201) throw new Error(`fixture failed: ${res.status} ${JSON.stringify(res.body)}`);
   return { screen: screenOf(res), etag: String(res.headers.etag) };
 }
+
+/** A template with content in the seven fields (what a submission for review needs). */
+export const fullTemplate = (): TemplateBody =>
+  templateWith({
+    onStart: 'onStart text',
+    workingProcess: 'workingProcess text',
+    architecture: 'architecture text',
+    dataModel: 'dataModel text',
+    requirements: 'requirements text',
+    knownIssues: 'knownIssues text',
+    risks: 'risks text',
+  });
+
+/**
+ * Creates a screen through the API and puts it in `status` directly, as the owner (the workflow endpoints are what the
+ * tests exercise, so the arrangement does not use them). Returns the screen as the API reads it, with its ETag.
+ */
+export async function createScreenInStatus(
+  t: { owner: { query: (sql: string, params: unknown[]) => PromiseLike<unknown> } },
+  api: Parameters<typeof createScreenVia>[0] & {
+    get: (path: string) => PromiseLike<{ body: unknown; headers: Record<string, unknown> }>;
+  },
+  applicationId: number,
+  status: 'UNDOCUMENTED' | 'DRAFT' | 'IN_PROGRESS' | 'IN_REVIEW' | 'APPROVED',
+  template: TemplateBody = fullTemplate(),
+): Promise<{ screen: ScreenBody; etag: string }> {
+  const created = await createScreenVia(api, applicationId, { template });
+  await t.owner.query(`UPDATE screen SET documentation_status = $2::documentation_status WHERE id = $1`, [
+    created.screen.id,
+    status,
+  ]);
+  const read = await api.get(`/screens/${created.screen.id}`);
+  return { screen: screenOf(read), etag: String(read.headers.etag) };
+}

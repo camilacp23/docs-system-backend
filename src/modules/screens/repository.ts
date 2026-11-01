@@ -18,7 +18,14 @@ import type { TemplateContent } from './documentationWorkflow.js';
 /** Clients accepted by the queries: the plain client or the transaction client of `auditedTransaction`. */
 export type ScreensClient = Pick<
   PrismaClient,
-  'screen' | 'component' | 'screenVariable' | 'screenCollection' | 'dependency' | 'documentedElement' | '$queryRaw'
+  | 'screen'
+  | 'component'
+  | 'screenVariable'
+  | 'screenCollection'
+  | 'dependency'
+  | 'documentedElement'
+  | '$queryRaw'
+  | '$executeRaw'
 >;
 
 /** A screen as the listing returns it (contract schema `ScreenSummary`). */
@@ -394,6 +401,26 @@ export async function updateScreenColumns(
 /** Touches `updated_at` of the screen, so a change of its nested arrays changes its ETag (D-62). */
 export async function touchScreen(client: Pick<ScreensClient, 'screen'>, id: number): Promise<void> {
   await client.screen.update({ where: { id }, data: { updatedAt: new Date() } });
+}
+
+/** Business events of the review (D-30, D-88): the names are the ones the contract documents. */
+export type ReviewEventName = 'DOCUMENTATION_APPROVED' | 'DOCUMENTATION_RETURNED';
+
+/**
+ * Records a review decision as a business event through `log_business_event`, the only way `docs_app` writes to
+ * `audit_log`. The actor is the user of the transaction (`app.user_id`); `entity_type` is `screen`, the same the audit
+ * trigger uses for the table.
+ */
+export async function logReviewEvent(
+  client: Pick<ScreensClient, '$executeRaw'>,
+  event: {
+    name: ReviewEventName;
+    screen: { id: number; name: string; applicationId: number };
+    payload: { from: DocumentationStatus; to: DocumentationStatus; commentId: number | null };
+  },
+): Promise<void> {
+  const payload = JSON.stringify(event.payload);
+  await client.$executeRaw`SELECT log_business_event(${event.name}, 'screen', ${String(event.screen.id)}, ${event.screen.name}, ${payload}::jsonb, ${event.screen.applicationId}::int)`;
 }
 
 /** Deletes the screen; the database cascades components, links, dependencies, comments and tickets. */

@@ -135,7 +135,7 @@ describe('screens: GET /screens/{id}', () => {
     assert.equal((await t.http.get('/api/v1/screens/1')).status, 401);
   });
 
-  it('the six operations are implemented; review and Jira still answer NOT_IMPLEMENTED', () => {
+  it('the seven operations are implemented; Jira and the comments of Module 10 still answer NOT_IMPLEMENTED', () => {
     const implemented = [
       'listScreens',
       'createScreen',
@@ -143,10 +143,11 @@ describe('screens: GET /screens/{id}', () => {
       'updateScreen',
       'deleteScreen',
       'changeScreenStatus',
+      'reviewScreen',
     ];
     for (const operationId of implemented) assert.ok(!t.built.notImplemented.includes(operationId), operationId);
-    for (const operationId of ['reviewScreen', 'createJiraTicket', 'listJiraTickets']) {
-      assert.ok(t.built.notImplemented.includes(operationId), operationId);
-    }
+    // The review writes its comment through the comments service, which exposes no endpoint (D-88).
+    const pending = ['createJiraTicket', 'listJiraTickets', 'listComments', 'createComment', 'updateComment'];
+    for (const operationId of pending) assert.ok(t.built.notImplemented.includes(operationId), operationId);
   });
 });

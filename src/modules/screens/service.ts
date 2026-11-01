@@ -9,8 +9,10 @@
  * -> 422 business rules, rule by rule (PUT: APP_CONTEXT_PROTECTED on rename, SCREEN_IN_REVIEW; then CROSS_APPLICATION
  * and CONTEXT_SCREEN_MISMATCH) -> 409 DUPLICATE_NAME -> the write. DELETE: 404 -> APPLICATION_ARCHIVED ->
  * APP_CONTEXT_PROTECTED -> SCREEN_IN_REVIEW. STATUS (D-88): 404 -> APPLICATION_ARCHIVED -> 412 -> INVALID_TRANSITION ->
- * TEMPLATE_INCOMPLETE, with the row locked FOR UPDATE. The rules are checked here, BEFORE writing, because the context rule is a
- * trigger deferred to COMMIT; the constraints and triggers of the database stay as a backstop.
+ * TEMPLATE_INCOMPLETE. REVIEW (D-88): 404 -> APPLICATION_ARCHIVED -> NOT_IN_REVIEW -> COMMENT_REQUIRED, then the new
+ * status, the review comment and the business event in the same transaction; both lock the row FOR UPDATE. The rules
+ * are checked here, BEFORE writing, because the context rule is a trigger deferred to COMMIT; the constraints and
+ * triggers of the database stay as a backstop.
  *
  * `PUT` replaces the whole editable representation. The nested arrays are reconciled by id (D-26, `db/reconcile`), so
  * an updated item keeps its row and its audit history; only what changes is written, and a change in any nested array
@@ -28,10 +30,13 @@ import { repeatedFields } from '../../http/repeats.js';
 import { E, type FieldError } from '../../security/errors.js';
 import type { ApplicationService } from '../applications/service.js';
 import type { CollectionService } from '../collections/service.js';
+import type { CommentService } from '../comments/service.js';
 import type { VariableService } from '../variables/service.js';
 import {
   assertEditable,
   initialStatus,
+  hasContent,
+  planReview,
   planStatusChange,
   statusAfterEdit,
   TEMPLATE_FIELDS,
@@ -44,6 +49,9 @@ const ELEMENT = 'screen';
 
 /** Roles of `x-roles` of `changeScreenStatus`; the contract gate already refused the others. */
 const STATUS_ROLES = ['ADMINISTRATOR', 'DEVELOPER'];
+
+/** Role of `x-roles` of `reviewScreen`. */
+const REVIEW_ROLES = ['ADMINISTRATOR'];
 
 /** Prefix of the temporary values that break a swap (see `db/reconcile`). */
 const PARK_PREFIX = '~swap~';
@@ -135,7 +143,12 @@ export type ScreenService = ScreenLookup & {
     status: RequestedStatus,
     assertCurrent: PreconditionCheck,
   ): Promise<repo.ScreenView>;
+  /** `POST /screens/{id}/review` (D-88). */
+  review(actor: Actor, id: number, input: ReviewInput): Promise<repo.ScreenView>;
 };
+
+/** Body of `POST /screens/{id}/review` (contract schema `ReviewRequest`). */
+export type ReviewInput = { decision: 'APPROVE' | 'RETURN'; comment?: string | null | undefined };
 
 /** Who asks: the id and the role the authentication chain read from the database. */
 export type Actor = { id: number; role: string };
@@ -281,12 +294,14 @@ const toWantedNavigations = (input: ScreenInput): WantedDependency[] =>
  * @param applications - Applications service (existence, name and the archived-application guard).
  * @param variables - Variables service (scope, application and origin of the linked variables).
  * @param collections - Collections service (application of the linked collections).
+ * @param comments - Comments service (writes the comment of a review decision inside the review's transaction).
  */
 export function createScreenService(
   db: Pick<Database, 'base' | 'prisma' | 'auditedTransaction'>,
   applications: Pick<ApplicationService, 'get' | 'assertApplicationActive'>,
   variables: Pick<VariableService, 'findRef'>,
   collections: Pick<CollectionService, 'findRef'>,
+  comments: Pick<CommentService, 'recordReviewComment'>,
 ): ScreenService {
   const lookup = createScreenLookup();
 
@@ -760,6 +775,44 @@ export function createScreenService(
           throw E.invalidTransition(current.documentationStatus, status);
         }
         await repo.updateScreenColumns(tx, id, { documentationStatus: outcome.to });
+        const updated = await repo.findScreenById(tx, id);
+        if (!updated) throw new Error(`screen ${id} vanished inside its own transaction`);
+        return updated;
+      });
+    },
+
+    async review(actor, id, input) {
+      return db.auditedTransaction(async (tx) => {
+        if (!(await repo.lockScreenForUpdate(tx, id))) throw E.notFound(ELEMENT, id);
+        const current = await repo.findScreenById(tx, id);
+        if (!current) throw E.notFound(ELEMENT, id);
+        await applications.assertApplicationActive(tx, current.applicationId);
+
+        const outcome = planReview(current.documentationStatus, input.decision, actor.role as Role, input.comment);
+        if (!outcome.ok) {
+          if (outcome.code === 'NOT_IN_REVIEW') throw E.notInReview();
+          if (outcome.code === 'COMMENT_REQUIRED') throw E.commentRequired();
+          if (outcome.code === 'FORBIDDEN') throw E.forbidden(REVIEW_ROLES);
+          throw E.invalidTransition(current.documentationStatus, null);
+        }
+        await repo.updateScreenColumns(tx, id, { documentationStatus: outcome.to });
+
+        // RETURN always leaves a comment; APPROVE only when it has content (D-88). The text is stored as received.
+        const commentId =
+          input.decision === 'RETURN' || hasContent(input.comment)
+            ? await comments.recordReviewComment(tx, {
+                screenId: id,
+                authorId: actor.id,
+                text: input.comment ?? '',
+                decision: input.decision,
+              })
+            : null;
+        await repo.logReviewEvent(tx, {
+          name: input.decision === 'APPROVE' ? 'DOCUMENTATION_APPROVED' : 'DOCUMENTATION_RETURNED',
+          screen: { id, name: current.name, applicationId: current.applicationId },
+          payload: { from: current.documentationStatus, to: outcome.to, commentId },
+        });
+
         const updated = await repo.findScreenById(tx, id);
         if (!updated) throw new Error(`screen ${id} vanished inside its own transaction`);
         return updated;
