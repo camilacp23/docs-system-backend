@@ -1,0 +1,39 @@
+info:
+  name: '64 App (OnStart) · edit 200 the template without renaming it'
+  type: http
+  seq: 64
+http:
+  method: PUT
+  url: '{{baseUrl}}/screens/{{scrAppScreenId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "App (OnStart)",
+        "miroLink": null,
+        "template": {
+          "onStart": "Runs once when the app starts",
+          "workingProcess": null,
+          "architecture": null,
+          "dataModel": null,
+          "requirements": null,
+          "knownIssues": null,
+          "risks": null
+        },
+        "components": [],
+        "variableLinks": [],
+        "collectionLinks": [],
+        "navigations": []
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("same name, content saved, DRAFT", function () { const d = res.body.data; expect(d.name).to.equal("App (OnStart)"); expect(d.isAppContext).to.equal(true); expect(d.template.onStart).to.equal("Runs once when the app starts"); expect(d.documentationStatus).to.equal("DRAFT"); });
+settings:
+  encodeUrl: true

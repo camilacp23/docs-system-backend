@@ -1,0 +1,26 @@
+info:
+  name: '74 Workflow · review 422 NOT_IN_REVIEW (Gamma is DRAFT)'
+  type: http
+  seq: 74
+http:
+  method: POST
+  url: '{{baseUrl}}/screens/{{scrCId}}/review'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrAdminToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "decision": "APPROVE"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 422", function () { expect(res.status).to.equal(422); });
+        test("error body has code NOT_IN_REVIEW, message and details", function () { expect(res.body.code).to.equal("NOT_IN_REVIEW"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("message", function () { expect(res.body.message).to.equal("This screen is no longer in review. Reload to see its status."); });
+settings:
+  encodeUrl: true

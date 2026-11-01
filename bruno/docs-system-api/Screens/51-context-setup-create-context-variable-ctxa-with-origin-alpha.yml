@@ -1,0 +1,37 @@
+info:
+  name: '51 Context · setup · create context variable CtxA with origin Alpha 201'
+  type: http
+  seq: 51
+http:
+  method: POST
+  url: '{{baseUrl}}/variables'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{scrAppId}},
+        "name": "{{scrPrefix}}CtxA",
+        "dataType": "TEXT",
+        "scope": "CONTEXT",
+        "originScreenId": {{scrAId}},
+        "environments": [
+          {
+            "environment": "DEV"
+          }
+        ]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) { bru.setVar("scrCtxAId", res.body.data.id); }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("the origin is Alpha", function () { expect(res.body.data.originScreen.id).to.equal(Number(bru.getVar("scrAId"))); });
+settings:
+  encodeUrl: true

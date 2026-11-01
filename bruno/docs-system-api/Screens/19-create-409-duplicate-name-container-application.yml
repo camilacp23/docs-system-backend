@@ -1,0 +1,41 @@
+info:
+  name: '19 Create · 409 DUPLICATE_NAME (container application)'
+  type: http
+  seq: 19
+http:
+  method: POST
+  url: '{{baseUrl}}/screens'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{scrAppId}},
+        "name": "{{scrPrefix}}Alpha",
+        "miroLink": null,
+        "template": {
+          "onStart": null,
+          "workingProcess": null,
+          "architecture": null,
+          "dataModel": null,
+          "requirements": null,
+          "knownIssues": null,
+          "risks": null
+        },
+        "components": [],
+        "variableLinks": [],
+        "collectionLinks": [],
+        "navigations": []
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 409", function () { expect(res.status).to.equal(409); });
+        test("error body has code DUPLICATE_NAME, message and details", function () { expect(res.body.code).to.equal("DUPLICATE_NAME"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("message and details", function () { expect(res.body.message).to.equal("A screen named " + bru.getVar("scrPrefix") + "Alpha already exists in " + bru.getVar("scrAppName") + "."); expect(res.body.details).to.deep.equal({ field: "name", type: "screen", name: bru.getVar("scrPrefix") + "Alpha", application: bru.getVar("scrAppName"), container: "application" }); });
+settings:
+  encodeUrl: true

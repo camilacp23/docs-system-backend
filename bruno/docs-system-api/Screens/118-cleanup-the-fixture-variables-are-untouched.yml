@@ -1,0 +1,19 @@
+info:
+  name: '118 Cleanup · the fixture variables are untouched'
+  type: http
+  seq: 118
+http:
+  method: GET
+  url: '{{baseUrl}}/variables?applicationId={{fixturesAppId}}&q=gSandbox'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("total", function () { expect(res.body.total).to.equal(2); });
+settings:
+  encodeUrl: true

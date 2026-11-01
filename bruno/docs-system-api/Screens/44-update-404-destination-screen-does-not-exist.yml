@@ -1,0 +1,44 @@
+info:
+  name: '44 Update · 404 destination screen does not exist'
+  type: http
+  seq: 44
+http:
+  method: PUT
+  url: '{{baseUrl}}/screens/{{scrAId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{scrPrefix}}Alpha",
+        "miroLink": null,
+        "template": {
+          "onStart": "Alpha starts here",
+          "workingProcess": null,
+          "architecture": null,
+          "dataModel": null,
+          "requirements": null,
+          "knownIssues": null,
+          "risks": null
+        },
+        "components": [],
+        "variableLinks": [],
+        "collectionLinks": [],
+        "navigations": [
+          {
+            "targetScreenId": 999999999
+          }
+        ]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 404", function () { expect(res.status).to.equal(404); });
+        test("error body has code NOT_FOUND, message and details", function () { expect(res.body.code).to.equal("NOT_FOUND"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("message and details name the missing element", function () { expect(res.body.message).to.equal("This screen doesn't exist. It may have been deleted."); expect(res.body.details.element).to.equal("screen"); expect(res.body.details.id).to.equal(999999999); expect(res.body.details.field).to.equal("navigations[0].targetScreenId"); });
+settings:
+  encodeUrl: true

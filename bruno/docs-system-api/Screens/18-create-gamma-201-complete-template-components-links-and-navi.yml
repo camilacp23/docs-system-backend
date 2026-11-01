@@ -1,0 +1,91 @@
+info:
+  name: '18 Create · Gamma 201 complete template, components, links and navigation'
+  type: http
+  seq: 18
+http:
+  method: POST
+  url: '{{baseUrl}}/screens'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{scrAppId}},
+        "name": "{{scrPrefix}}Gamma",
+        "miroLink": null,
+        "template": {
+          "onStart": "Loads the requests of the user",
+          "workingProcess": "Lists the requests and filters them by status",
+          "architecture": "Gallery plus a detail form",
+          "dataModel": "One collection of requests",
+          "requirements": "FR-10",
+          "knownIssues": "None",
+          "risks": "Low"
+        },
+        "components": [
+          {
+            "name": "btnGo",
+            "type": "Button",
+            "onSelect": "Navigate(Alpha)",
+            "description": null,
+            "uses": [
+              {
+                "targetType": "VARIABLE",
+                "targetId": {{scrGlobId}},
+                "description": "reads"
+              }
+            ]
+          },
+          {
+            "name": "lblName",
+            "type": "Label",
+            "onSelect": null,
+            "description": null,
+            "uses": [
+              {
+                "targetType": "COLLECTION",
+                "targetId": {{scrColId}},
+                "description": null
+              }
+            ]
+          }
+        ],
+        "variableLinks": [
+          {
+            "variableId": {{scrGlobId}},
+            "accessMode": "READ",
+            "usedIn": "lblName.Text"
+          }
+        ],
+        "collectionLinks": [
+          {
+            "collectionId": {{scrColId}},
+            "accessMode": "READ",
+            "usedIn": "galItems.Items"
+          }
+        ],
+        "navigations": [
+          {
+            "targetScreenId": {{scrAId}},
+            "description": "Back"
+          }
+        ]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) { const d = res.body.data; bru.setVar("scrCId", d.id); bru.setVar("scrCEtag", res.headers["etag"]); const btn = d.components.find(function (c) { return c.name === "btnGo"; }); const lbl = d.components.find(function (c) { return c.name === "lblName"; }); bru.setVar("scrCBtnId", btn.id); bru.setVar("scrCLblId", lbl.id); bru.setVar("scrCUse1Id", btn.uses[0].id); bru.setVar("scrCUse2Id", lbl.uses[0].id); bru.setVar("scrCVarLinkId", d.variableLinks[0].id); bru.setVar("scrCColLinkId", d.collectionLinks[0].id); bru.setVar("scrCNavId", d.navigations[0].id); }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("Location points to the new screen", function () { expect(res.headers["location"]).to.equal("/api/v1/screens/" + res.body.data.id); });
+        test("ETag is a weak validator", function () { expect(res.headers["etag"]).to.match(/^W\/"\d+"$/); });
+        test("DRAFT with the seven template fields", function () { const d = res.body.data; expect(d.documentationStatus).to.equal("DRAFT"); expect(d.template).to.deep.equal({"onStart":"Loads the requests of the user","workingProcess":"Lists the requests and filters them by status","architecture":"Gallery plus a detail form","dataModel":"One collection of requests","requirements":"FR-10","knownIssues":"None","risks":"Low"}); });
+        test("components with their uses", function () { const d = res.body.data; expect(d.components.map(function (c) { return c.name; })).to.have.members(["btnGo", "lblName"]); const btn = d.components.find(function (c) { return c.name === "btnGo"; }); const lbl = d.components.find(function (c) { return c.name === "lblName"; }); expect(btn.uses).to.have.length(1); expect(btn.uses[0].targetType).to.equal("VARIABLE"); expect(btn.uses[0].target.id).to.equal(Number(bru.getVar("scrGlobId"))); expect(btn.uses[0].description).to.equal("reads"); expect(lbl.uses[0].targetType).to.equal("COLLECTION"); expect(lbl.uses[0].target.id).to.equal(Number(bru.getVar("scrColId"))); });
+        test("variable link, collection link and navigation", function () { const d = res.body.data; expect(d.variableLinks).to.have.length(1); expect(d.variableLinks[0].variable.id).to.equal(Number(bru.getVar("scrGlobId"))); expect(d.variableLinks[0].accessMode).to.equal("READ"); expect(d.variableLinks[0].usedIn).to.equal("lblName.Text"); expect(d.variableLinks[0].isOrigin).to.equal(false); expect(d.collectionLinks[0].collection.id).to.equal(Number(bru.getVar("scrColId"))); expect(d.collectionLinks[0].usedIn).to.equal("galItems.Items"); expect(d.navigations[0].targetScreen.id).to.equal(Number(bru.getVar("scrAId"))); expect(d.navigations[0].description).to.equal("Back"); });
+settings:
+  encodeUrl: true

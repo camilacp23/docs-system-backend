@@ -1,0 +1,26 @@
+info:
+  name: '69 Workflow · status 422 INVALID_TRANSITION DRAFT to IN_REVIEW'
+  type: http
+  seq: 69
+http:
+  method: PUT
+  url: '{{baseUrl}}/screens/{{scrCId}}/status'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "status": "IN_REVIEW"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 422", function () { expect(res.status).to.equal(422); });
+        test("error body has code INVALID_TRANSITION, message and details", function () { expect(res.body.code).to.equal("INVALID_TRANSITION"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("message and details", function () { expect(res.body.message).to.equal("This screen changed status meanwhile. Reload to see its current status."); expect(res.body.details).to.deep.equal({ from: "DRAFT", to: "IN_REVIEW" }); });
+settings:
+  encodeUrl: true

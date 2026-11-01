@@ -1,0 +1,18 @@
+info:
+  name: '104 Cleanup · delete Gamma 204'
+  type: http
+  seq: 104
+http:
+  method: DELETE
+  url: '{{baseUrl}}/screens/{{scrCId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrAdminToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 204", function () { expect(res.status).to.equal(204); });
+settings:
+  encodeUrl: true

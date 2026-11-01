@@ -1,0 +1,19 @@
+info:
+  name: '57 Context · the variable keeps existing without origin'
+  type: http
+  seq: 57
+http:
+  method: GET
+  url: '{{baseUrl}}/variables/{{scrCtxFreeId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("no origin screen", function () { expect(res.body.data.originScreen).to.equal(null); });
+settings:
+  encodeUrl: true

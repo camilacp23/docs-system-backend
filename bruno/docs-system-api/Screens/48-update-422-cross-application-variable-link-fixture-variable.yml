@@ -1,0 +1,46 @@
+info:
+  name: '48 Update · 422 CROSS_APPLICATION variable link (fixture variable)'
+  type: http
+  seq: 48
+http:
+  method: PUT
+  url: '{{baseUrl}}/screens/{{scrBId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{scrPrefix}}Beta",
+        "miroLink": null,
+        "template": {
+          "onStart": null,
+          "workingProcess": null,
+          "architecture": "Beta architecture",
+          "dataModel": null,
+          "requirements": null,
+          "knownIssues": "   ",
+          "risks": "Beta risks"
+        },
+        "components": [],
+        "variableLinks": [
+          {
+            "variableId": {{sharedVariableId}},
+            "accessMode": "READ",
+            "usedIn": "lblB.Text"
+          }
+        ],
+        "collectionLinks": [],
+        "navigations": []
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 422", function () { expect(res.status).to.equal(422); });
+        test("error body has code CROSS_APPLICATION, message and details", function () { expect(res.body.code).to.equal("CROSS_APPLICATION"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("message and details", function () { expect(res.body.message).to.equal("You can only link elements of the same application."); expect(res.body.details).to.deep.equal({ field: "variableLinks[0].variableId" }); });
+settings:
+  encodeUrl: true

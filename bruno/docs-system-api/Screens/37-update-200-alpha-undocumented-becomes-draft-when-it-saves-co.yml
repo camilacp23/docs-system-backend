@@ -1,0 +1,45 @@
+info:
+  name: '37 Update · 200 Alpha UNDOCUMENTED becomes DRAFT when it saves content (D-81)'
+  type: http
+  seq: 37
+http:
+  method: PUT
+  url: '{{baseUrl}}/screens/{{scrAId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrDevToken}}'
+    - name: If-Match
+      value: '{{scrAEtag}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{scrPrefix}}Alpha",
+        "miroLink": null,
+        "template": {
+          "onStart": "Alpha starts here",
+          "workingProcess": null,
+          "architecture": null,
+          "dataModel": null,
+          "requirements": null,
+          "knownIssues": null,
+          "risks": null
+        },
+        "components": [],
+        "variableLinks": [],
+        "collectionLinks": [],
+        "navigations": []
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 200) { bru.setVar("scrAPrev", bru.getVar("scrAEtag")); bru.setVar("scrAEtag", res.headers["etag"]); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("DRAFT now", function () { expect(res.body.data.documentationStatus).to.equal("DRAFT"); expect(res.body.data.template.onStart).to.equal("Alpha starts here"); });
+        test("the ETag changed", function () { expect(res.headers["etag"]).to.not.equal(bru.getVar("scrAPrev")); expect(res.headers["etag"]).to.match(/^W\/"\d+"$/); });
+settings:
+  encodeUrl: true

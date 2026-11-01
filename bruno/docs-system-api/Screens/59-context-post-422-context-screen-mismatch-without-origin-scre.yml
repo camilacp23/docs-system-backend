@@ -1,0 +1,47 @@
+info:
+  name: '59 Context · POST 422 CONTEXT_SCREEN_MISMATCH without origin (screenId null, D-85)'
+  type: http
+  seq: 59
+http:
+  method: POST
+  url: '{{baseUrl}}/screens'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{scrAppId}},
+        "name": "{{scrPrefix}}Delta",
+        "miroLink": null,
+        "template": {
+          "onStart": null,
+          "workingProcess": null,
+          "architecture": null,
+          "dataModel": null,
+          "requirements": null,
+          "knownIssues": null,
+          "risks": null
+        },
+        "components": [],
+        "variableLinks": [
+          {
+            "variableId": {{scrCtxFreeId}},
+            "accessMode": "WRITE",
+            "usedIn": "lblD.Text"
+          }
+        ],
+        "collectionLinks": [],
+        "navigations": []
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 422", function () { expect(res.status).to.equal(422); });
+        test("error body has code CONTEXT_SCREEN_MISMATCH, message and details", function () { expect(res.body.code).to.equal("CONTEXT_SCREEN_MISMATCH"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("message and details", function () { expect(res.body.message).to.equal(bru.getVar("scrPrefix") + "CtxFree has no origin screen. Set its origin screen before linking it."); expect(res.body.details).to.deep.equal({ variableId: Number(bru.getVar("scrCtxFreeId")), variable: bru.getVar("scrPrefix") + "CtxFree", originScreenId: null, screenId: null, targetScreen: bru.getVar("scrPrefix") + "Delta", field: "variableLinks[0].variableId" }); });
+settings:
+  encodeUrl: true

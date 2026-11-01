@@ -1,0 +1,40 @@
+info:
+  name: '63 App (OnStart) · rename 422 APP_CONTEXT_PROTECTED (D-87)'
+  type: http
+  seq: 63
+http:
+  method: PUT
+  url: '{{baseUrl}}/screens/{{scrAppScreenId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{scrPrefix}}Renamed",
+        "miroLink": null,
+        "template": {
+          "onStart": null,
+          "workingProcess": null,
+          "architecture": null,
+          "dataModel": null,
+          "requirements": null,
+          "knownIssues": null,
+          "risks": null
+        },
+        "components": [],
+        "variableLinks": [],
+        "collectionLinks": [],
+        "navigations": []
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 422", function () { expect(res.status).to.equal(422); });
+        test("error body has code APP_CONTEXT_PROTECTED, message and details", function () { expect(res.body.code).to.equal("APP_CONTEXT_PROTECTED"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("message and details", function () { expect(res.body.message).to.equal("The App (OnStart) screen can't be renamed."); expect(res.body.details).to.equal(null); });
+settings:
+  encodeUrl: true

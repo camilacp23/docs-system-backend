@@ -1,0 +1,42 @@
+info:
+  name: '98 Archived · update 200 once unarchived'
+  type: http
+  seq: 98
+http:
+  method: PUT
+  url: '{{baseUrl}}/screens/{{scrAId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{scrPrefix}}Alpha",
+        "miroLink": null,
+        "template": {
+          "onStart": "Alpha starts here",
+          "workingProcess": "Alpha process",
+          "architecture": null,
+          "dataModel": null,
+          "requirements": null,
+          "knownIssues": null,
+          "risks": "Alpha risks"
+        },
+        "components": [],
+        "variableLinks": [],
+        "collectionLinks": [],
+        "navigations": []
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 200) { bru.setVar("scrAEtag", res.headers["etag"]); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("saved", function () { expect(res.body.data.template.workingProcess).to.equal("Alpha process"); });
+settings:
+  encodeUrl: true

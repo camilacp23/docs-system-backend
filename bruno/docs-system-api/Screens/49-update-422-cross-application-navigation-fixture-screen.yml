@@ -1,0 +1,44 @@
+info:
+  name: '49 Update · 422 CROSS_APPLICATION navigation (fixture screen)'
+  type: http
+  seq: 49
+http:
+  method: PUT
+  url: '{{baseUrl}}/screens/{{scrBId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{scrPrefix}}Beta",
+        "miroLink": null,
+        "template": {
+          "onStart": null,
+          "workingProcess": null,
+          "architecture": "Beta architecture",
+          "dataModel": null,
+          "requirements": null,
+          "knownIssues": "   ",
+          "risks": "Beta risks"
+        },
+        "components": [],
+        "variableLinks": [],
+        "collectionLinks": [],
+        "navigations": [
+          {
+            "targetScreenId": {{screenBId}}
+          }
+        ]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 422", function () { expect(res.status).to.equal(422); });
+        test("error body has code CROSS_APPLICATION, message and details", function () { expect(res.body.code).to.equal("CROSS_APPLICATION"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("message and details", function () { expect(res.body.message).to.equal("You can only link elements of the same application."); expect(res.body.details).to.deep.equal({ field: "navigations[0].targetScreenId" }); });
+settings:
+  encodeUrl: true
