@@ -21,12 +21,24 @@ export type ListScreensInput = {
   take: number;
 };
 
-/** The screens service. */
-export type ScreenService = {
-  list(input: ListScreensInput): Promise<{ data: repo.ScreenSummaryView[]; total: number }>;
+/**
+ * The read-only lookup other modules use to validate a reference to a screen (D-80). It is separate from the full
+ * service so Variables and Collections can be built before it without a circular dependency.
+ */
+export type ScreenLookup = {
   /** The screen a client points at, or `null` when it does not exist or its id cannot exist. */
   findRef(client: Pick<repo.ScreensClient, 'screen'>, id: number): Promise<repo.ScreenRef | null>;
 };
+
+/** The screens service. */
+export type ScreenService = ScreenLookup & {
+  list(input: ListScreensInput): Promise<{ data: repo.ScreenSummaryView[]; total: number }>;
+};
+
+/** Creates the read-only screen lookup (D-80): it never writes and needs no database handle of its own. */
+export function createScreenLookup(): ScreenLookup {
+  return { findRef: (client, id) => (id > INT32_MAX ? Promise.resolve(null) : repo.findScreenRef(client, id)) };
+}
 
 /**
  * Creates the screens service.
@@ -38,6 +50,7 @@ export function createScreenService(
   db: Pick<Database, 'base'>,
   applications: Pick<ApplicationService, 'get'>,
 ): ScreenService {
+  const lookup = createScreenLookup();
   return {
     async list(input) {
       // D-70: the parent application must exist (404); an id used as a filter that cannot match gives an empty page.
@@ -48,6 +61,6 @@ export function createScreenService(
       return { data, total };
     },
 
-    findRef: (client, id) => (id > INT32_MAX ? Promise.resolve(null) : repo.findScreenRef(client, id)),
+    findRef: (client, id) => lookup.findRef(client, id),
   };
 }

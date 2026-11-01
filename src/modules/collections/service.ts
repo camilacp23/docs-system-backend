@@ -24,7 +24,7 @@ import { INT32_MAX, assertIdInRange } from '../../http/ids.js';
 import { repeatedFields } from '../../http/repeats.js';
 import { E, type FieldError } from '../../security/errors.js';
 import { type ApplicationService } from '../applications/service.js';
-import type { ScreenService } from '../screens/service.js';
+import type { ScreenLookup } from '../screens/service.js';
 import type { VariableService } from '../variables/service.js';
 import * as repo from './repository.js';
 
@@ -197,7 +197,7 @@ const toWantedAssignments = (input: CollectionInput): AssignmentRow[] =>
 export function createCollectionService(
   db: Pick<Database, 'base' | 'prisma' | 'auditedTransaction'>,
   applications: Pick<ApplicationService, 'get' | 'assertApplicationActive'>,
-  screens: Pick<ScreenService, 'findRef'>,
+  screens: ScreenLookup,
   variables: Pick<VariableService, 'findRef'>,
 ): CollectionService {
   /** 404 for everything the payload points at that does not exist (D-75: with the position of the id). */

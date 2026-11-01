@@ -7,7 +7,7 @@
 import type { Database } from '../../db/prisma.js';
 import type { OperationHandlers } from '../../http/operations.js';
 import { createApplicationService } from '../applications/service.js';
-import { createScreenService } from '../screens/service.js';
+import { createScreenLookup } from '../screens/service.js';
 import { createVariableService } from '../variables/service.js';
 import { createCollectionsController } from './controller.js';
 import { createCollectionService } from './service.js';
@@ -19,7 +19,7 @@ import { createCollectionService } from './service.js';
  */
 export function collectionsHandlers(db: Pick<Database, 'base' | 'prisma' | 'auditedTransaction'>): OperationHandlers {
   const applications = createApplicationService(db);
-  const screens = createScreenService(db, applications);
+  const screens = createScreenLookup();
   const variables = createVariableService(db, applications, screens);
   const controller = createCollectionsController(createCollectionService(db, applications, screens, variables));
   return {

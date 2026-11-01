@@ -18,7 +18,7 @@ import { INT32_MAX, assertIdInRange } from '../../http/ids.js';
 import { repeatedFields } from '../../http/repeats.js';
 import { E } from '../../security/errors.js';
 import { type ApplicationService } from '../applications/service.js';
-import type { ScreenService } from '../screens/service.js';
+import type { ScreenLookup } from '../screens/service.js';
 import * as repo from './repository.js';
 
 /** Noun of the resource in messages. */
@@ -107,7 +107,7 @@ const toEnvironments = (input: VariableInput): repo.EnvironmentInput[] =>
 export function createVariableService(
   db: Pick<Database, 'base' | 'prisma' | 'auditedTransaction'>,
   applications: Pick<ApplicationService, 'get' | 'assertApplicationActive'>,
-  screens: Pick<ScreenService, 'findRef'>,
+  screens: ScreenLookup,
 ): VariableService {
   /** 404 `screen` when the origin screen does not exist (or cannot); `null` when the variable has none. */
   const findOrigin = async (tx: Tx, originScreenId: number | null) => {
