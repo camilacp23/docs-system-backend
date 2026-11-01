@@ -65,3 +65,61 @@ export function transition(
 export function assertEditable(status: DocStatus): void {
   if (status === 'IN_REVIEW') throw E.screenInReview();
 }
+
+/** The seven text fields of the screen template (SRS Table 28; the eighth, future to do, is Jira, D-06). */
+export const TEMPLATE_FIELDS = [
+  'onStart',
+  'workingProcess',
+  'architecture',
+  'dataModel',
+  'requirements',
+  'knownIssues',
+  'risks',
+] as const;
+
+/** Name of a template field. */
+export type TemplateField = (typeof TEMPLATE_FIELDS)[number];
+
+/** The template of a screen: every field is text or `null`. */
+export type TemplateContent = Readonly<Record<TemplateField, string | null>>;
+
+/**
+ * D-81: a template field has content when it is not `null` and is not empty after `trim`.
+ *
+ * @param value - The text of one template field.
+ */
+export function hasContent(value: string | null | undefined): boolean {
+  return value !== null && value !== undefined && value.trim() !== '';
+}
+
+/**
+ * D-81: status of a new screen. DRAFT when any template field has content, UNDOCUMENTED otherwise.
+ *
+ * @param template - The template of the screen being created.
+ */
+export function initialStatus(template: TemplateContent): 'UNDOCUMENTED' | 'DRAFT' {
+  return TEMPLATE_FIELDS.some((field) => hasContent(template[field])) ? 'DRAFT' : 'UNDOCUMENTED';
+}
+
+/**
+ * D-81: status after a PUT. UNDOCUMENTED becomes DRAFT when some field goes from no content to content; APPROVED
+ * becomes IN_PROGRESS when the PUT really changes anything (a column or a nested element); every other case, and a
+ * PUT without changes, keeps the status.
+ *
+ * @param current - Status read inside the transaction, before writing.
+ * @param edit - The template before and after, and whether the PUT changes anything at all.
+ */
+export function statusAfterEdit(
+  current: DocStatus,
+  edit: { before: TemplateContent; after: TemplateContent; changed: boolean },
+): DocStatus {
+  if (!edit.changed) return current;
+  if (current === 'APPROVED') return 'IN_PROGRESS';
+  if (
+    current === 'UNDOCUMENTED' &&
+    TEMPLATE_FIELDS.some((field) => !hasContent(edit.before[field]) && hasContent(edit.after[field]))
+  ) {
+    return 'DRAFT';
+  }
+  return current;
+}
