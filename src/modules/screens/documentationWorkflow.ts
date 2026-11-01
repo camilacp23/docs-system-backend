@@ -123,3 +123,60 @@ export function statusAfterEdit(
   }
   return current;
 }
+
+/**
+ * FR-14: the template fields without content, in the order of SRS Table 28 and with the names of the contract.
+ *
+ * @param template - The stored template of the screen.
+ */
+export function missingTemplateFields(template: TemplateContent): TemplateField[] {
+  return TEMPLATE_FIELDS.filter((field) => !hasContent(template[field]));
+}
+
+/** Result of asking for a change through `/status`: the new status, or why it is refused. */
+export type StatusChangeOutcome =
+  | { ok: true; to: DocStatus }
+  | { ok: false; code: 'INVALID_TRANSITION' | 'FORBIDDEN' }
+  | { ok: false; code: 'TEMPLATE_INCOMPLETE'; fields: TemplateField[] };
+
+/**
+ * Judges a change requested through `PUT /screens/{id}/status` against Table 61 (SDD Section 9). Any combination
+ * that is not a `STATUS` row, the same status included, is INVALID_TRANSITION. Submitting (IN_PROGRESS to
+ * IN_REVIEW) needs content in the seven template fields.
+ *
+ * @param from - Current status, read inside the transaction.
+ * @param to - Status the caller asks for.
+ * @param role - Role of the caller.
+ * @param template - The stored template of the screen.
+ */
+export function planStatusChange(
+  from: DocStatus,
+  to: DocStatus,
+  role: Role,
+  template: TemplateContent,
+): StatusChangeOutcome {
+  const missing = missingTemplateFields(template);
+  const outcome = transition(from, to, 'STATUS', role, { templateComplete: missing.length === 0 });
+  if (outcome.ok) return outcome;
+  return outcome.code === 'TEMPLATE_INCOMPLETE'
+    ? { ok: false, code: 'TEMPLATE_INCOMPLETE', fields: missing }
+    : { ok: false, code: outcome.code === 'FORBIDDEN' ? 'FORBIDDEN' : 'INVALID_TRANSITION' };
+}
+
+/**
+ * Judges a decision of `POST /screens/{id}/review` against Table 61: only IN_REVIEW can be decided
+ * (NOT_IN_REVIEW otherwise); returning needs a comment with content (COMMENT_REQUIRED).
+ *
+ * @param from - Current status, read inside the transaction.
+ * @param decision - APPROVE or RETURN.
+ * @param role - Role of the caller.
+ * @param comment - The comment of the request, if any.
+ */
+export function planReview(
+  from: DocStatus,
+  decision: 'APPROVE' | 'RETURN',
+  role: Role,
+  comment: string | null | undefined,
+): Outcome {
+  return transition(from, null, decision === 'APPROVE' ? 'REVIEW_APPROVE' : 'REVIEW_RETURN', role, { comment });
+}
