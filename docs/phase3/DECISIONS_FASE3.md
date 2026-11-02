@@ -69,7 +69,7 @@ ni variables; los tokens viven en `docs/design/DESIGN_REFERENCE.md` del frontend
 
 **Resuelto.** El repositorio tenía el SDD v1.0; ahora contiene el SDD v1.2 (`docs/design/SDD_v1.2.md`), que incorpora la Tabla 45 con `FORBIDDEN` para refresh y logout.
 
-## Pendientes del contrato (resueltos en 0.3.3)
+## Pendientes del contrato (resueltos en 0.3.3 y 0.3.4)
 
 Los pendientes de los Módulos 2 y 3 quedaron publicados en `api/openapi.yaml` 0.3.3 (B-13). Se conservan abajo como registro; los que siguen abiertos están en las secciones de los módulos futuros. Además, 0.3.3 cubre tres arreglos pendientes desde el SDD v1.1: el ejemplo 401 `REFRESH_INVALID` de `POST /auth/refresh`, la cabecera `X-Request-Id` en todas las respuestas y `details.container` en los ejemplos de `DUPLICATE_NAME`; y corrige el ejemplo de `ValidationError` (`rule: minItems`, mensaje del validador, en lugar de `issue: min_items`).
 
@@ -103,26 +103,28 @@ D-74 permite ciclos entre colecciones (`DERIVES_FROM`). Todo lector recursivo fu
 
 ### Módulo 4: pantallas (B-14)
 
-- **Resuelto en B-14.** `dependency_no_self_chk` en `updateScreen`: la autonavegación es 400 `self` en `navigations[i].targetScreenId` (D-84), con el respaldo por operación en `src/http/dbRules.ts`.
-- **Resuelto en B-14.** `components[i].name` repetido (400 `unique`) y los ids anidados de `PUT /screens` (404 con `element`, `id` y `field`, D-75 y D-84).
-- **Resuelto en B-14.** `DUPLICATE_NAME` de pantallas (`container: application`, regla `screen_application_id_name_key`).
+- **Resuelto en B-14 y publicado en 0.3.4.** `dependency_no_self_chk` en `updateScreen`: la autonavegación es 400 `self` en `navigations[i].targetScreenId` (D-84), con el respaldo por operación en `src/http/dbRules.ts`.
+- **Resuelto en B-14 y publicado en 0.3.4.** `components[i].name` repetido (400 `unique`) y los ids anidados de `PUT /screens` (404 con `element`, `id` y `field`, D-75 y D-84).
+- **Resuelto en B-14 y publicado en 0.3.4.** `DUPLICATE_NAME` de pantallas (`container: application`, regla `screen_application_id_name_key`).
 - **Solo lectura (D-80).** La consulta de pantallas que usan Variables y Collections (`ScreenService.findRef`, ahora `createScreenLookup`) debe seguir siendo de solo lectura: devuelve la referencia (id, nombre, aplicación) y nunca escribe; las pantallas solo se escriben por su propio recurso.
+
+### Cambios de contrato anotados para B-17 (resueltos en 0.3.4)
+
+- **Resuelto en 0.3.4.** `POST /screens`: cabecera `ETag` en el 201 (D-62, Tabla 44) y `DUPLICATE_NAME` en `x-error-codes`.
+- **Resuelto en 0.3.4.** `PUT /screens/{id}`: `DUPLICATE_NAME` en `x-error-codes`; las cuatro listas obligatorias y solo `uses` opcional, reconciliación por id (D-26), D-71, D-62, D-81, D-85 (variableLinks y collectionLinks solo los vínculos nuevos o modificados; navegaciones y usos de componentes siempre) y D-86; un `miroLink`, `onSelect` o `description` omitido se guarda como null.
+- **Resuelto en 0.3.4.** `PUT /screens/{id}`: ejemplo y `x-error-codes` de `APP_CONTEXT_PROTECTED` al renombrar App (OnStart), y su segundo mensaje en el catálogo (D-87).
+- **Resuelto en 0.3.4.** `DELETE /screens/{id}`: `SCREEN_IN_REVIEW` en `x-error-codes` y en la descripción (D-82).
+- **Resuelto en 0.3.4.** Ejemplos compartidos: `DUPLICATE_NAME` de pantalla; 400 con posición (`components[i].name`, `components[i].uses[j].targetId`, `variableLinks[i].usedIn`, `navigations[i].targetScreenId` con `rule: self`, `usedIn: origin` con `pattern`); 404 con `details { element, id, field }`; `CROSS_APPLICATION` y `CONTEXT_SCREEN_MISMATCH` de pantalla, con `screenId: null` en `POST` (D-85).
+- **Resuelto en 0.3.4.** `ScreenWrite`: `maxItems` y regla de las filas de origen (nunca se reciben; un id de fila de origen es 404 `variable link`).
+
+### Módulo 4: flujo de documentación (B-15, resuelto en 0.3.4)
+
+- **Resuelto en 0.3.4.** `PUT /screens/{id}/status` y `POST /screens/{id}/review`: cabecera `ETag` en la respuesta 200 de ambas (D-62, Tabla 44, D-88).
+- **Resuelto en 0.3.4.** `TEMPLATE_INCOMPLETE`: el ejemplo ahora lista `fields: [knownIssues, risks]` y `Missing: knownIssues, risks`, el orden de la Tabla 28 del SRS.
+- **Resuelto en 0.3.4.** `POST /screens/{id}/review`: sin `If-Match` ni 412; un RETURN sin `comment`, con `""` o con `null` es 400 del validador y uno de solo espacios es 422 `COMMENT_REQUIRED`; un APPROVE con solo espacios no crea comentario; orden de errores de `/status` y `/review`.
+- **Resuelto en 0.3.4 (contrato) y pendiente en el SDD.** Payload del evento de revisión (`{ from, to, commentId }`, `entityType` `screen`, D-88): descrito en `AuditEntry.eventName` y `AuditEntry.newValue`. **También debe incorporarse al SDD** (junto con D-81 a D-88).
 
 ### Pendiente para el contrato 0.3.5
 
 - **"Used by screens" (D-79).** `GET /collections/{id}` no devuelve las pantallas que usan la colección ni su modo de acceso. Con el Módulo 4 ya existen los datos (`screen_collection`); el contrato 0.3.5 debe decidir cómo exponerlos para S-15a y S-17.
-
-### Cambios de contrato anotados para B-17 (tarea del contrato; B-14 no edita `api/openapi.yaml`)
-
-- `POST /screens`: declarar la cabecera `ETag` en el 201 (D-62, Tabla 44) y `DUPLICATE_NAME` en `x-error-codes`.
-- `PUT /screens/{id}`: `DUPLICATE_NAME` en `x-error-codes`; documentar que las cuatro listas (`components`, `variableLinks`, `collectionLinks`, `navigations`) son obligatorias en `ScreenWrite` (omitirlas es 400 del validador) y que solo `uses` de un componente es opcional (omitirlo borra sus usos), la reconciliación por id (D-26), D-71 (`If-Match` siempre verificado, PUT sin cambios devuelve el mismo ETag), D-62 (un cambio anidado mueve el ETag), D-81 (estado resultante), D-85 (solo se juzgan los vínculos nuevos o modificados) y D-86 (intercambio de destinos). `CROSS_APPLICATION` ya está declarado.
-- `PUT /screens/{id}`: ejemplo de 422 `APP_CONTEXT_PROTECTED` por renombrar App (OnStart) y su segundo mensaje `The App (OnStart) screen can't be renamed.` en el catálogo (D-87).
-- `DELETE /screens/{id}`: agregar `SCREEN_IN_REVIEW` a `x-error-codes` y a la descripción (D-82).
-- `RuleViolation`: ejemplos de `DUPLICATE_NAME` de pantalla con `container: application`; de 400 con posición (`components[i].name`, `components[i].uses[j].targetId`, `variableLinks[i].usedIn`, `navigations[i].targetScreenId` con `rule: self`); de 404 con `details { element, id, field }` (D-75); de `usedIn: origin` reservado (400 `pattern` en `variableLinks[i].usedIn`); y `CONTEXT_SCREEN_MISMATCH` de `POST` con `screenId: null` (D-85).
-- `ScreenWrite`: describir las `maxItems` y la regla de las filas de origen (nunca se reciben; un id de fila de origen es 404 `variable link`).
-
-### Módulo 4: flujo de documentación (B-15)
-
-- `PUT /screens/{id}/status` y `POST /screens/{id}/review`: declarar la cabecera `ETag` en la respuesta 200 de ambas (D-62, Tabla 44, D-88). El código ya la envía.
-- `TEMPLATE_INCOMPLETE`: el ejemplo lista `fields: [risks, knownIssues]` y `Missing: risks, knownIssues`; el orden es el de la Tabla 28 del SRS (`knownIssues, risks`). Corregir el ejemplo.
-- `POST /screens/{id}/review`: documentar que no lleva `If-Match` ni 412, que un RETURN sin `comment`, con `""` o con `null` es 400 del validador y que uno de solo espacios es 422 `COMMENT_REQUIRED`; y documentar el payload del evento (`{ from, to, commentId }`, D-88).
+- **Operaciones de Jira del Módulo 4** (`POST /screens/{id}/jira-ticket`, `GET /screens/{id}/jira-tickets` y el webhook): se describen en 0.3.5 cuando se implementen. 0.3.4 no las toca.
