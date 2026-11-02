@@ -3,10 +3,12 @@
  *
  * `loadConfig` reads every variable of `.env.example`, validates type, range and format, and returns one typed
  * object. All problems are reported together, naming the variable but never its value, so a failed start never
- * prints a secret. Jira variables are optional until the Jira module exists.
+ * prints a secret. Jira variables are optional (D-89): the API starts without them and the Jira client reports itself as unavailable.
  *
  * @module config/env
  */
+
+import { jiraBaseUrlProblem } from '../integrations/jira/baseUrl.js';
 
 export type NodeEnv = 'development' | 'test' | 'production';
 export type LogLevel = 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'silent';
@@ -191,14 +193,18 @@ function parseOrigin(r: Reader, nodeEnv: NodeEnv): string {
   }
 }
 
-function parseJira(r: Reader): JiraConfig {
+function parseJira(r: Reader, nodeEnv: NodeEnv): JiraConfig {
   const set = (name: string): string | undefined => {
     const v = r.raw(name);
     return isPlaceholder(v) ? undefined : v;
   };
   const jira: JiraConfig = {};
-  const baseUrl = r.url('JIRA_BASE_URL', ['https:'], set('JIRA_BASE_URL'));
-  if (baseUrl !== undefined) jira.baseUrl = baseUrl;
+  const baseUrl = set('JIRA_BASE_URL');
+  if (baseUrl !== undefined) {
+    const problem = jiraBaseUrlProblem(baseUrl, { production: nodeEnv === 'production' });
+    if (problem === null) jira.baseUrl = baseUrl;
+    else r.fail('JIRA_BASE_URL', problem);
+  }
   const email = r.email('JIRA_EMAIL', set('JIRA_EMAIL'));
   if (email !== undefined) jira.email = email;
   const apiToken = set('JIRA_API_TOKEN');
@@ -267,7 +273,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const seedEmail = r.email('SEED_ADMIN_EMAIL', r.raw('SEED_ADMIN_EMAIL'));
   if (seedEmail !== undefined) seed.adminEmail = seedEmail;
 
-  const jira = parseJira(r);
+  const jira = parseJira(r, nodeEnv);
 
   if (r.problems.length > 0) throw new ConfigError(r.problems);
 

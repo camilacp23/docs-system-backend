@@ -111,4 +111,25 @@ describe('loadConfig', () => {
     assert.match(problemsOf({ ...valid(), JIRA_ISSUETYPE_STORY_ID: 'abc' }).join(), /JIRA_ISSUETYPE_STORY_ID/);
     assert.match(problemsOf({ ...valid(), JIRA_PROJECT_KEY: 'lower' }).join(), /JIRA_PROJECT_KEY/);
   });
+
+  it('accepts a Jira base URL over https, or over http only for the local simulator outside production (NFR-04)', () => {
+    const jiraOf = (extra: NodeJS.ProcessEnv) => loadConfig({ ...valid(), ...extra }).jira;
+    assert.equal(jiraOf({ JIRA_BASE_URL: 'https://site.atlassian.net' }).baseUrl, 'https://site.atlassian.net');
+    assert.equal(jiraOf({ JIRA_BASE_URL: 'http://localhost:3002' }).baseUrl, 'http://localhost:3002');
+    assert.equal(jiraOf({ JIRA_BASE_URL: 'http://127.0.0.1:3002' }).baseUrl, 'http://127.0.0.1:3002');
+    for (const bad of [
+      'http://site.atlassian.net',
+      'http://localhost.evil.example',
+      'http://[::1]:3002',
+      'https://user:pw@site.atlassian.net',
+    ]) {
+      const text = problemsOf({ ...valid(), JIRA_BASE_URL: bad }).join();
+      assert.match(text, /JIRA_BASE_URL/);
+      assert.doesNotMatch(text, /evil|pw|atlassian/, 'a problem never repeats the value');
+    }
+    assert.match(
+      problemsOf({ ...valid(), NODE_ENV: 'production', JIRA_BASE_URL: 'http://localhost:3002' }).join(),
+      /JIRA_BASE_URL: must use https in production/,
+    );
+  });
 });
