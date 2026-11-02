@@ -12,6 +12,7 @@ import { createPrisma, type Database } from '../../src/db/prisma.js';
 import { createLogger } from '../../src/http/logger.js';
 import type { OperationHandlers } from '../../src/http/operations.js';
 import { signAccessToken } from '../../src/security/tokens.js';
+import { assertJiraConfigIsLocal, assertLocalJiraBaseUrl } from './jiraGuard.js';
 import { createTestDb, type TestDb } from './testDb.js';
 
 /** Shape of an error body ({ code, message, details }); `details` lists only the keys the tests read. */
@@ -70,12 +71,15 @@ export function testEnv(appUrl: string, overrides: Record<string, string> = {}):
 export async function startTestApp(
   options: { handlers?: OperationHandlers; openapiPath?: string; env?: Record<string, string> } = {},
 ): Promise<TestApp> {
+  // Never reach the real Jira from a test; checked before a database is created.
+  assertLocalJiraBaseUrl(options.env?.['JIRA_BASE_URL'], 'test application');
   const testDb = await createTestDb();
   const owner = new pg.Client({ connectionString: testDb.ownerUrl });
   await owner.connect();
   const db = createPrisma(testDb.appUrl);
   const logs: string[] = [];
   const config = loadConfig(testEnv(testDb.appUrl, options.env));
+  assertJiraConfigIsLocal(config.jira, 'test application');
   const logger = createLogger(config, { write: (line: string) => void logs.push(line) });
   const built = buildApp({
     config,
