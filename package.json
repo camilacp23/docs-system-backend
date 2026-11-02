@@ -27,6 +27,7 @@
     "db:seed": "tsx src/scripts/seed.ts",
     "sandbox:db": "tsx scripts/sandbox-db.ts",
     "sandbox:api": "tsx scripts/sandbox-api.ts",
+    "sandbox:jira": "tsx scripts/sandbox-jira.ts",
     "db:drift": "prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --exit-code",
     "test:audit-e2e": "tsx tests/04_prisma_audit_e2e.test.ts",
     "test:jira-signature": "tsx tests/05_jira_signature.test.ts",
