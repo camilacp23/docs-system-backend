@@ -1,0 +1,49 @@
+info:
+  name: '39 Update · 400 repeated component name names its position'
+  type: http
+  seq: 39
+http:
+  method: PUT
+  url: '{{baseUrl}}/screens/{{scrAId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{scrPrefix}}Alpha",
+        "miroLink": null,
+        "template": {
+          "onStart": "Alpha starts here",
+          "workingProcess": null,
+          "architecture": null,
+          "dataModel": null,
+          "requirements": null,
+          "knownIssues": null,
+          "risks": null
+        },
+        "components": [
+          {
+            "name": "btnA",
+            "type": "Button"
+          },
+          {
+            "name": "btnA",
+            "type": "Label"
+          }
+        ],
+        "variableLinks": [],
+        "collectionLinks": [],
+        "navigations": []
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 400", function () { expect(res.status).to.equal(400); });
+        test("error body has code VALIDATION_ERROR, message and details", function () { expect(res.body.code).to.equal("VALIDATION_ERROR"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("details.fields names the position", function () { expect(res.body.details.fields.map(function (f) { return [f.field, f.rule]; })).to.deep.equal([["components[1].name", "unique"]]); });
+settings:
+  encodeUrl: true

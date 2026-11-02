@@ -1,0 +1,47 @@
+info:
+  name: '26 Create · 422 CROSS_APPLICATION collection link (fixture collection)'
+  type: http
+  seq: 26
+http:
+  method: POST
+  url: '{{baseUrl}}/screens'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{scrAppId}},
+        "name": "{{scrPrefix}}CrossCol",
+        "miroLink": null,
+        "template": {
+          "onStart": null,
+          "workingProcess": null,
+          "architecture": null,
+          "dataModel": null,
+          "requirements": null,
+          "knownIssues": null,
+          "risks": null
+        },
+        "components": [],
+        "variableLinks": [],
+        "collectionLinks": [
+          {
+            "collectionId": {{collectionId}},
+            "accessMode": "READ",
+            "usedIn": "galX.Items"
+          }
+        ],
+        "navigations": []
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 422", function () { expect(res.status).to.equal(422); });
+        test("error body has code CROSS_APPLICATION, message and details", function () { expect(res.body.code).to.equal("CROSS_APPLICATION"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("message and details", function () { expect(res.body.message).to.equal("You can only link elements of the same application."); expect(res.body.details).to.deep.equal({ field: "collectionLinks[0].collectionId" }); });
+settings:
+  encodeUrl: true

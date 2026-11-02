@@ -226,7 +226,7 @@ describe('database error table', () => {
         res: { locals: { pathParams: id === undefined ? {} : { id: String(id) } } },
         db: t.db,
       });
-    for (const operationId of ['updateCollection', 'createCollection', 'updateScreen', 'createVariable']) {
+    for (const operationId of ['updateCollection', 'createCollection', 'createVariable']) {
       const outcome = await outcomeOf(
         operationId,
         { derivedFrom: [5, 7] },
@@ -247,6 +247,27 @@ describe('database error table', () => {
       } else {
         assert.equal(outcome.kind, 'internal', operationId);
       }
+    }
+  });
+
+  it('dependency_no_self_chk on updateScreen is 400 at navigations[i].targetScreenId (D-84)', async () => {
+    const outcome = await translateDbError(
+      { sqlstate: '23514', constraint: 'dependency_no_self_chk' },
+      {
+        req: {
+          body: { navigations: [{ targetScreenId: 3 }, { targetScreenId: 7 }] },
+          policy: { operationId: 'updateScreen', path: '/x' },
+        } as never,
+        res: { locals: { pathParams: { id: '7' } } },
+        db: t.db,
+      },
+    );
+    assert.equal(outcome.kind, 'api');
+    if (outcome.kind === 'api') {
+      assert.equal(outcome.error.status, 400);
+      assert.deepEqual((outcome.error.details as { fields: unknown[] }).fields, [
+        { field: 'navigations[1].targetScreenId', rule: 'self', message: 'A screen cannot navigate to itself.' },
+      ]);
     }
   });
 
@@ -732,12 +753,14 @@ describe('database errors provoked on a real database', () => {
         expect: validation('derivedFrom[1]', 'self', 'A collection cannot derive from itself.'),
       },
       {
-        name: 'a screen navigating to itself (CHECK, screen write) stays a defect until Module 4 translates it',
+        name: 'a screen navigating to itself (CHECK, screen write): 400 at its position in navigations (D-84)',
         op: 'updateScreen',
+        body: { navigations: [{ targetScreenId: 999999 }, { targetScreenId: ids.s1 }] },
+        pathId: ids.s1,
         run: sql(
           `INSERT INTO dependency (source_id, source_type, target_id, target_type, relation_type) VALUES (${ids.s1}, 'SCREEN', ${ids.s1}, 'SCREEN', 'NAVIGATES_TO')`,
         ),
-        expect: internal('DEPENDENCY_DERIVED'),
+        expect: validation('navigations[1].targetScreenId', 'self', 'A screen cannot navigate to itself.'),
       },
       {
         name: 'delete a referenced row (RESTRICT) is a defect',

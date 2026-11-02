@@ -1,7 +1,7 @@
 # docs-system-api (Bruno collection)
 
 Requests and assertions for every implemented operation, grouped by module: `Auth`, `Users`, `Applications`,
-`Screens` (only the listing, until the screens module arrives), `Variables` and `Collections`. It runs against the isolated database
+`Screens`, `Variables` and `Collections` (404 requests and 1034 assertions in all). It runs against the isolated database
 `docs_sandbox`, never against `docs_system`.
 
 ```bash
@@ -15,8 +15,8 @@ only rows with its own prefix, which no later run reads.
 
 ## Sandbox Fixtures
 
-The API cannot yet create screens or screen links (they arrive with the screens module), so
-`npm run sandbox:db` inserts them directly, after the seed, as an application named **Sandbox Fixtures**
+The API cannot create assignments of variables to collections, nor links already in place when a run starts, so
+`npm run sandbox:db` inserts screens and links directly, after the seed, as an application named **Sandbox Fixtures**
 (`scripts/lib/sandboxFixtures.ts`, which reuses `tests/helpers/fixtures.ts`). Its data is fixed and the requests never
 change it; the requests that fail on purpose are rolled back.
 
@@ -37,6 +37,34 @@ The `Collections` folder lists `q=colSandbox` (a contains search), so no name cr
 The variables a run creates (`<prefix>Global`, `Other`, `Ctx`, `Free`, with a random prefix such as `qk3j9x2a`) also live
 in Sandbox Fixtures, because only its screens can be an origin screen; the run deletes them at the end and its lists
 filter by the prefix. The archived-application requests use an application created by the run.
+
+## Screens folder
+
+118 requests (the first seven read the listing of Sandbox Fixtures and never change it). Like `Variables` and
+`Collections`, it logs in the administrator, creates a Developer and a Reader with random e-mails and an application of
+its own (`Screens <suffix>`), and names everything it creates with a random prefix. The links, uses and navigations of
+its screens point only to a variable and a collection created in that application; the Sandbox Fixtures data is used
+only by requests that are rejected before writing (`CROSS_APPLICATION`). At the end it deletes what it created and
+lists with `q=<prefix>` that `total` is 0 (the run application keeps only its App (OnStart) screen, and the fixtures
+are checked to be untouched). Like the other folders it does not deactivate its two users.
+
+| Requests | Covers |
+| -------- | ------ |
+| 08-15    | Setup: Developer and Reader, run application, its App (OnStart) screen, a variable and a collection |
+| 16-28    | Create: `UNDOCUMENTED` without content and `DRAFT` with content (D-81), `Location` and `ETag`; complete screen with components, uses, links and navigation; 409 `DUPLICATE_NAME` (`container`); 400 (required list omitted, repeated component name with position, `usedIn` `origin`); 404 destination screen; 403 Reader; 422 `CROSS_APPLICATION` for each kind of link |
+| 29-32    | Read: 200 as Reader, 304 with `If-None-Match`, 404, 400 |
+| 33-50    | Update: 412 with `currentETag`; a PUT without changes keeps the `ETag` (D-71); swap of two component names keeping the ids; `UNDOCUMENTED` to `DRAFT`; 400 (self navigation `self`, repeated name, `origin`, omitted list); 404 for a nested id of another screen (D-75), a missing destination and a missing screen; 403; 409; 422 `CROSS_APPLICATION`; nothing changed by the failed requests |
+| 51-61    | Context variables (D-64, D-85): `CONTEXT_SCREEN_MISMATCH` with origin and without origin (the origin screen is deleted first), in PUT and in POST (`screenId: null`); the origin row survives a PUT that omits it |
+| 62-64    | App (OnStart) (D-87): 422 `APP_CONTEXT_PROTECTED` when deleted and when renamed; its template is edited normally |
+| 65-89    | Workflow (D-81, D-82, D-88): errors of `/status` (400, 403, 404, 412, `INVALID_TRANSITION` with `from` and `to`), `TEMPLATE_INCOMPLETE` with `details.fields` in the order of SRS Table 28, `/review` as Developer (403) and `NOT_IN_REVIEW`, submit, 422 `SCREEN_IN_REVIEW` on PUT and DELETE, withdraw, submit again, RETURN without `comment` (400), with only spaces (`COMMENT_REQUIRED`) and valid, APPROVE with and without comment (`commentCount`), editing an `APPROVED` screen returns it to `IN_PROGRESS`, reopen |
+| 90-98    | Archived application: 422 `APPLICATION_ARCHIVED` in POST, PUT, DELETE, `/status` and `/review`; still readable; PUT works again once unarchived |
+| 99-103   | Delete: 403 Reader, 204, 404 afterwards, twice and for a missing id |
+| 104-118  | Cleanup: deletes, `total` 0 by prefix, fixtures untouched |
+
+To check that a run cut half-way leaves nothing that a later run reads, run the folder against a sandbox you keep
+(`npm run sandbox:db`, `npm run sandbox:api`, then `npx bru run Screens --env sandbox -r` from this directory), stop
+the CLI by its PID in the middle (for example while the run application is archived) and run the folder again: it
+passes, because each run works on its own application and prefix.
 
 ### Guard
 

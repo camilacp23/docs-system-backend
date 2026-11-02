@@ -1,0 +1,29 @@
+info:
+  name: '11 Setup · Reader login 200'
+  type: http
+  seq: 11
+http:
+  method: POST
+  url: '{{baseUrl}}/auth/login'
+  headers:
+    - name: Origin
+      value: '{{origin}}'
+  body:
+    type: json
+    data: |-
+      {
+        "email": "screader-{{scrRun}}@sandbox.local",
+        "password": "Sandbox-Pass-2026"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 200) { bru.setVar("scrReaderToken", res.body.data.accessToken); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("a token is ready", function () { expect(bru.getVar("scrReaderToken")).to.be.a("string").and.not.empty; });
+settings:
+  encodeUrl: true

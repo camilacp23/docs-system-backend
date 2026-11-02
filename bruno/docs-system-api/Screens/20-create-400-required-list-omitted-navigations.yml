@@ -1,0 +1,40 @@
+info:
+  name: '20 Create · 400 required list omitted (navigations)'
+  type: http
+  seq: 20
+http:
+  method: POST
+  url: '{{baseUrl}}/screens'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{scrAppId}},
+        "name": "{{scrPrefix}}NoNav",
+        "miroLink": null,
+        "template": {
+          "onStart": null,
+          "workingProcess": null,
+          "architecture": null,
+          "dataModel": null,
+          "requirements": null,
+          "knownIssues": null,
+          "risks": null
+        },
+        "components": [],
+        "variableLinks": [],
+        "collectionLinks": []
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 400", function () { expect(res.status).to.equal(400); });
+        test("error body has code VALIDATION_ERROR, message and details", function () { expect(res.body.code).to.equal("VALIDATION_ERROR"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("details.fields names navigations", function () { expect(res.body.details.fields.map(function (f) { return f.field; }).join(" ")).to.include("navigations"); });
+settings:
+  encodeUrl: true

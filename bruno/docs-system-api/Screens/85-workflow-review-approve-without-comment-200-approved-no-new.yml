@@ -1,0 +1,30 @@
+info:
+  name: '85 Workflow · review APPROVE without comment 200 (APPROVED, no new comment)'
+  type: http
+  seq: 85
+http:
+  method: POST
+  url: '{{baseUrl}}/screens/{{scrCId}}/review'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrAdminToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "decision": "APPROVE"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 200) { bru.setVar("scrCEtag", res.headers["etag"]); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the status is APPROVED", function () { expect(res.body.data.documentationStatus).to.equal("APPROVED"); });
+        test("the ETag is a weak validator", function () { expect(res.headers["etag"]).to.match(/^W\/"\d+"$/); });
+        test("commentCount is 1", function () { expect(res.body.data.commentCount).to.equal(1); });
+settings:
+  encodeUrl: true

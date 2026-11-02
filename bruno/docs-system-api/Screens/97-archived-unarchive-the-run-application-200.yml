@@ -1,0 +1,27 @@
+info:
+  name: '97 Archived · unarchive the run application 200'
+  type: http
+  seq: 97
+http:
+  method: PUT
+  url: '{{baseUrl}}/applications/{{scrAppId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrAdminToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{scrAppName}}",
+        "platform": "Power Apps",
+        "status": "ACTIVE"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the application is active again", function () { expect(res.body.data.status).to.equal("ACTIVE"); });
+settings:
+  encodeUrl: true

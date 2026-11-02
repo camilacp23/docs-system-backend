@@ -1,0 +1,19 @@
+info:
+  name: '114 Cleanup · no collection of this run is left'
+  type: http
+  seq: 114
+http:
+  method: GET
+  url: '{{baseUrl}}/collections?applicationId={{scrAppId}}&q={{scrPrefix}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("total", function () { expect(res.body.total).to.equal(0); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,27 @@
+info:
+  name: '10 Setup · create Reader 201'
+  type: http
+  seq: 10
+http:
+  method: POST
+  url: '{{baseUrl}}/users'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrAdminToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Screens reader",
+        "email": "screader-{{scrRun}}@sandbox.local",
+        "password": "Sandbox-Pass-2026",
+        "role": "READER"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+settings:
+  encodeUrl: true

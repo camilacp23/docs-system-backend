@@ -1,0 +1,91 @@
+info:
+  name: '77 Workflow · put 422 SCREEN_IN_REVIEW (D-82)'
+  type: http
+  seq: 77
+http:
+  method: PUT
+  url: '{{baseUrl}}/screens/{{scrCId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{scrPrefix}}Gamma",
+        "miroLink": null,
+        "template": {
+          "onStart": "Edited while in review",
+          "workingProcess": "Lists the requests and filters them by status",
+          "architecture": "Gallery plus a detail form",
+          "dataModel": "One collection of requests",
+          "requirements": "FR-10",
+          "knownIssues": "None",
+          "risks": "Low"
+        },
+        "components": [
+          {
+            "id": {{scrCBtnId}},
+            "name": "lblName",
+            "type": "Button",
+            "onSelect": "Navigate(Alpha)",
+            "description": null,
+            "uses": [
+              {
+                "id": {{scrCUse1Id}},
+                "targetType": "VARIABLE",
+                "targetId": {{scrGlobId}},
+                "description": "reads"
+              }
+            ]
+          },
+          {
+            "id": {{scrCLblId}},
+            "name": "btnGo",
+            "type": "Label",
+            "onSelect": null,
+            "description": null,
+            "uses": [
+              {
+                "id": {{scrCUse2Id}},
+                "targetType": "COLLECTION",
+                "targetId": {{scrColId}},
+                "description": null
+              }
+            ]
+          }
+        ],
+        "variableLinks": [
+          {
+            "id": {{scrCVarLinkId}},
+            "variableId": {{scrGlobId}},
+            "accessMode": "READ",
+            "usedIn": "lblName.Text"
+          }
+        ],
+        "collectionLinks": [
+          {
+            "id": {{scrCColLinkId}},
+            "collectionId": {{scrColId}},
+            "accessMode": "READ",
+            "usedIn": "galItems.Items"
+          }
+        ],
+        "navigations": [
+          {
+            "id": {{scrCNavId}},
+            "targetScreenId": {{scrAId}},
+            "description": "Back"
+          }
+        ]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 422", function () { expect(res.status).to.equal(422); });
+        test("error body has code SCREEN_IN_REVIEW, message and details", function () { expect(res.body.code).to.equal("SCREEN_IN_REVIEW"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("message", function () { expect(res.body.message).to.equal("This screen is in review. Edit it after the review, or withdraw it from review."); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,29 @@
+info:
+  name: '76 Workflow · Gamma submit IN_PROGRESS to IN_REVIEW 200'
+  type: http
+  seq: 76
+http:
+  method: PUT
+  url: '{{baseUrl}}/screens/{{scrCId}}/status'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "status": "IN_REVIEW"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 200) { bru.setVar("scrCEtag", res.headers["etag"]); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the status is IN_REVIEW", function () { expect(res.body.data.documentationStatus).to.equal("IN_REVIEW"); });
+        test("the ETag is a weak validator", function () { expect(res.headers["etag"]).to.match(/^W\/"\d+"$/); });
+settings:
+  encodeUrl: true

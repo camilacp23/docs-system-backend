@@ -1,0 +1,19 @@
+info:
+  name: '60 Context · get 200 Alpha lists the origin row of CtxA'
+  type: http
+  seq: 60
+http:
+  method: GET
+  url: '{{baseUrl}}/screens/{{scrAId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the origin row is read-only and flagged", function () { const l = res.body.data.variableLinks; expect(l).to.have.length(1); expect(l[0].isOrigin).to.equal(true); expect(l[0].usedIn).to.equal("origin"); expect(l[0].variable.id).to.equal(Number(bru.getVar("scrCtxAId"))); });
+settings:
+  encodeUrl: true

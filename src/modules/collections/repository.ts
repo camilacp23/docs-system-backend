@@ -223,6 +223,21 @@ export async function findCollectionRef(
   return client.collection.findUnique({ where: { id }, select: { id: true, name: true, applicationId: true } });
 }
 
+/**
+ * Reads the reference of a collection and locks its row FOR SHARE until the end of the transaction: a concurrent
+ * delete waits, so a link written meanwhile never points at a vanished collection.
+ */
+export async function findCollectionRefShared(
+  client: Pick<CollectionsClient, '$queryRaw'>,
+  id: number,
+): Promise<CollectionRef | null> {
+  const rows = await client.$queryRaw<
+    { id: number; name: string; application_id: number }[]
+  >`SELECT id, name, application_id FROM collection WHERE id = ${id} FOR SHARE`;
+  const row = rows[0];
+  return row ? { id: row.id, name: row.name, applicationId: row.application_id } : null;
+}
+
 /** A page of the fields of a collection, by position and then id, and the total. */
 export async function listFields(
   client: Pick<CollectionsClient, 'collectionField'>,

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Technical Documentation System API
-  version: 0.3.3
+  version: 0.3.4
   summary: REST API contracts — SDD Interface Viewpoint (Bitácora 3, Activities 5 and 6)
   description: |
     Contracts of the eleven modules (41 operations of SRS Table 25), the
@@ -22,7 +22,7 @@ info:
       value sent by the client is kept when it has 8 to 64 characters among
       letters, digits, `.`, `_` and `-`; otherwise the server generates one.
       `INTERNAL_ERROR` repeats it in `details.requestId`.
-    - Writes on variables and collections check, in this order: the shape of the request (400), that the
+    - Writes on variables, collections and screens check, in this order: the shape of the request (400), that the
       referenced resources exist (404), that the application is not archived
       (422 `APPLICATION_ARCHIVED`), `If-Match` (412), the business rules (422)
       and the name (409 `DUPLICATE_NAME`).
@@ -86,6 +86,24 @@ info:
     return it and no longer lists `CROSS_APPLICATION` on `PUT /variables/{id}`.
     No operation was added or removed (50).
 
+    Changes in 0.3.4 (screens and the documentation workflow): `POST /screens`
+    sends the `ETag` of the created screen, and `PUT /screens/{id}/status` and
+    `POST /screens/{id}/review` send the `ETag` of the screen with its new status.
+    `DUPLICATE_NAME` is documented on `POST` and `PUT /screens`, `SCREEN_IN_REVIEW`
+    on `DELETE /screens/{id}` and `APP_CONTEXT_PROTECTED` (second message: the
+    App (OnStart) screen cannot be renamed) on `PUT /screens/{id}`. The
+    operations describe the status a screen gets when it is created or edited,
+    that the four lists of `ScreenWrite` are required and only `uses` is optional,
+    that the `origin` links are read-only, that the cross-application and context
+    rules judge only new or modified links, and the order of the errors of
+    `/status` and `/review`. `POST /screens/{id}/review` has no `If-Match`: a
+    RETURN without `comment`, with `""` or with `null` is a 400, one with only
+    spaces is a 422 `COMMENT_REQUIRED`, and an APPROVE with only spaces creates
+    no comment. The error examples show the position (`details.field`) of the
+    failing item, `TEMPLATE_INCOMPLETE` lists the fields in the order of the
+    template, and `AuditEntry` describes the payload of the review events. No
+    operation was added or removed (50).
+
     Error catalog (`code` -> HTTP status: `message`):
 
     | Code | HTTP | Message |
@@ -105,22 +123,23 @@ info:
     | PAYLOAD_TOO_LARGE | 413 | This is too much text to save at once. Shorten the longest fields and try again. |
     | SCOPE_MISMATCH | 422 | Set applies to global variables and UpdateContext to context variables. |
     | SCOPE_CONFLICT | 422 | You can't change the scope while collections assign this variable with <function>. Update those assignments first. |
-    | CROSS_APPLICATION | 422 | You can only link elements of the same application. |
+    | CROSS_APPLICATION | 422 | You can only link elements of the same application. (`details`: field, when the service reports it) |
     | INVALID_ORIGIN_SCREEN | 422 | Context variables are created inside a screen, not in App (OnStart). (`details`: field) |
     | INVALID_ORIGIN_SCREEN (other application) | 422 | <screen> belongs to another application. Choose a screen of <application>. (`details`: field, screenId, screen, application) |
-    | CONTEXT_SCREEN_MISMATCH | 422 | <variable> belongs to <screen>. From here you can only write it with Navigate. (`details`: variableId, variable, originScreenId, screen, screenId, targetScreen) |
-    | CONTEXT_SCREEN_MISMATCH (no origin screen) | 422 | <variable> has no origin screen. Set its origin screen before linking it. (`details`: variableId, variable, originScreenId: null, screenId, targetScreen) |
+    | CONTEXT_SCREEN_MISMATCH | 422 | <variable> belongs to <screen>. From here you can only write it with Navigate. (`details`: variableId, variable, originScreenId, screen, screenId, targetScreen, field) |
+    | CONTEXT_SCREEN_MISMATCH (no origin screen) | 422 | <variable> has no origin screen. Set its origin screen before linking it. (`details`: variableId, variable, originScreenId: null, screenId, targetScreen, field) |
     | LAST_ACTIVE_ADMIN | 422 | There must be at least one active administrator. Promote another user first. |
     | CANNOT_DEACTIVATE_SELF | 422 | You can't deactivate your own account. |
     | RESERVED_ACCOUNT | 422 | This is a system account and can't be changed. |
     | APPLICATION_ARCHIVED | 422 | This application is archived, so its documentation can't be changed. |
-    | INVALID_TRANSITION | 422 | This screen changed status meanwhile. Reload to see its current status. |
+    | INVALID_TRANSITION | 422 | This screen changed status meanwhile. Reload to see its current status. (`details`: from, to) |
     | NOT_IN_REVIEW | 422 | This screen is no longer in review. Reload to see its status. |
     | SCREEN_IN_REVIEW | 422 | This screen is in review. Edit it after the review, or withdraw it from review. |
-    | TEMPLATE_INCOMPLETE | 422 | Complete all seven template fields to submit for review. Missing: <fields>. |
+    | TEMPLATE_INCOMPLETE | 422 | Complete all seven template fields to submit for review. Missing: <fields>. (`details`: fields, in template order) |
     | COMMENT_REQUIRED | 422 | Write a comment: it is required to return the documentation. |
     | REVIEW_COMMENT_LOCKED | 422 | Review decisions can't be edited. |
     | APP_CONTEXT_PROTECTED | 422 | The App (OnStart) screen can't be deleted. |
+    | APP_CONTEXT_PROTECTED (rename) | 422 | The App (OnStart) screen can't be renamed. |
     | STORY_NOT_IN_SCREEN | 422 | That story doesn't belong to this screen. Refresh the list and pick again. |
     | RATE_LIMITED | 429 | Too many attempts. Try again in <n> minutes. |
     | INTERNAL_ERROR | 500 | Something went wrong on our side. Try again in a moment. Reference: <requestId>. |
@@ -128,10 +147,11 @@ info:
     | JIRA_PARTIAL_FAILURE | 502 | The story <key> was created, but the to-do wasn't. Try again to add it to that story. |
 
     In `DUPLICATE_NAME`, `<type>` is the noun in lowercase (`global variable`,
-    `context variable`, `collection`, `application`; `An` before a vowel) and
+    `context variable`, `collection`, `screen`, `application`; `An` before a vowel) and
     `<application>` is the place where the name must be unique, which
-    `details.container` names: `application` (global variables, collections and
-    context variables without an origin screen: the name of the application),
+    `details.container` names: `application` (global variables, collections,
+    screens and context variables without an origin screen: the name of the
+    application),
     `screen` (context variables with an origin screen: the name of that screen) or
     `system` (applications: Documentación técnica).
 
@@ -1102,19 +1122,41 @@ paths:
       x-capability: 'Create and edit screens (template)'
       x-roles: [ADMINISTRATOR, DEVELOPER]
       summary: Document a new screen with the standard template (FR-10, FR-11, FR-13)
-      x-error-codes: [APPLICATION_ARCHIVED, CROSS_APPLICATION, CONTEXT_SCREEN_MISMATCH]
+      x-error-codes: [APPLICATION_ARCHIVED, CROSS_APPLICATION, CONTEXT_SCREEN_MISMATCH, DUPLICATE_NAME]
       description: |
         Roles: Administrator, Developer. The caller becomes the author. The screen
-        starts as UNDOCUMENTED, or DRAFT when any template field has content.
+        starts as UNDOCUMENTED, or DRAFT when any template field has content: a
+        field has content when it is not null and is not empty after trimming
+        spaces (the text is stored as it arrives).
         Components, their uses (component -> variable/collection), variable and
         collection links, and navigations are written in the same request (SDD D-29).
+        The four lists (`components`, `variableLinks`, `collectionLinks`,
+        `navigations`) are required, empty or not; only `uses` of a component is
+        optional. The `id` of a nested item is ignored. `usedIn = origin` is reserved
+        for the links the variables module maintains and is a 400.
+        404 when `applicationId`, or a variable, collection or screen referenced by the
+        body, does not exist; `details.field` gives the position of the reference.
+        The name must be free in the application: 409 DUPLICATE_NAME with
+        `details.container = application`. A repeated component name, a repeated
+        target in the uses of a component, a repeated element and `usedIn` pair in the
+        links, or a repeated navigation target is a 400 with its position, not
+        DUPLICATE_NAME.
+        The errors are checked in this order: 400, 404, 422 APPLICATION_ARCHIVED,
+        the 422 business rules and 409 DUPLICATE_NAME. The 422 rules are applied one
+        rule at a time, each one from the first item to the last, and the first item
+        that fails in the first rule that fails is reported with its position in
+        `details.field`. Order: CROSS_APPLICATION (`variableLinks`, `collectionLinks`,
+        `navigations`, then the uses of each component), then CONTEXT_SCREEN_MISMATCH
+        (`variableLinks`). Every link is judged on create.
         When the application is archived it is read-only (CP-01): this operation
         returns 422 APPLICATION_ARCHIVED for every role.
         Context variables belong to their origin screen (CP-07): from any other screen
         a context variable can only be written (WRITE, as Navigate does);
-        READ/READ_WRITE links and UpdateContext assignments elsewhere, and any link to
-        a context variable without origin, return 422 CONTEXT_SCREEN_MISMATCH.
-        Enforced by the database at commit (migration context_screen_rule).
+        READ/READ_WRITE links elsewhere, and any link to a context variable without
+        origin, return 422 CONTEXT_SCREEN_MISMATCH. The screen has no id yet, so its
+        `details.screenId` is null and `details.targetScreen` is the name in the body.
+        Enforced by the service before writing, and by the database at commit
+        (migration context_screen_rule) as a backstop.
       requestBody:
         required: true
         content:
@@ -1138,6 +1180,7 @@ paths:
           description: Created
           headers:
             Location: { $ref: '#/components/headers/Location' }
+            ETag: { $ref: '#/components/headers/ETag' }
             X-Request-Id: { $ref: '#/components/headers/XRequestId' }
           content:
             application/json:
@@ -1178,21 +1221,63 @@ paths:
       x-capability: 'Create and edit screens (template)'
       x-roles: [ADMINISTRATOR, DEVELOPER]
       summary: Replace a screen's documentation
-      x-error-codes: [APPLICATION_ARCHIVED, CROSS_APPLICATION, CONTEXT_SCREEN_MISMATCH, SCREEN_IN_REVIEW]
+      x-error-codes: [APPLICATION_ARCHIVED, APP_CONTEXT_PROTECTED, CROSS_APPLICATION, CONTEXT_SCREEN_MISMATCH, SCREEN_IN_REVIEW, DUPLICATE_NAME]
       description: |
-        Roles: Administrator, Developer. Nested arrays are matched by `id`
-        (update / create / delete). Links with `usedIn = origin` are maintained by
-        the variables module and are neither required nor deletable here.
-        Editing the template of an APPROVED screen returns it to IN_PROGRESS; an
-        UNDOCUMENTED screen that receives content becomes DRAFT. Status itself is
-        changed only through `/status` and `/review`.
+        Roles: Administrator, Developer. The body replaces the whole editable
+        representation: an omitted `miroLink`, `onSelect` or `description` is stored
+        as null, and the four lists (`components`, `variableLinks`, `collectionLinks`,
+        `navigations`) are required, so leaving one out is a 400. Only `uses` of a
+        component is optional: leaving it out deletes the uses of that component.
+        Nested items are matched by `id`: items with an id are updated, items without
+        one are created, and existing items left out are deleted, so the audit log
+        keeps one history per row. An `id` that does not belong to this screen (it
+        belongs to another screen or application, does not exist, is the id of a use
+        under another component, or is the id of an `origin` row) is 404 with
+        `details { element, id, field }`, for example `variableLinks[2].id`, where
+        `element` is `component`, `component use`, `variable link`, `collection link`
+        or `navigation`. The same id twice in the body is a 400 with its position.
+        When an update swaps or rotates the targets of two or more uses of a component,
+        or of two or more navigations, the one row that breaks the cycle is deleted and
+        created again with a new id, and the audit log records DELETE and CREATE for it.
+        Links with `usedIn = origin` are maintained by the variables module: they come
+        back with `isOrigin = true`, are never read as editable, and are never updated
+        or deleted here, even when they are missing from the body. `usedIn = origin` in
+        the body is a 400.
+        `If-Match` is always checked when sent, also when the body changes nothing.
+        An update that changes nothing writes nothing: it answers 200 with the same
+        `ETag`, `updatedAt` and status. A change in any nested array also moves the
+        `ETag` of the screen.
+        Resulting status: editing an APPROVED screen in any way (a column or a nested
+        item) returns it to IN_PROGRESS; an UNDOCUMENTED screen in which a template
+        field goes from no content to content (not null and not empty after trimming
+        spaces) becomes DRAFT; in every other case the status does not change. Status
+        itself is changed only through `/status` and `/review`.
+        The errors are checked in this order: 400, 404 (the screen, then the nested
+        ids, then the variables, collections and screens the body points at), 422
+        APPLICATION_ARCHIVED, 412, the 422 business rules and 409 DUPLICATE_NAME. The
+        422 rules, in order: APP_CONTEXT_PROTECTED (renaming the App (OnStart) screen),
+        SCREEN_IN_REVIEW, CROSS_APPLICATION (`variableLinks`, `collectionLinks`,
+        `navigations`, then the uses of each component), CONTEXT_SCREEN_MISMATCH
+        (`variableLinks`). Each one goes from the first item to the last and reports
+        the first item that fails, with its position in `details.field`. In
+        `variableLinks` and `collectionLinks` only the links that are new or modified
+        (the element, the access mode or `usedIn` changes) are judged by
+        CROSS_APPLICATION and CONTEXT_SCREEN_MISMATCH: a link that already existed
+        and did not change is not judged again. Navigations and the uses of components
+        are always judged. A navigation to the screen itself is a 400 with `rule = self`
+        in `navigations[i].targetScreenId`. The name must be free in the application:
+        409 DUPLICATE_NAME with `details.container = application`.
         When the application is archived it is read-only (CP-01): this operation
         returns 422 APPLICATION_ARCHIVED for every role.
         Context variables belong to their origin screen (CP-07): from any other screen
         a context variable can only be written (WRITE, as Navigate does);
-        READ/READ_WRITE links and UpdateContext assignments elsewhere, and any link to
-        a context variable without origin, return 422 CONTEXT_SCREEN_MISMATCH.
-        Enforced by the database at commit (migration context_screen_rule).
+        READ/READ_WRITE links elsewhere, and any link to a context variable without
+        origin, return 422 CONTEXT_SCREEN_MISMATCH. Enforced by the service before
+        writing, and by the database at commit (migration context_screen_rule) as a
+        backstop.
+        The App (OnStart) screen cannot be renamed: 422 APP_CONTEXT_PROTECTED with the
+        message "The App (OnStart) screen can't be renamed."; its template, Miro link,
+        components, links and status are edited normally.
         A screen IN_REVIEW cannot be edited (CP-08): 422 SCREEN_IN_REVIEW. Withdraw it
         from review (PUT /screens/{id}/status, IN_PROGRESS) or wait for the decision.
       parameters:
@@ -1224,12 +1309,16 @@ paths:
       x-capability: 'Create and edit screens (template)'
       x-roles: [ADMINISTRATOR, DEVELOPER]
       summary: Delete a screen
-      x-error-codes: [APPLICATION_ARCHIVED, APP_CONTEXT_PROTECTED]
+      x-error-codes: [APPLICATION_ARCHIVED, APP_CONTEXT_PROTECTED, SCREEN_IN_REVIEW]
       description: |
         Roles: Administrator, Developer. Components, links, comments and local
         ticket records are deleted in cascade (the Jira issues stay in Jira);
         variables created in it keep existing without origin. The App (OnStart)
-        screen cannot be deleted (422 APP_CONTEXT_PROTECTED).
+        screen cannot be deleted (422 APP_CONTEXT_PROTECTED). A screen IN_REVIEW
+        cannot be deleted either (422 SCREEN_IN_REVIEW): the decision on the version
+        sent to review comes first.
+        The errors are checked in this order: 404, 422 APPLICATION_ARCHIVED, 422
+        APP_CONTEXT_PROTECTED, 422 SCREEN_IN_REVIEW. The operation takes no `If-Match`.
         When the application is archived it is read-only (CP-01): this operation
         returns 422 APPLICATION_ARCHIVED for every role.
       responses:
@@ -1253,7 +1342,18 @@ paths:
         UNDOCUMENTED <-> DRAFT <-> IN_PROGRESS -> IN_REVIEW (submit),
         IN_REVIEW -> IN_PROGRESS (withdraw), APPROVED -> IN_PROGRESS (reopen).
         APPROVED is reached only through `POST /screens/{id}/review`.
-        Submitting requires the seven template fields to have content.
+        Submitting requires the seven template fields to have content (not null and
+        not empty after trimming spaces).
+        The errors are checked in this order: 400, 404, 422 APPLICATION_ARCHIVED,
+        412, 422 INVALID_TRANSITION, 422 TEMPLATE_INCOMPLETE. `If-Match` is optional;
+        when sent it is compared with the screen locked inside the transaction.
+        Asking for the status the screen already has is a 422 INVALID_TRANSITION
+        (`details { from, to }`, with `to` equal to `from`). TEMPLATE_INCOMPLETE applies
+        only to IN_PROGRESS -> IN_REVIEW and lists in `details.fields` the template
+        fields without content, in the order of the template (`onStart`,
+        `workingProcess`, `architecture`, `dataModel`, `requirements`, `knownIssues`,
+        `risks`). A change of status through this operation is recorded in the audit
+        history by the database, with no business event.
         When the application is archived it is read-only (CP-01): this operation
         returns 422 APPLICATION_ARCHIVED for every role.
       parameters:
@@ -1271,8 +1371,9 @@ paths:
             example: { status: IN_REVIEW }
       responses:
         '200':
-          description: New status
+          description: New status (the `ETag` is that of the screen with its new status)
           headers:
+            ETag: { $ref: '#/components/headers/ETag' }
             X-Request-Id: { $ref: '#/components/headers/XRequestId' }
           content:
             application/json:
@@ -1471,9 +1572,20 @@ paths:
         RETURN -> IN_PROGRESS and requires a comment. The decision's comment is
         stored as a review comment on the screen, with `reviewDecision` = the
         decision (CP-11): RETURN always creates one; APPROVE creates one only when
-        a non-empty comment is sent. Only this operation writes `reviewDecision`.
+        a comment with content is sent. The comment is stored as it arrives; trimming
+        spaces only decides whether it has content. Only this operation writes
+        `reviewDecision`.
         Each decision is recorded as a business event
-        (DOCUMENTATION_APPROVED / DOCUMENTATION_RETURNED).
+        (DOCUMENTATION_APPROVED / DOCUMENTATION_RETURNED; its payload is described in
+        `AuditEntry`). The new status, the comment and the event are written in one
+        transaction.
+        The operation takes no `If-Match`, so it never answers 412, but the screen is
+        locked while the decision is applied. The errors are checked in this order: 400,
+        404, 422 APPLICATION_ARCHIVED, 422 NOT_IN_REVIEW, 422 COMMENT_REQUIRED.
+        A RETURN without `comment`, with `""` or with `null` is a 400 from the
+        validator, not COMMENT_REQUIRED. A RETURN whose comment has only spaces is a 422
+        COMMENT_REQUIRED, and an APPROVE whose comment has only spaces creates no
+        comment.
         When the application is archived it is read-only (CP-01): this operation
         returns 422 APPLICATION_ARCHIVED for every role.
       requestBody:
@@ -1484,8 +1596,9 @@ paths:
             example: { decision: RETURN, comment: Falta documentar los riesgos de la galería. }
       responses:
         '200':
-          description: Decision applied
+          description: Decision applied (the `ETag` is that of the screen with its new status)
           headers:
+            ETag: { $ref: '#/components/headers/ETag' }
             X-Request-Id: { $ref: '#/components/headers/XRequestId' }
           content:
             application/json:
@@ -2053,12 +2166,60 @@ components:
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
-          example:
-            code: VALIDATION_ERROR
-            message: Check the highlighted fields.
-            details:
-              fields:
-                - { field: environments, rule: minItems, message: must NOT have fewer than 1 items }
+          examples:
+            MIN_ITEMS:
+              value:
+                code: VALIDATION_ERROR
+                message: Check the highlighted fields.
+                details:
+                  fields:
+                    - { field: environments, rule: minItems, message: must NOT have fewer than 1 items }
+            SCREEN_REPEATED_COMPONENT_NAME:
+              summary: A repeated value in a screen payload is reported at the position of the repetition (the first one is not)
+              value:
+                code: VALIDATION_ERROR
+                message: Check the highlighted fields.
+                details:
+                  fields:
+                    - { field: 'components[1].name', rule: unique, message: 'This value is repeated. Each one must be unique.' }
+            SCREEN_REPEATED_USE_TARGET:
+              value:
+                code: VALIDATION_ERROR
+                message: Check the highlighted fields.
+                details:
+                  fields:
+                    - { field: 'components[0].uses[1].targetId', rule: unique, message: 'This value is repeated. Each one must be unique.' }
+            SCREEN_REPEATED_LINK:
+              summary: The same element with the same `usedIn` twice (variableLinks and collectionLinks)
+              value:
+                code: VALIDATION_ERROR
+                message: Check the highlighted fields.
+                details:
+                  fields:
+                    - { field: 'variableLinks[2].usedIn', rule: unique, message: 'This value is repeated. Each one must be unique.' }
+            SCREEN_REPEATED_NAVIGATION:
+              value:
+                code: VALIDATION_ERROR
+                message: Check the highlighted fields.
+                details:
+                  fields:
+                    - { field: 'navigations[1].targetScreenId', rule: unique, message: 'This value is repeated. Each one must be unique.' }
+            SCREEN_NAVIGATES_TO_ITSELF:
+              summary: Only in PUT /screens/{id}, where the screen has an id
+              value:
+                code: VALIDATION_ERROR
+                message: Check the highlighted fields.
+                details:
+                  fields:
+                    - { field: 'navigations[1].targetScreenId', rule: self, message: A screen cannot navigate to itself. }
+            SCREEN_RESERVED_USED_IN:
+              summary: '`usedIn` = origin is reserved for the links the variables module maintains'
+              value:
+                code: VALIDATION_ERROR
+                message: Check the highlighted fields.
+                details:
+                  fields:
+                    - { field: 'variableLinks[1].usedIn', rule: pattern, message: 'must match pattern "^(?!origin$)[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$"' }
     RefreshInvalid:
       description: Missing, expired, revoked or already rotated refresh token, or the account is no longer active
       headers:
@@ -2120,6 +2281,12 @@ components:
             nested:
               summary: A reference inside the request body that does not exist; `field` is its position
               value: { code: NOT_FOUND, message: "This collection field doesn't exist. It may have been deleted.", details: { element: collection field, id: 31, field: 'fields[2].id' } }
+            nested_screen_row:
+              summary: An id of the body that is not an editable row of the screen (another screen's, nonexistent, or an `origin` row); `element` is component, component use, variable link, collection link or navigation
+              value: { code: NOT_FOUND, message: "This variable link doesn't exist. It may have been deleted.", details: { element: variable link, id: 87, field: 'variableLinks[0].id' } }
+            nested_screen_reference:
+              summary: A variable, collection or screen the body points at that does not exist
+              value: { code: NOT_FOUND, message: "This screen doesn't exist. It may have been deleted.", details: { element: screen, id: 912, field: 'navigations[0].targetScreenId' } }
     Conflict:
       description: |
         Uniqueness conflict (duplicate name or e-mail). For `DUPLICATE_NAME`, `details.application`
@@ -2141,6 +2308,8 @@ components:
               value: { code: DUPLICATE_NAME, message: "A context variable named locFiltro already exists in SAR.", details: { field: name, type: context variable, name: locFiltro, application: SAR, container: application } }
             DUPLICATE_NAME_COLLECTION:
               value: { code: DUPLICATE_NAME, message: "A collection named colSolicitudes already exists in SAR.", details: { field: name, type: collection, name: colSolicitudes, application: SAR, container: application } }
+            DUPLICATE_NAME_SCREEN:
+              value: { code: DUPLICATE_NAME, message: "A screen named Solicitudes already exists in SAR.", details: { field: name, type: screen, name: Solicitudes, application: SAR, container: application } }
             DUPLICATE_NAME_APPLICATION:
               value: { code: DUPLICATE_NAME, message: "An application named SAR already exists in Documentación técnica.", details: { field: name, type: application, name: SAR, application: Documentación técnica, container: system } }
             EMAIL_TAKEN:
@@ -2168,6 +2337,9 @@ components:
             CROSS_APPLICATION:
               summary: In a collection, `field` names the item; the database trigger answers without `details`
               value: { code: CROSS_APPLICATION, message: "You can only link elements of the same application.", details: { field: 'variableAssignments[0].screenId' } }
+            CROSS_APPLICATION_SCREEN:
+              summary: In a screen, `field` is `variableLinks[i].variableId`, `collectionLinks[i].collectionId`, `navigations[i].targetScreenId` or `components[i].uses[j].targetId`
+              value: { code: CROSS_APPLICATION, message: "You can only link elements of the same application.", details: { field: 'navigations[0].targetScreenId' } }
             INVALID_ORIGIN_SCREEN:
               value: { code: INVALID_ORIGIN_SCREEN, message: "Context variables are created inside a screen, not in App (OnStart).", details: { field: originScreenId } }
             INVALID_ORIGIN_SCREEN_OTHER_APPLICATION:
@@ -2177,6 +2349,14 @@ components:
               value: { code: CONTEXT_SCREEN_MISMATCH, message: "locFiltro belongs to Solicitudes. From here you can only write it with Navigate.", details: { variableId: 15, variable: locFiltro, originScreenId: 3, screen: Solicitudes, screenId: 4, targetScreen: Detalle, field: 'variableAssignments[0].screenId' } }
             CONTEXT_SCREEN_MISMATCH_NO_ORIGIN:
               value: { code: CONTEXT_SCREEN_MISMATCH, message: "locFiltro has no origin screen. Set its origin screen before linking it.", details: { variableId: 15, variable: locFiltro, originScreenId: null, screenId: 4, targetScreen: Detalle, field: 'variableAssignments[0].screenId' } }
+            CONTEXT_SCREEN_MISMATCH_SCREEN:
+              summary: In a screen, `field` is `variableLinks[i].variableId`; `screenId` is the screen that is being edited
+              value: { code: CONTEXT_SCREEN_MISMATCH, message: "locFiltro belongs to Solicitudes. From here you can only write it with Navigate.", details: { variableId: 15, variable: locFiltro, originScreenId: 3, screen: Solicitudes, screenId: 4, targetScreen: Detalle, field: 'variableLinks[0].variableId' } }
+            CONTEXT_SCREEN_MISMATCH_SCREEN_CREATE:
+              summary: In POST /screens the screen has no id yet, so `screenId` is null and `targetScreen` is the name in the body
+              value: { code: CONTEXT_SCREEN_MISMATCH, message: "locFiltro belongs to Solicitudes. From here you can only write it with Navigate.", details: { variableId: 15, variable: locFiltro, originScreenId: 3, screen: Solicitudes, screenId: null, targetScreen: Detalle, field: 'variableLinks[0].variableId' } }
+            CONTEXT_SCREEN_MISMATCH_SCREEN_CREATE_NO_ORIGIN:
+              value: { code: CONTEXT_SCREEN_MISMATCH, message: "locFiltro has no origin screen. Set its origin screen before linking it.", details: { variableId: 15, variable: locFiltro, originScreenId: null, screenId: null, targetScreen: Detalle, field: 'variableLinks[0].variableId' } }
             LAST_ACTIVE_ADMIN:
               value: { code: LAST_ACTIVE_ADMIN, message: "There must be at least one active administrator. Promote another user first.", details: null }
             CANNOT_DEACTIVATE_SELF:
@@ -2186,19 +2366,24 @@ components:
             APPLICATION_ARCHIVED:
               value: { code: APPLICATION_ARCHIVED, message: "This application is archived, so its documentation can't be changed.", details: { applicationId: 1 } }
             INVALID_TRANSITION:
+              summary: '`to` is the status asked for; it can equal `from`'
               value: { code: INVALID_TRANSITION, message: "This screen changed status meanwhile. Reload to see its current status.", details: { from: DRAFT, to: IN_REVIEW } }
             NOT_IN_REVIEW:
               value: { code: NOT_IN_REVIEW, message: "This screen is no longer in review. Reload to see its status.", details: null }
             SCREEN_IN_REVIEW:
               value: { code: SCREEN_IN_REVIEW, message: "This screen is in review. Edit it after the review, or withdraw it from review.", details: null }
             TEMPLATE_INCOMPLETE:
-              value: { code: TEMPLATE_INCOMPLETE, message: "Complete all seven template fields to submit for review. Missing: risks, knownIssues.", details: { fields: [risks, knownIssues] } }
+              summary: '`fields` follows the order of the template: onStart, workingProcess, architecture, dataModel, requirements, knownIssues, risks'
+              value: { code: TEMPLATE_INCOMPLETE, message: "Complete all seven template fields to submit for review. Missing: knownIssues, risks.", details: { fields: [knownIssues, risks] } }
             COMMENT_REQUIRED:
               value: { code: COMMENT_REQUIRED, message: "Write a comment: it is required to return the documentation.", details: null }
             REVIEW_COMMENT_LOCKED:
               value: { code: REVIEW_COMMENT_LOCKED, message: "Review decisions can't be edited.", details: null }
             APP_CONTEXT_PROTECTED:
               value: { code: APP_CONTEXT_PROTECTED, message: "The App (OnStart) screen can't be deleted.", details: null }
+            APP_CONTEXT_PROTECTED_RENAME:
+              summary: PUT /screens/{id} that changes the name of the App (OnStart) screen
+              value: { code: APP_CONTEXT_PROTECTED, message: "The App (OnStart) screen can't be renamed.", details: null }
             STORY_NOT_IN_SCREEN:
               value: { code: STORY_NOT_IN_SCREEN, message: "That story doesn't belong to this screen. Refresh the list and pick again.", details: { storyId: 7 } }
     RateLimited:
@@ -2700,6 +2885,14 @@ components:
         description: { type: [string, 'null'], maxLength: 2000 }
     ScreenWrite:
       type: object
+      description: |
+        Editable representation of a screen. The four lists are required (an empty
+        list is valid; leaving one out is a 400); only `uses` of a component is
+        optional. Limits: 300 components, 100 uses per component, 500 variable links,
+        500 collection links and 100 navigations. The links maintained by the variables
+        module (`usedIn` = origin, `isOrigin` = true in the response) are never part of
+        a write: they are not sent, are not deleted when missing, and their id is a 404
+        `variable link`. The `id` of a nested item is used by PUT and ignored by POST.
       required: [name, template, components, variableLinks, collectionLinks, navigations]
       properties:
         name: { type: string, minLength: 1, maxLength: 150 }
@@ -2775,7 +2968,7 @@ components:
                   variable: { $ref: '#/components/schemas/Ref' }
                   accessMode: { $ref: '#/components/schemas/AccessMode' }
                   usedIn: { type: string }
-                  isOrigin: { type: boolean, description: Row maintained by the variables module (read-only here) }
+                  isOrigin: { type: boolean, description: 'Row maintained by the variables module (read-only here): a write never updates or deletes it and does not reconcile it' }
             collectionLinks:
               type: array
               items:
@@ -3057,7 +3250,12 @@ components:
       properties:
         id: { type: string, description: BIGINT serialized as text }
         action: { type: string, enum: [CREATE, UPDATE, DELETE, EVENT] }
-        eventName: { type: [string, 'null'] }
+        eventName:
+          type: [string, 'null']
+          description: |
+            Name of a business event (`action` = EVENT). The review of a screen records
+            `DOCUMENTATION_APPROVED` or `DOCUMENTATION_RETURNED`, with `entityType` =
+            `screen` and the id of the screen in `entityId`; `newValue` carries its payload.
         entityType: { type: string }
         entityId: { type: string }
         entityLabel: { type: [string, 'null'] }
@@ -3066,7 +3264,13 @@ components:
         dbRole: { type: string, description: Administrator only }
         changedFields: { type: array, items: { type: string } }
         oldValue: { type: [object, 'null'] }
-        newValue: { type: [object, 'null'] }
+        newValue:
+          type: [object, 'null']
+          description: |
+            For an EVENT, the payload of the event. `DOCUMENTATION_APPROVED` and
+            `DOCUMENTATION_RETURNED` use `{ from, to, commentId }`: the status before and
+            after the decision and the id of the review comment, which is null when an
+            APPROVE created no comment.
         createdAt: { type: string, format: date-time }
 
     # ------------------------------------------------------------ reports
