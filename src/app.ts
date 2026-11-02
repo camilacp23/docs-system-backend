@@ -19,6 +19,7 @@ import type { Database } from './db/prisma.js';
 import { corsPolicy, requestValidator, securityHeaders } from './http/chain.js';
 import { createErrorHandler, routeNotFound } from './http/errorHandler.js';
 import { createLogger, type Logger } from './http/logger.js';
+import { createJiraClient, type JiraClient } from './integrations/jira/index.js';
 import { authRateLimit } from './http/rateLimit.js';
 import { registerOperations, type OperationHandlers } from './http/operations.js';
 import { requestContext } from './http/requestContext.js';
@@ -44,6 +45,8 @@ export type BuildAppOptions = {
   /** Module handlers by operationId. Default: the registry of `src/modules`. */
   handlers?: OperationHandlers;
   logger?: Logger;
+  /** Jira client (tests pass one over the simulator). Default: built from `config.jira`. */
+  jira?: JiraClient;
 };
 
 export type BuiltApp = {
@@ -52,6 +55,8 @@ export type BuiltApp = {
   /** Operations without a handler yet (they answer 404 NOT_IMPLEMENTED). */
   notImplemented: string[];
   logger: Logger;
+  /** Isolated Jira client (NFR-14); the Jira operations use it from the next tasks on. */
+  jira: JiraClient;
 };
 
 /**
@@ -64,6 +69,8 @@ export type BuiltApp = {
 export function buildApp(options: BuildAppOptions): BuiltApp {
   const { config, db } = options;
   const logger = options.logger ?? createLogger(config);
+  const jira =
+    options.jira ?? createJiraClient(config.jira, { logger }, { production: config.nodeEnv === 'production' });
   const policies = loadPolicies(options.openapiPath ?? DEFAULT_OPENAPI_PATH);
 
   configureSecurity({
@@ -104,5 +111,5 @@ export function buildApp(options: BuildAppOptions): BuiltApp {
 
   app.use(routeNotFound);
   app.use(createErrorHandler({ db, logger }));
-  return { app, policies, notImplemented, logger };
+  return { app, policies, notImplemented, logger, jira };
 }
