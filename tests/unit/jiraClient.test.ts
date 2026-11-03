@@ -149,6 +149,13 @@ describe('requests', () => {
     assert.ok(calls.every((c) => !/\/rest\/api\/3\/search(\?|$)/.test(c.url)));
   });
 
+  it('creates in the project given with the call, which replaces the configured one (D-91)', async () => {
+    const { fn, calls } = scripted([{ status: 201, json: { id: '1', key: 'OTHER-1', self: '' } }]);
+    await drive(make(fn).createIssue({ ...subtask, projectKey: 'OTHER' }));
+    const body = JSON.parse(calls[0]?.init.body as string) as { fields: { project: unknown } };
+    assert.deepEqual(body.fields.project, { key: 'OTHER' });
+  });
+
   it('refuses invalid input before calling Jira', async () => {
     const { fn, calls } = scripted([{}]);
     const client = make(fn);
@@ -159,6 +166,7 @@ describe('requests', () => {
       client.createIssue({ level: 'SUBTASK', summary: 'No parent', screen }),
       client.createIssue({ level: 'EPIC', summary: 'Epic', screen, parentKey: 'TECHEA-1' }),
       client.createIssue({ ...subtask, parentKey: 'bad key' }),
+      client.createIssue({ ...subtask, projectKey: 'bad key' }),
       client.getIssue('../admin'),
       client.searchIssues({ jql: ' ' }),
     ];
@@ -247,6 +255,20 @@ describe('timeout and retries (SDD Table 60)', () => {
       calls.map((c) => c.at),
       [0, 500, 1_500],
     );
+  });
+
+  it('sends a search once when asked to, and that attempt still counts for the circuit breaker (D-94)', async () => {
+    const { fn, calls } = scripted([{ status: 503 }]);
+    const client = make(fn, FULL, { breakerFailureThreshold: 2 });
+    for (let i = 0; i < 2; i++) {
+      await assert.rejects(
+        drive(client.searchIssues({ jql: keysJql(['TECHEA-3']), singleAttempt: true })),
+        (e: unknown) => e instanceof JiraUnavailableError && e.reason === 'SERVER_ERROR',
+      );
+    }
+    assert.equal(calls.length, 2, 'one call per search, no retries');
+    assert.equal(client.status().state, 'open');
+    assert.equal(client.jiraAvailable, false);
   });
 
   it('gives up after the third attempt of a read', async () => {
@@ -478,6 +500,19 @@ describe('configuration (D-89)', () => {
       assert.doesNotMatch(e.message, /TOKEN-SECRET|atlassian/);
       return true;
     });
+  });
+
+  it('creation does not need JIRA_PROJECT_KEY when the call brings the project', async () => {
+    const { fn } = scripted([{ status: 201, json: { id: '1', key: 'OTHER-1', self: '' } }]);
+    const { projectKey: _p, ...noProject } = FULL;
+    const client = make(fn, noProject);
+    await assert.rejects(client.createIssue(subtask), (e: unknown) => {
+      assert.ok(e instanceof JiraNotConfiguredError);
+      assert.deepEqual(e.missing, ['JIRA_PROJECT_KEY']);
+      return true;
+    });
+    const created = await drive(client.createIssue({ ...subtask, projectKey: 'OTHER' }));
+    assert.equal(created.key, 'OTHER-1');
   });
 
   it('lists the missing variables by name', () => {

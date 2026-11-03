@@ -37,6 +37,8 @@ export type JiraCreateIssueInput = {
   /** Plain text; each non-empty line becomes an ADF paragraph. */
   description?: string | undefined;
   screen: JiraScreenReference;
+  /** Project key of this issue; defaults to `JIRA_PROJECT_KEY` (D-91). */
+  projectKey?: string | undefined;
   /** Key of the parent: the Epic of a Story, the Story of a Subtask. Required for STANDARD and SUBTASK, forbidden for EPIC. */
   parentKey?: string | undefined;
 };

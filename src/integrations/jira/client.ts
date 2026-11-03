@@ -80,11 +80,18 @@ export type JiraClient = {
   status(): JiraClientStatus;
   createIssue(input: JiraCreateIssueInput): Promise<JiraCreatedIssue>;
   getIssue(idOrKey: string): Promise<JiraIssue>;
-  searchIssues(query: { jql: string; maxResults?: number; nextPageToken?: string }): Promise<JiraSearchPage>;
+  /** `singleAttempt: true` sends the search once, without retries (D-94); it still counts for the circuit breaker. */
+  searchIssues(query: {
+    jql: string;
+    maxResults?: number;
+    nextPageToken?: string;
+    singleAttempt?: boolean;
+  }): Promise<JiraSearchPage>;
 };
 
 const ISSUE_FIELDS = ['summary', 'status', 'issuetype', 'parent'] as const;
 const KEY_PATTERN = /^[A-Z][A-Z0-9_]+-\d+$/;
+const PROJECT_KEY_PATTERN = /^[A-Z][A-Z0-9_]{1,19}$/;
 const ID_OR_KEY_PATTERN = /^(\d+|[A-Z][A-Z0-9_]+-\d+)$/;
 const SUMMARY_MAX = 255;
 const SEARCH_MAX_RESULTS = 100;
@@ -121,6 +128,14 @@ const CREATION = [
   'JIRA_ISSUETYPE_STORY_ID',
   'JIRA_ISSUETYPE_SUBTASK_ID',
 ];
+
+/** Per-call variations of {@link call}. */
+type CallOptions = {
+  /** A read sent once, without retries. */
+  singleAttempt?: boolean;
+  /** The project comes with the call, so `JIRA_PROJECT_KEY` is not needed. */
+  projectGiven?: boolean;
+};
 
 type Attempt = { kind: 'ok'; body: unknown } | { kind: 'fail'; error: JiraError; retryAfterMs?: number | undefined };
 
@@ -211,12 +226,17 @@ export function createJiraClient(
     method: string,
     path: string,
     body?: unknown,
+    callOptions: CallOptions = {},
   ): Promise<unknown> {
-    const absent = missingFor(kind === 'create' ? CREATION : CONNECTION);
+    const needed = kind === 'create' ? CREATION : CONNECTION;
+    const absent = missingFor(
+      callOptions.projectGiven === true ? needed.filter((n) => n !== 'JIRA_PROJECT_KEY') : needed,
+    );
     if (absent.length > 0) throw new JiraNotConfiguredError(absent);
 
     const { probe } = breaker.acquire();
-    const maxAttempts = kind === 'read' && !probe ? 1 + options.maxReadRetries : 1;
+    const maxAttempts =
+      kind === 'read' && !probe && callOptions.singleAttempt !== true ? 1 + options.maxReadRetries : 1;
     let backoff = options.backoffBaseMs;
     let outcome: Attempt = { kind: 'fail', error: new JiraUnavailableError('NETWORK') };
 
@@ -273,13 +293,22 @@ export function createJiraClient(
         SUBTASK: jira.issueTypeSubtaskId,
       };
       const fields: Record<string, unknown> = {
-        project: { key: jira.projectKey },
+        project: { key: input.projectKey ?? jira.projectKey },
         issuetype: { id: typeIds[input.level] },
         summary: input.summary,
         description: buildDescription(input.description, input.screen),
       };
       if (input.parentKey !== undefined) fields['parent'] = { key: input.parentKey };
-      const raw = await call('createIssue', 'create', 'POST', '/rest/api/3/issue', { fields });
+      const raw = await call(
+        'createIssue',
+        'create',
+        'POST',
+        '/rest/api/3/issue',
+        { fields },
+        {
+          projectGiven: input.projectKey !== undefined,
+        },
+      );
       const r = raw as Record<string, unknown> | null;
       if (r === null || typeof r !== 'object' || typeof r['id'] !== 'string' || typeof r['key'] !== 'string') {
         throw new JiraProtocolError('created issue');
@@ -299,7 +328,9 @@ export function createJiraClient(
       const maxResults = Math.min(Math.max(query.maxResults ?? 50, 1), SEARCH_MAX_RESULTS);
       const body: Record<string, unknown> = { jql: query.jql, fields: [...ISSUE_FIELDS], maxResults };
       if (query.nextPageToken !== undefined) body['nextPageToken'] = query.nextPageToken;
-      const raw = await call('searchIssues', 'read', 'POST', '/rest/api/3/search/jql', body);
+      const raw = await call('searchIssues', 'read', 'POST', '/rest/api/3/search/jql', body, {
+        singleAttempt: query.singleAttempt === true,
+      });
       const r = raw as Record<string, unknown> | null;
       if (r === null || typeof r !== 'object' || !Array.isArray(r['issues']))
         throw new JiraProtocolError('search result');
@@ -340,6 +371,8 @@ function validateCreate(input: JiraCreateIssueInput): void {
   if (summary.length > SUMMARY_MAX)
     throw new JiraValidationError('summary', `is longer than ${SUMMARY_MAX} characters`);
   if (/[\r\n]/.test(summary)) throw new JiraValidationError('summary', 'must be a single line');
+  if (input.projectKey !== undefined && !PROJECT_KEY_PATTERN.test(input.projectKey))
+    throw new JiraValidationError('project', 'unexpected format');
   if (input.level === 'EPIC') {
     if (input.parentKey !== undefined) throw new JiraValidationError('parent', 'an Epic has no parent');
     return;
