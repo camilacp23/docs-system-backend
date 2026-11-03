@@ -15,6 +15,8 @@
  * - `POST /__sim/fail-after-create` `{ level: 'EPIC'|'STANDARD', count? }` (partial failure)
  * - `POST /__sim/issues/{key}/status` `{ status? | category?, timestamp? }` -> signed webhook delivery
  * - `POST /__sim/issues/{key}/delete` `{ timestamp? }` -> signed webhook delivery
+ * - `POST /__sim/issues/{key}/edit` `{ summary?, key?, parentKey?, timestamp? }` -> signed webhook delivery. A new `key`
+ *   moves the issue (its children follow) and the old key keeps finding it in a search, as in Jira.
  * - `GET /__sim/state`
  *
  * It listens on 127.0.0.1 only. A `timeout` fault never answers (unless `delayMs` is given) until the client gives up.
@@ -57,6 +59,8 @@ type Issue = {
   typeId: string;
   statusId: string;
   parentKey: string | null;
+  /** Keys the issue had before being moved: a search by an old key still finds it, as in Jira. */
+  previousKeys: string[];
   description: unknown;
   created: string;
   updated: string;
@@ -298,6 +302,7 @@ export async function startJiraSimulator(options: JiraSimulatorOptions = {}): Pr
       typeId,
       statusId: STATUSES[0]!.id,
       parentKey,
+      previousKeys: [],
       description: fields['description'] ?? null,
       created: stamp,
       updated: stamp,
@@ -330,7 +335,9 @@ export async function startJiraSimulator(options: JiraSimulatorOptions = {}): Pr
       if (values.some((v) => !/^[A-Z][A-Z0-9_]*-\d+$/.test(v))) return null;
       const set = new Set(values);
       tests.push(
-        m[1]!.toLowerCase() === 'parent' ? (i) => i.parentKey !== null && set.has(i.parentKey) : (i) => set.has(i.key),
+        m[1]!.toLowerCase() === 'parent'
+          ? (i) => i.parentKey !== null && set.has(i.parentKey)
+          : (i) => set.has(i.key) || i.previousKeys.some((k) => set.has(k)),
       );
     }
     return (i) => tests.every((t) => t(i));
@@ -405,7 +412,7 @@ export async function startJiraSimulator(options: JiraSimulatorOptions = {}): Pr
       send(res, 200, { ok: true });
       return 200;
     }
-    const issueRoute = /^\/__sim\/issues\/([A-Za-z0-9_-]+)\/(status|delete)$/.exec(path);
+    const issueRoute = /^\/__sim\/issues\/([A-Za-z0-9_-]+)\/(status|delete|edit)$/.exec(path);
     if (issueRoute) {
       const issue = byIdOrKey(issueRoute[1]!);
       if (issue === undefined) return notFound(res);
@@ -414,6 +421,22 @@ export async function startJiraSimulator(options: JiraSimulatorOptions = {}): Pr
         const delivery = webhookFor('jira:issue_deleted', issue, timestamp);
         issues.delete(issue.key);
         send(res, 200, delivery);
+        return 200;
+      }
+      if (issueRoute[2] === 'edit') {
+        if (typeof body['summary'] === 'string') issue.summary = body['summary'];
+        if (body['parentKey'] !== undefined)
+          issue.parentKey = typeof body['parentKey'] === 'string' ? body['parentKey'] : null;
+        if (typeof body['key'] === 'string' && body['key'] !== issue.key) {
+          const oldKey = issue.key;
+          issues.delete(oldKey);
+          issue.previousKeys.push(oldKey);
+          issue.key = body['key'];
+          issues.set(issue.key, issue);
+          for (const child of issues.values()) if (child.parentKey === oldKey) child.parentKey = issue.key;
+        }
+        issue.updated = new Date().toISOString();
+        send(res, 200, webhookFor('jira:issue_updated', issue, timestamp));
         return 200;
       }
       const target = STATUSES.find((s) =>

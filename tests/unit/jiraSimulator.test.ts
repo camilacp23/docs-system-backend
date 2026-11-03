@@ -362,6 +362,29 @@ describe('webhook deliveries', () => {
     );
     assert.equal((await api('GET', `/rest/api/3/issue/${subtask}`)).status, 404);
   });
+
+  it('edits an issue: a signed updated event, a moved key that its children follow and that the old key still finds', async () => {
+    const { epic, story, subtask } = await hierarchy();
+    const delivery = (await control(`/__sim/issues/${epic}/edit`, { key: 'TECHEA-900', summary: 'Renamed' }))
+      .json as unknown as SimWebhookDelivery;
+    const event = JSON.parse(delivery.rawBody) as { webhookEvent: string; issue: { key: string; fields: any } };
+    assert.equal(event.webhookEvent, 'jira:issue_updated');
+    assert.deepEqual([event.issue.key, event.issue.fields.summary], ['TECHEA-900', 'Renamed']);
+    assert.equal(
+      verifyJiraSignature(Buffer.from(delivery.rawBody), delivery.headers['x-hub-signature'], sim.webhookSecret),
+      true,
+    );
+    assert.equal((await api('GET', `/rest/api/3/issue/${story}`)).json['fields'].parent.key, 'TECHEA-900');
+    const byOldKey = await api('POST', '/rest/api/3/search/jql', { jql: `key in (${epic})` });
+    assert.deepEqual(
+      (byOldKey.json['issues'] as { key: string }[]).map((i) => i.key),
+      ['TECHEA-900'],
+    );
+    // A subtask can be moved under another story too.
+    await control(`/__sim/issues/${subtask}/edit`, { parentKey: 'TECHEA-900' });
+    assert.equal((await api('GET', `/rest/api/3/issue/${subtask}`)).json['fields'].parent.key, 'TECHEA-900');
+    assert.equal((await control('/__sim/issues/TECHEA-99/edit', { summary: 'x' })).status, 404);
+  });
 });
 
 describe('the Jira client against the simulator', () => {
