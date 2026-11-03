@@ -255,7 +255,9 @@ export const E = {
     new ApiError(
       502,
       'JIRA_PARTIAL_FAILURE',
-      `The screen was deleted while the tickets were being created. These Jira issues weren't saved here: ${unsaved.join(', ')}. Delete them in Jira if you don't need them.`,
+      reason === 'SCREEN_DELETED'
+        ? `The screen was deleted while the tickets were being created. These Jira issues weren't saved here: ${unsaved.join(', ')}. Delete them in Jira if you don't need them.`
+        : `These Jira issues were created but couldn't be saved here: ${unsaved.join(', ')}. Delete them in Jira, then try again.`,
       { created, unsaved, reason },
     ),
   jiraPartialFailure: (key: string, created: unknown, storyId: number) =>

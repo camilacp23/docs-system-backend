@@ -16,6 +16,8 @@ import { asUser } from '../helpers/users.js';
 const urlOf = (input: Parameters<typeof fetch>[0]): string =>
   typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
 const body = { newStory: { summary: 'Story' }, subtask: { summary: 'Subtask' } };
+const SAVE_FAILED_MESSAGE = (keys: string) =>
+  `These Jira issues were created but couldn't be saved here: ${keys}. Delete them in Jira, then try again.`;
 const MESSAGE = (keys: string) =>
   `The screen was deleted while the tickets were being created. These Jira issues weren't saved here: ${keys}. Delete them in Jira if you don't need them.`;
 
@@ -119,6 +121,7 @@ describe('POST /screens/{id}/jira-ticket: changes while the request is running',
     const res = await post(screen.id);
     assert.equal(res.status, 502);
     assert.equal(bodyOf(res).code, 'JIRA_PARTIAL_FAILURE');
+    assert.equal(bodyOf(res).message, SAVE_FAILED_MESSAGE('TECHEA-2'), 'its own message: the screen was not deleted');
     assert.deepEqual(bodyOf(res).details, {
       created: { epic: 'TECHEA-1', story: 'TECHEA-2' },
       unsaved: ['TECHEA-2'],
