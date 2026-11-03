@@ -1,0 +1,23 @@
+info:
+  name: '08 Setup · simulator clear pending faults 200'
+  type: http
+  seq: 8
+http:
+  method: POST
+  url: '{{jiraSimUrl}}/__sim/faults/clear'
+  body:
+    type: json
+    data: |-
+      {}
+  auth: inherit
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        const simBase = bru.interpolate("{{jiraSimUrl}}"); if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(simBase)) { throw new Error("jiraSimUrl is not local: the request is not sent"); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("ok", function () { expect(res.body).to.deep.equal({ ok: true }); });
+settings:
+  encodeUrl: true

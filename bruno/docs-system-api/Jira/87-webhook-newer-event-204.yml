@@ -1,0 +1,25 @@
+info:
+  name: '87 Webhook · newer event 204'
+  type: http
+  seq: 87
+http:
+  method: POST
+  url: '{{baseUrl}}/integrations/jira/webhook'
+  headers:
+    - name: Content-Type
+      value: 'application/json'
+  body:
+    type: json
+    data: ''
+  auth: inherit
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        req.setHeader("X-Hub-Signature", bru.getVar("jrWhSig")); req.setHeader("X-Atlassian-Webhook-Identifier", bru.getVar("jrWhId")); req.setBody(bru.getVar("jrWhRaw"), { raw: true });
+    - type: tests
+      code: |-
+        test("status 204", function () { expect(res.status).to.equal(204); });
+        test("no body", function () { expect(res.body === "" || res.body === undefined || res.body === null).to.equal(true); });
+settings:
+  encodeUrl: true

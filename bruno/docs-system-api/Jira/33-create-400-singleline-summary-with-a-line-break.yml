@@ -1,0 +1,26 @@
+info:
+  name: '33 Create · 400 singleLine summary with a line break'
+  type: http
+  seq: 33
+http:
+  method: POST
+  url: '{{baseUrl}}/screens/{{jrAlphaId}}/jira-ticket'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{jrDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "newStory": { "summary": "{{jrPrefix}}Alpha y" }, "subtask": { "summary": "line one\nline two" } }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        function v(k) { return bru.getVar(k); }
+        test("status 400", function () { expect(res.status).to.equal(400); });
+        test("error body has code VALIDATION_ERROR, message and details", function () { expect(res.body.code).to.equal("VALIDATION_ERROR"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("exact message", function () { expect(res.body.message).to.equal("Check the highlighted fields."); });
+        test("details.fields", function () { expect(res.body.details.fields).to.deep.equal([{ field: "subtask.summary", rule: "singleLine", message: "Summary must be a single line." }]); });
+settings:
+  encodeUrl: true

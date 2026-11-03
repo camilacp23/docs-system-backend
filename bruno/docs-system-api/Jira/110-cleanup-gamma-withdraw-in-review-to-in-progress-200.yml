@@ -1,0 +1,23 @@
+info:
+  name: '110 Cleanup · Gamma withdraw IN_REVIEW to IN_PROGRESS 200'
+  type: http
+  seq: 110
+http:
+  method: PUT
+  url: '{{baseUrl}}/screens/{{jrGammaId}}/status'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{jrDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "status": "IN_PROGRESS" }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("IN_PROGRESS", function () { expect(res.body.data.documentationStatus).to.equal("IN_PROGRESS"); });
+settings:
+  encodeUrl: true

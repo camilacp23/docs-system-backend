@@ -1,0 +1,26 @@
+info:
+  name: '30 Create · 422 STORY_NOT_IN_SCREEN the id of an Epic'
+  type: http
+  seq: 30
+http:
+  method: POST
+  url: '{{baseUrl}}/screens/{{jrAlphaId}}/jira-ticket'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{jrDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "storyId": {{jrAEpicId}}, "subtask": { "summary": "{{jrPrefix}}Alpha rejected" } }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        function v(k) { return bru.getVar(k); }
+        test("status 422", function () { expect(res.status).to.equal(422); });
+        test("error body has code STORY_NOT_IN_SCREEN, message and details", function () { expect(res.body.code).to.equal("STORY_NOT_IN_SCREEN"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("exact message", function () { expect(res.body.message).to.equal("That story doesn't belong to this screen. Refresh the list and pick again."); });
+        test("details", function () { expect(res.body.details).to.deep.equal({ storyId: Number(bru.getVar("jrAEpicId")) }); });
+settings:
+  encodeUrl: true

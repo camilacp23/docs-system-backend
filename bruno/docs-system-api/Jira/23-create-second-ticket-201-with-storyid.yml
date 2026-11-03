@@ -1,0 +1,29 @@
+info:
+  name: '23 Create · second ticket 201 with storyId'
+  type: http
+  seq: 23
+http:
+  method: POST
+  url: '{{baseUrl}}/screens/{{jrAlphaId}}/jira-ticket'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{jrDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "storyId": {{jrAS1Id}}, "subtask": { "summary": "{{jrPrefix}}Alpha sub 2" } }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        function v(k) { return bru.getVar(k); }
+        if (res.status === 201) { bru.setVar("jrAT2Key", res.body.data.subtask.jiraIssueKey); bru.setVar("jrAT2Id", res.body.data.subtask.id); }
+    - type: tests
+      code: |-
+        function v(k) { return bru.getVar(k); }
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("only the Subtask is created", function () { expect(res.body.data.created).to.deep.equal(["SUBTASK"]); });
+        test("the Epic and the Story are the existing ones", function () { expect(res.body.data.epic.id).to.equal(v("jrAEpicId")); expect(res.body.data.story.id).to.equal(v("jrAS1Id")); expect(res.body.data.subtask.id).to.not.equal(v("jrAT1Id")); expect(res.body.data.subtask.summary).to.equal(v("jrPrefix") + "Alpha sub 2"); });
+settings:
+  encodeUrl: true

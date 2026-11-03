@@ -1,0 +1,21 @@
+info:
+  name: '35 Create · 401 no token'
+  type: http
+  seq: 35
+http:
+  method: POST
+  url: '{{baseUrl}}/screens/{{jrAlphaId}}/jira-ticket'
+  body:
+    type: json
+    data: |-
+      { "newStory": { "summary": "{{jrPrefix}}Alpha n" }, "subtask": { "summary": "{{jrPrefix}}Alpha n" } }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 401", function () { expect(res.status).to.equal(401); });
+        test("error body has code UNAUTHENTICATED, message and details", function () { expect(res.body.code).to.equal("UNAUTHENTICATED"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("exact message", function () { expect(res.body.message).to.equal("Your session is not valid. Sign in again."); });
+settings:
+  encodeUrl: true

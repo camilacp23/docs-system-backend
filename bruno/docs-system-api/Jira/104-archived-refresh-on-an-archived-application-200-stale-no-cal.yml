@@ -1,0 +1,22 @@
+info:
+  name: '104 Archived · refresh on an archived application 200 stale, no call'
+  type: http
+  seq: 104
+http:
+  method: GET
+  url: '{{baseUrl}}/screens/{{jrHookId}}/jira-tickets?refresh=true'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{jrReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        function all(d) { const r = []; if (d.epic) { r.push(d.epic); } d.stories.forEach(function (s) { r.push(s); s.subtasks.forEach(function (t) { r.push(t); }); }); return r; }
+        function by(d, key) { return all(d).filter(function (t) { return t.jiraIssueKey === key; })[0]; }
+        function v(k) { return bru.getVar(k); }
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the local copy, stale true", function () { const d = res.body.data; const snap = JSON.parse(v("jrHookSnap4")); expect(d.epic).to.deep.equal(snap.epic); expect(d.stories).to.deep.equal(snap.stories); expect(d.sync).to.deep.equal({ jiraAvailable: true, stale: true, lastSyncedAt: snap.sync.lastSyncedAt }); });
+settings:
+  encodeUrl: true

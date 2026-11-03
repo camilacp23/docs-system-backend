@@ -1,0 +1,25 @@
+info:
+  name: '92 Webhook · issue_created is ignored 204'
+  type: http
+  seq: 92
+http:
+  method: POST
+  url: '{{baseUrl}}/integrations/jira/webhook'
+  headers:
+    - name: Content-Type
+      value: 'application/json'
+  body:
+    type: json
+    data: ''
+  auth: inherit
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        const CryptoJS = require("crypto-js"); const raw = JSON.stringify({ webhookEvent: "jira:issue_created", timestamp: Date.now() + 10000, issue: { id: bru.getVar("jrHT2JiraId"), key: bru.getVar("jrHT2Key"), fields: { summary: "Created elsewhere", status: { name: "Done", statusCategory: { key: "done" } } } } }); req.setHeader("X-Hub-Signature", "sha256=" + CryptoJS.HmacSHA256(raw, bru.interpolate("{{jiraWebhookSecret}}")).toString(CryptoJS.enc.Hex)); req.setBody(raw, { raw: true });
+    - type: tests
+      code: |-
+        test("status 204", function () { expect(res.status).to.equal(204); });
+        test("no body", function () { expect(res.body === "" || res.body === undefined || res.body === null).to.equal(true); });
+settings:
+  encodeUrl: true

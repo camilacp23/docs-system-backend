@@ -1,0 +1,32 @@
+info:
+  name: '58 Tree · Reader reads the tree without refresh 200'
+  type: http
+  seq: 58
+http:
+  method: GET
+  url: '{{baseUrl}}/screens/{{jrAlphaId}}/jira-tickets'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{jrReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        function all(d) { const r = []; if (d.epic) { r.push(d.epic); } d.stories.forEach(function (s) { r.push(s); s.subtasks.forEach(function (t) { r.push(t); }); }); return r; }
+        function by(d, key) { return all(d).filter(function (t) { return t.jiraIssueKey === key; })[0]; }
+        function v(k) { return bru.getVar(k); }
+        if (res.status === 200) { bru.setVar("jrTreeEtag", res.headers["etag"]); const m = {}; all(res.body.data).forEach(function (t) { m[t.jiraIssueKey] = t.lastSyncedAt; }); bru.setVar("jrTreeSynced", JSON.stringify(m)); }
+    - type: tests
+      code: |-
+        function all(d) { const r = []; if (d.epic) { r.push(d.epic); } d.stories.forEach(function (s) { r.push(s); s.subtasks.forEach(function (t) { r.push(t); }); }); return r; }
+        function by(d, key) { return all(d).filter(function (t) { return t.jiraIssueKey === key; })[0]; }
+        function v(k) { return bru.getVar(k); }
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("ETag is weak", function () { expect(res.headers["etag"]).to.match(/^W\/"[^"]+"$/); });
+        test("Epic, Stories and Subtasks in creation order", function () { const d = res.body.data; expect(d.epic.id).to.equal(v("jrAEpicId")); expect(d.epic.jiraIssueKey).to.equal(v("jrAEpicKey")); expect(d.epic.summary).to.equal(v("jrPrefix") + "Alpha (" + v("jrAppName") + ")"); expect(d.stories.map(function (s) { return s.id; })).to.deep.equal([v("jrAS1Id"), v("jrAS2Id")]); expect(d.stories[0].subtasks.map(function (t) { return t.id; })).to.deep.equal([v("jrAT1Id"), v("jrAT2Id")]); expect(d.stories[1].subtasks.map(function (t) { return t.id; })).to.deep.equal([v("jrAT3Id")]); });
+        test("every ticket has the contract shape", function () { const base = ["hierarchyLevel", "id", "issueType", "jiraIssueKey", "lastSyncedAt", "status", "statusCategory", "summary", "url"]; all(res.body.data).forEach(function (t) { expect(Object.keys(t).sort()).to.deep.equal(t.hierarchyLevel === "STANDARD" ? base.concat(["subtasks"]).sort() : base); }); });
+        test("all To Do", function () { expect(all(res.body.data).every(function (t) { return t.status === "To Do" && t.statusCategory === "TO_DO"; })).to.equal(true); });
+        test("sync says the copy is local and fresh enough", function () { const s = res.body.data.sync; const newest = all(res.body.data).map(function (t) { return t.lastSyncedAt; }).sort().pop(); expect(s).to.deep.equal({ jiraAvailable: true, stale: false, lastSyncedAt: newest }); });
+settings:
+  encodeUrl: true

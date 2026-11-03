@@ -1,0 +1,23 @@
+info:
+  name: '61 Tree · refresh 200 with nothing changed in Jira'
+  type: http
+  seq: 61
+http:
+  method: GET
+  url: '{{baseUrl}}/screens/{{jrAlphaId}}/jira-tickets?refresh=true'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{jrDevToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        function all(d) { const r = []; if (d.epic) { r.push(d.epic); } d.stories.forEach(function (s) { r.push(s); s.subtasks.forEach(function (t) { r.push(t); }); }); return r; }
+        function by(d, key) { return all(d).filter(function (t) { return t.jiraIssueKey === key; })[0]; }
+        function v(k) { return bru.getVar(k); }
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("completed refresh", function () { const s = res.body.data.sync; expect(s.jiraAvailable).to.equal(true); expect(s.stale).to.equal(false); expect(new Date(s.lastSyncedAt).toISOString()).to.equal(s.lastSyncedAt); expect(s.lastSyncedAt > Object.values(JSON.parse(v("jrTreeSynced"))).sort().pop()).to.equal(true); });
+        test("no row was written: every ticket keeps its lastSyncedAt", function () { const m = JSON.parse(v("jrTreeSynced")); all(res.body.data).forEach(function (t) { expect(t.lastSyncedAt).to.equal(m[t.jiraIssueKey]); expect(t.status).to.equal("To Do"); }); });
+settings:
+  encodeUrl: true

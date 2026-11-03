@@ -1,0 +1,32 @@
+info:
+  name: '21 Create · first ticket 201 new Epic, new Story and Subtask'
+  type: http
+  seq: 21
+http:
+  method: POST
+  url: '{{baseUrl}}/screens/{{jrAlphaId}}/jira-ticket'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{jrDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "newStory": { "summary": "{{jrPrefix}}Alpha story 1", "description": "First story" }, "subtask": { "summary": "{{jrPrefix}}Alpha sub 1", "description": "First subtask" } }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        function v(k) { return bru.getVar(k); }
+        if (res.status === 201) { const d = res.body.data; bru.setVar("jrAEpicId", d.epic.id); bru.setVar("jrAEpicKey", d.epic.jiraIssueKey); bru.setVar("jrAS1Id", d.story.id); bru.setVar("jrAS1Key", d.story.jiraIssueKey); bru.setVar("jrAT1Id", d.subtask.id); bru.setVar("jrAT1Key", d.subtask.jiraIssueKey); }
+    - type: tests
+      code: |-
+        function v(k) { return bru.getVar(k); }
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("no Location header (the tickets have no URL of their own)", function () { expect(res.headers["location"]).to.equal(undefined); });
+        test("three levels created, in order", function () { expect(res.body.data.created).to.deep.equal(["EPIC", "STANDARD", "SUBTASK"]); });
+        test("epic summary is \"<screen> (<application>)\"", function () { expect(res.body.data.epic.summary).to.equal(bru.getVar("jrPrefix") + "Alpha (" + bru.getVar("jrAppName") + ")"); });
+        test("levels, types, state and links", function () { const d = res.body.data; const base = bru.interpolate("{{jiraSimUrl}}"); [["epic", "EPIC", "Epic"], ["story", "STANDARD", "Story"], ["subtask", "SUBTASK", "Subtask"]].forEach(function (x) { const t = d[x[0]]; expect(t.hierarchyLevel).to.equal(x[1]); expect(t.issueType).to.equal(x[2]); expect(t.status).to.equal("To Do"); expect(t.statusCategory).to.equal("TO_DO"); expect(t.jiraIssueKey).to.match(/^TECHEA-[0-9]+$/); expect(t.url).to.equal(base + "/browse/" + t.jiraIssueKey); expect(t.id).to.be.a("number"); expect(new Date(t.lastSyncedAt).toISOString()).to.equal(t.lastSyncedAt); }); expect(d.epic.id).to.not.equal(d.story.id); expect(d.story.id).to.not.equal(d.subtask.id); });
+        test("the Story and Subtask keep their summaries", function () { expect(res.body.data.story.summary).to.equal(bru.getVar("jrPrefix") + "Alpha story 1"); expect(res.body.data.subtask.summary).to.equal(bru.getVar("jrPrefix") + "Alpha sub 1"); });
+settings:
+  encodeUrl: true

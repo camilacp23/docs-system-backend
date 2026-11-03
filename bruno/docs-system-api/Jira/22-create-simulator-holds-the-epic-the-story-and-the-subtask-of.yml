@@ -1,0 +1,37 @@
+info:
+  name: '22 Create · simulator holds the Epic, the Story and the Subtask of Alpha'
+  type: http
+  seq: 22
+http:
+  method: GET
+  url: '{{jiraSimUrl}}/__sim/state'
+  auth: inherit
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        const simBase = bru.interpolate("{{jiraSimUrl}}"); if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(simBase)) { throw new Error("jiraSimUrl is not local: the request is not sent"); }
+        bru.setVar("jrCallsPrev", bru.getVar("jrCalls"));
+    - type: after-response
+      code: |-
+        const st = res.body;
+        function mine(p) { return st.issues.filter(function (i) { return i.summary.indexOf(p) === 0; }); }
+        function lv(list, level) { return list.filter(function (i) { return i.level === level; }); }
+        function idle() { return st.faults.every(function (f) { return f.remaining === 0; }) && st.failAfterCreate === null && st.pendingCreateFailures === 0; }
+        function pre() { return bru.getVar("jrPrefix"); }
+        function v(k) { return bru.getVar(k); }
+        function v(k) { return bru.getVar(k); }
+        if (res.status === 200) { bru.setVar("jrCalls", res.body.calls.length); }
+    - type: tests
+      code: |-
+        const st = res.body;
+        function mine(p) { return st.issues.filter(function (i) { return i.summary.indexOf(p) === 0; }); }
+        function lv(list, level) { return list.filter(function (i) { return i.level === level; }); }
+        function idle() { return st.faults.every(function (f) { return f.remaining === 0; }) && st.failAfterCreate === null && st.pendingCreateFailures === 0; }
+        function pre() { return bru.getVar("jrPrefix"); }
+        function v(k) { return bru.getVar(k); }
+        function v(k) { return bru.getVar(k); }
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("one issue per level with the right parents", function () { const m = mine(pre() + "Alpha"); expect(m).to.have.length(3); const e = lv(m, "EPIC")[0]; const s = lv(m, "STANDARD")[0]; const t = lv(m, "SUBTASK")[0]; expect(e.key).to.equal(v("jrAEpicKey")); expect(e.parentKey).to.equal(null); expect(s.key).to.equal(v("jrAS1Key")); expect(s.parentKey).to.equal(e.key); expect(t.key).to.equal(v("jrAT1Key")); expect(t.parentKey).to.equal(s.key); expect(m.every(function (i) { return i.status === "To Do"; })).to.equal(true); });
+settings:
+  encodeUrl: true

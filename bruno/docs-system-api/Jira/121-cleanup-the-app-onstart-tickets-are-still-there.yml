@@ -1,0 +1,19 @@
+info:
+  name: '121 Cleanup · the App (OnStart) tickets are still there'
+  type: http
+  seq: 121
+http:
+  method: GET
+  url: '{{baseUrl}}/screens/{{jrOnStartId}}/jira-tickets'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{jrReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the Epic of the run application", function () { expect(res.body.data.epic.summary).to.equal("App (OnStart) (" + bru.getVar("jrAppName") + ")"); expect(res.body.data.stories).to.have.length(1); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,26 @@
+info:
+  name: '98 Webhook · Jira deletes the second Hook Story (signed delivery)'
+  type: http
+  seq: 98
+http:
+  method: POST
+  url: '{{jiraSimUrl}}/__sim/issues/{{jrHS2Key}}/delete'
+  body:
+    type: json
+    data: |-
+      {}
+  auth: inherit
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        const simBase = bru.interpolate("{{jiraSimUrl}}"); if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(simBase)) { throw new Error("jiraSimUrl is not local: the request is not sent"); }
+    - type: after-response
+      code: |-
+        if (res.status === 200) { bru.setVar("jrWhRaw", res.body.rawBody); bru.setVar("jrWhSig", res.body.headers["x-hub-signature"]); bru.setVar("jrWhId", res.body.headers["x-atlassian-webhook-identifier"]); bru.setVar("jrWhTs", res.body.event.timestamp); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("a deleted event", function () { expect(res.body.event.webhookEvent).to.equal("jira:issue_deleted"); });
+settings:
+  encodeUrl: true
