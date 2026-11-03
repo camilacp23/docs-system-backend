@@ -10,10 +10,13 @@ import { assertIfMatch, etagOf, setEtag, setLocation } from '../../http/etag.js'
 import { paged, parsePagination, parseSort } from '../../http/pagination.js';
 import type { JiraTicketInput, JiraTicketService } from './jiraTickets.js';
 import type { JiraTreeService } from './jiraTree.js';
+import type { JiraWebhookService } from './jiraWebhook.js';
 import type { ScreenListQuery, ScreenView } from './repository.js';
 import type { RequestedStatus, ReviewInput, ScreenService } from './service.js';
 
 const ELEMENT = 'screen';
+/** `X-Atlassian-Webhook-Identifier` is logged only if it looks like an opaque identifier (at most 100 characters). */
+const SAFE_DELIVERY_ID = /^[A-Za-z0-9._:-]{1,100}$/;
 const DEFAULT_SORT: ScreenListQuery['sort'] = { field: 'name', direction: 'asc' };
 
 const idOf = (req: Request): number => Number(req.params.id);
@@ -34,8 +37,14 @@ function sendScreen(res: Response, screen: ScreenView, status = 200): void {
  * @param service - Screens service.
  * @param tickets - Jira tickets service (creation of the "future to do" items).
  * @param tree - Jira tree service (reading, with optional refresh).
+ * @param webhook - Jira webhook service (the raw body was already verified by the gate).
  */
-export function createScreensController(service: ScreenService, tickets: JiraTicketService, tree: JiraTreeService) {
+export function createScreensController(
+  service: ScreenService,
+  tickets: JiraTicketService,
+  tree: JiraTreeService,
+  webhook: JiraWebhookService,
+) {
   return {
     /** GET /screens */
     list: async (req: Request, res: Response): Promise<void> => {
@@ -101,6 +110,14 @@ export function createScreensController(service: ScreenService, tickets: JiraTic
       const raw: unknown = req.query.refresh;
       const refresh = raw === true || raw === 'true';
       res.json({ data: await tree.tree(idOf(req), { refresh }) });
+    },
+    /** POST /integrations/jira/webhook: always 204 when processed or ignored (Table 53) */
+    receiveJiraWebhook: async (req: Request, res: Response): Promise<void> => {
+      const identifier = req.get('x-atlassian-webhook-identifier');
+      // Only for tracing: logged as a value, and only when it is short and harmless (no log injection).
+      const deliveryId = identifier !== undefined && SAFE_DELIVERY_ID.test(identifier) ? identifier : undefined;
+      await webhook.receive(req.body as Buffer, deliveryId);
+      res.status(204).end();
     },
     /** DELETE /screens/:id */
     remove: async (req: Request, res: Response): Promise<void> => {

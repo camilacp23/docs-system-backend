@@ -7,12 +7,12 @@
  * `details.reason = "NOT_IMPLEMENTED"` AFTER authentication, authorization and validation.
  *
  * The four operations without user roles (`x-roles: []`) follow the public chain: login (validated body),
- * refresh and logout (cookie + exact Origin), and the Jira webhook (raw body, signature in its module).
+ * refresh and logout (cookie + exact Origin), and the Jira webhook (raw body and signature in `jiraWebhookGate`).
  * An operation with empty `x-roles` that is not one of those four stops the server from starting (fail closed).
  *
  * @module http/operations
  */
-import express, { type Express, type RequestHandler } from 'express';
+import type { Express, RequestHandler } from 'express';
 import type { Database } from '../db/prisma.js';
 import { authenticate, authorize, requireAllowedOrigin } from '../security/middleware.js';
 import type { OperationPolicy } from '../security/rbac.js';
@@ -38,9 +38,6 @@ export class StartupError extends Error {
     this.name = 'StartupError';
   }
 }
-
-/** Maximum body of the Jira webhook (raw). */
-const RAW_BODY_LIMIT = '1mb';
 
 /**
  * Fails closed: an operation with empty roles must be a known public one, and every handler must belong to an
@@ -122,8 +119,8 @@ export function registerOperations(
         chain.push(requireAllowedOrigin, ...deps.validator);
         break;
       case 'receiveJiraWebhook':
-        // The signature is verified on the raw body BEFORE parsing (SDD 7.2.8): the Jira module does both.
-        chain.push(express.raw({ type: () => true, limit: RAW_BODY_LIMIT }));
+        // Nothing to add: the raw body and the signature were handled by `jiraWebhookGate`, mounted in app.ts
+        // before any parser (SDD 7.2.8), so the module only receives a verified body.
         break;
       default:
         chain.push(authenticate(deps.db.base), authorize(policy), ...deps.validator, checkIdRange(policy));
