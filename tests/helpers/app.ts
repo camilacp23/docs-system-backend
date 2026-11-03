@@ -9,8 +9,9 @@ import supertest from 'supertest';
 import { buildApp, type BuiltApp } from '../../src/app.js';
 import { loadConfig, type AppConfig } from '../../src/config/index.js';
 import { createPrisma, type Database } from '../../src/db/prisma.js';
-import { createLogger } from '../../src/http/logger.js';
+import { createLogger, type Logger } from '../../src/http/logger.js';
 import type { OperationHandlers } from '../../src/http/operations.js';
+import type { JiraClient } from '../../src/integrations/jira/index.js';
 import { signAccessToken } from '../../src/security/tokens.js';
 import { assertJiraConfigIsLocal, assertLocalJiraBaseUrl } from './jiraGuard.js';
 import { createTestDb, type TestDb } from './testDb.js';
@@ -69,7 +70,13 @@ export function testEnv(appUrl: string, overrides: Record<string, string> = {}):
  * @param options - Module handlers, an alternative contract and extra environment values.
  */
 export async function startTestApp(
-  options: { handlers?: OperationHandlers; openapiPath?: string; env?: Record<string, string> } = {},
+  options: {
+    handlers?: OperationHandlers;
+    openapiPath?: string;
+    env?: Record<string, string>;
+    /** Builds the Jira client the application uses (tests pass one with a fake `fetch` or short thresholds). */
+    jira?: (logger: Logger) => JiraClient;
+  } = {},
 ): Promise<TestApp> {
   // Never reach the real Jira from a test; checked before a database is created.
   assertLocalJiraBaseUrl(options.env?.['JIRA_BASE_URL'], 'test application');
@@ -85,6 +92,7 @@ export async function startTestApp(
     config,
     db,
     logger,
+    ...(options.jira ? { jira: options.jira(logger) } : {}),
     ...(options.handlers ? { handlers: options.handlers } : {}),
     ...(options.openapiPath ? { openapiPath: options.openapiPath } : {}),
   });

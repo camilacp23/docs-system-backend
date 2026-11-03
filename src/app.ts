@@ -104,7 +104,15 @@ export function buildApp(options: BuildAppOptions): BuiltApp {
 
   const notImplemented = registerOperations(app, {
     policies,
-    handlers: options.handlers ?? createModuleHandlers({ db }),
+    handlers:
+      options.handlers ??
+      createModuleHandlers({
+        db,
+        jira,
+        jiraBaseUrl: config.jira.baseUrl,
+        defaultProjectKey: config.jira.projectKey,
+        logger,
+      }),
     validator: requestValidator(options.openapiPath ?? DEFAULT_OPENAPI_PATH),
     db,
   });

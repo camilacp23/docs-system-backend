@@ -239,6 +239,14 @@ export const E = {
       'JIRA_UNAVAILABLE',
       "Jira isn't responding. The to-do wasn't created. Try again in a few minutes.",
     ),
+  /** Only the Epic was created (D-94): there is no Story to retry with, so the retry reuses the Epic. */
+  jiraPartialEpicOnly: (key: string, created: unknown) =>
+    new ApiError(
+      502,
+      'JIRA_PARTIAL_FAILURE',
+      `The epic ${key} was created, but the story and the to-do weren't. Try again to add them to that epic.`,
+      { key, created },
+    ),
   jiraPartialFailure: (key: string, created: unknown, storyId: number) =>
     new ApiError(
       502,

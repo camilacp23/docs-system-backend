@@ -8,6 +8,7 @@ import type { Request, Response } from 'express';
 import type { DocumentationStatus } from '../../generated/prisma/client.js';
 import { assertIfMatch, etagOf, setEtag, setLocation } from '../../http/etag.js';
 import { paged, parsePagination, parseSort } from '../../http/pagination.js';
+import type { JiraTicketInput, JiraTicketService } from './jiraTickets.js';
 import type { ScreenListQuery, ScreenView } from './repository.js';
 import type { RequestedStatus, ReviewInput, ScreenService } from './service.js';
 
@@ -30,8 +31,9 @@ function sendScreen(res: Response, screen: ScreenView, status = 200): void {
  * Creates the handlers of the screens operations that exist so far.
  *
  * @param service - Screens service.
+ * @param tickets - Jira tickets service (creation of the "future to do" items).
  */
-export function createScreensController(service: ScreenService) {
+export function createScreensController(service: ScreenService, tickets: JiraTicketService) {
   return {
     /** GET /screens */
     list: async (req: Request, res: Response): Promise<void> => {
@@ -86,6 +88,11 @@ export function createScreensController(service: ScreenService) {
         req.body as ReviewInput,
       );
       sendScreen(res, screen);
+    },
+    /** POST /screens/:id/jira-ticket (the contract declares no Location or ETag for it) */
+    createJiraTicket: async (req: Request, res: Response): Promise<void> => {
+      const created = await tickets.create(req.user!.id, idOf(req), req.body as JiraTicketInput);
+      res.status(201).json({ data: created });
     },
     /** DELETE /screens/:id */
     remove: async (req: Request, res: Response): Promise<void> => {
