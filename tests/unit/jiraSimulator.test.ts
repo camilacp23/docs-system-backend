@@ -480,3 +480,49 @@ describe('the Jira client against the simulator', () => {
     assert.equal(posts, 5);
   });
 });
+
+describe('sandbox numbering and fault clearing', () => {
+  it('faults/clear drops only the pending faults and failures: issues, counters and calls stay', async () => {
+    const first = await create(T.epic, 'Keep');
+    await control('/__sim/faults', { kind: '503', count: 3 });
+    await control('/__sim/fail-after-create', { level: 'EPIC' });
+    assert.equal((await control('/__sim/faults/clear')).status, 200);
+    const state = (await api('GET', '/__sim/state', undefined, null)).json;
+    assert.deepEqual([state['faults'], state['failAfterCreate'], state['pendingCreateFailures']], [[], null, 0]);
+    assert.equal((state['issues'] as unknown[]).length, 1);
+    assert.equal((state['calls'] as unknown[]).length, 1);
+    const second = await create(T.epic, 'Next');
+    assert.equal(second.status, 201);
+    assert.notEqual(second.json['key'], first.json['key']);
+  });
+
+  it('starts at the given numbers and, with monotonicIds, reset never rewinds them', async () => {
+    const start = 1_780_000_000_000_000;
+    const own = await startJiraSimulator({ firstIssueId: start, firstKeyNumber: start, monotonicIds: true });
+    try {
+      const post = async (): Promise<Record<string, unknown>> => {
+        const res = await fetch(`${own.baseUrl}/rest/api/3/issue`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Basic ${Buffer.from(`${own.email}:${own.apiToken}`).toString('base64')}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ fields: { project: { key: 'TECHEA' }, issuetype: { id: T.epic }, summary: 'Epic' } }),
+        });
+        return (await res.json()) as Record<string, unknown>;
+      };
+      const a = await post();
+      assert.deepEqual([a['id'], a['key']], [String(start), `TECHEA-${start}`]);
+      await fetch(`${own.baseUrl}/__sim/reset`, { method: 'POST' });
+      const b = await post();
+      assert.deepEqual([b['id'], b['key']], [String(start + 1), `TECHEA-${start + 1}`]);
+      // 16 digits fit what jira_ticket stores (CHECK on the key, varchar(32)) and what the client accepts.
+      assert.match(String(b['key']), /^[A-Z][A-Z0-9_]+-[0-9]+$/);
+      assert.ok(String(b['id']).length <= 32 && Number.isSafeInteger(start + 1));
+      const issue = await createJiraClient(own.jiraConfig()).getIssue(String(b['key']));
+      assert.equal(issue.id, String(start + 1));
+    } finally {
+      await own.close();
+    }
+  });
+});

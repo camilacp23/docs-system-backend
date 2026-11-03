@@ -12,7 +12,14 @@ if (jira === null) {
   process.exit(2);
 }
 
+// jira_ticket has unique indexes on the issue id and key, and the sandbox database outlives this process: ids and
+// keys start from the clock (1000 per millisecond, 16 digits, below 2^53) and /__sim/reset never rewinds them, so a
+// restarted simulator cannot hand out a value an earlier one already gave to a row that is still stored.
+const firstNumber = Date.now() * 1000;
 const sim = await startJiraSimulator({
+  firstIssueId: firstNumber,
+  firstKeyNumber: firstNumber,
+  monotonicIds: true,
   port: SANDBOX_JIRA_PORT,
   email: jira.email,
   apiToken: jira.apiToken,

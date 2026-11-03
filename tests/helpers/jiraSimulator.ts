@@ -10,7 +10,9 @@
  * It checks Basic auth, numbers issues `TECHEA-n`, enforces the hierarchy (Epic 1 > Story 0 > Subtask -1) and gives each
  * status its category. Its OWN control endpoints live under `/__sim/` and are never exposed by the API:
  *
- * - `POST /__sim/reset`
+ * - `POST /__sim/reset` (issues, counters, faults and call log; with `monotonicIds` the counters are NOT rewound)
+ * - `POST /__sim/faults/clear` (only the pending faults, `fail-after-create` and creation failures: keeps issues,
+ *   counters and the call log)
  * - `POST /__sim/faults` `{ kind: '500'|'502'|'503'|'429'|'401'|'403'|'timeout', count?, retryAfterSeconds?, delayMs?, appliesTo? }`
  * - `POST /__sim/fail-after-create` `{ level: 'EPIC'|'STANDARD', count? }` (partial failure)
  * - `POST /__sim/issues/{key}/status` `{ status? | category?, timestamp? }` -> signed webhook delivery
@@ -80,6 +82,15 @@ export type JiraSimulatorOptions = {
   email?: string;
   apiToken?: string;
   webhookSecret?: string;
+  /** First issue id (default {@link SIMULATOR_DEFAULTS}.firstIssueId). */
+  firstIssueId?: number;
+  /** Number of the first key, `TECHEA-<n>` (default 1). */
+  firstKeyNumber?: number;
+  /**
+   * `/__sim/reset` keeps the counters where they are, so ids and keys never repeat during the life of the process.
+   * Together with a start taken from the clock, they never repeat across restarts either (the sandbox).
+   */
+  monotonicIds?: boolean;
 };
 
 /** A running simulator. */
@@ -155,21 +166,29 @@ export async function startJiraSimulator(options: JiraSimulatorOptions = {}): Pr
   const pending = new Set<NodeJS.Timeout>();
 
   let issues = new Map<string, Issue>();
-  let nextId = SIMULATOR_DEFAULTS.firstIssueId;
-  let nextKeyNumber = 1;
+  const startId = options.firstIssueId ?? SIMULATOR_DEFAULTS.firstIssueId;
+  const startKeyNumber = options.firstKeyNumber ?? 1;
+  let nextId = startId;
+  let nextKeyNumber = startKeyNumber;
   let faults: Fault[] = [];
   let failAfter: { level: Level; count: number } | null = null;
   let createFailures = 0;
   let calls: CallRecord[] = [];
   let baseUrl = '';
 
-  const reset = (): void => {
-    issues = new Map();
-    nextId = SIMULATOR_DEFAULTS.firstIssueId;
-    nextKeyNumber = 1;
+  const clearFaults = (): void => {
     faults = [];
     failAfter = null;
     createFailures = 0;
+  };
+
+  const reset = (): void => {
+    issues = new Map();
+    if (options.monotonicIds !== true) {
+      nextId = startId;
+      nextKeyNumber = startKeyNumber;
+    }
+    clearFaults();
     calls = [];
   };
 
@@ -387,6 +406,11 @@ export async function startJiraSimulator(options: JiraSimulatorOptions = {}): Pr
     if (method !== 'POST') return notFound(res);
     if (path === '/__sim/reset') {
       reset();
+      send(res, 200, { ok: true });
+      return 200;
+    }
+    if (path === '/__sim/faults/clear') {
+      clearFaults();
       send(res, 200, { ok: true });
       return 200;
     }
