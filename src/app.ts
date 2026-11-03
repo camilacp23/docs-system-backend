@@ -47,6 +47,8 @@ export type BuildAppOptions = {
   logger?: Logger;
   /** Jira client (tests pass one over the simulator). Default: built from `config.jira`. */
   jira?: JiraClient;
+  /** Issues per page of the Jira refresh search (tests pass a small one). Default: the maximum. */
+  refreshPageSize?: number;
 };
 
 export type BuiltApp = {
@@ -112,6 +114,8 @@ export function buildApp(options: BuildAppOptions): BuiltApp {
         jiraBaseUrl: config.jira.baseUrl,
         defaultProjectKey: config.jira.projectKey,
         logger,
+        integrationUserEmail: config.integrationUserEmail,
+        ...(options.refreshPageSize === undefined ? {} : { refreshPageSize: options.refreshPageSize }),
       }),
     validator: requestValidator(options.openapiPath ?? DEFAULT_OPENAPI_PATH),
     db,

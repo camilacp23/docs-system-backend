@@ -54,6 +54,8 @@ export type JiraApp = TestApp & {
   createCalls: () => Promise<SimState['calls']>;
   /** Rows of `jira_ticket` of a screen, by id. */
   ticketsOf: (screenId: number) => Promise<TicketRowInDb[]>;
+  /** Id of the reserved account "Integración Jira" (READER, INACTIVE), the actor of Jira-caused writes. */
+  reservedId: number;
   /** Closes the application, the database and the simulator. */
   closeAll: () => Promise<void>;
 };
@@ -66,6 +68,8 @@ export type JiraAppOptions = {
   deps?: (base: JiraClientDeps) => JiraClientDeps;
   /** Environment variables replaced or removed (undefined) in the configuration of the application. */
   env?: Record<string, string | undefined>;
+  /** Issues per page of the refresh search (a small one exercises the pagination). */
+  refreshPageSize?: number;
 };
 
 /** Starts the simulator, the database and the application. */
@@ -88,6 +92,7 @@ export async function startJiraApp(options: JiraAppOptions = {}): Promise<JiraAp
   let jira!: JiraClient;
   const t = await startTestApp({
     env: defined,
+    ...(options.refreshPageSize === undefined ? {} : { refreshPageSize: options.refreshPageSize }),
     jira: (logger) => {
       jira = createJiraClient(config, options.deps?.({ logger }) ?? { logger }, options.client);
       return jira;
@@ -103,7 +108,13 @@ export async function startJiraApp(options: JiraAppOptions = {}): Promise<JiraAp
     return text === '' ? null : (JSON.parse(text) as unknown);
   };
   const simState = async (): Promise<SimState> => (await request('/__sim/state', 'GET')) as SimState;
+  const reserved = await t.owner.query<{ id: number }>(
+    `INSERT INTO app_user (name, email, password_hash, role, status)
+     VALUES ('Integración Jira', $1, 'not-a-real-hash', 'READER', 'INACTIVE') RETURNING id`,
+    [t.config.integrationUserEmail],
+  );
   return Object.assign(t, {
+    reservedId: reserved.rows[0]!.id,
     sim,
     jira,
     control: async (path: string, body: unknown = {}) => void (await request(path, 'POST', body)),

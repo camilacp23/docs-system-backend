@@ -26,6 +26,8 @@ export function createModuleHandlers(deps: {
   jiraBaseUrl: string | undefined;
   defaultProjectKey: string | undefined;
   logger: Logger;
+  integrationUserEmail: string;
+  refreshPageSize?: number;
 }): OperationHandlers {
   return {
     ...authHandlers(deps.db),
@@ -36,6 +38,8 @@ export function createModuleHandlers(deps: {
       jiraBaseUrl: deps.jiraBaseUrl,
       defaultProjectKey: deps.defaultProjectKey,
       logger: deps.logger,
+      integrationUserEmail: deps.integrationUserEmail,
+      ...(deps.refreshPageSize === undefined ? {} : { refreshPageSize: deps.refreshPageSize }),
     }),
     ...variablesHandlers(deps.db),
     ...collectionsHandlers(deps.db),

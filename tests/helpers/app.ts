@@ -76,6 +76,8 @@ export async function startTestApp(
     env?: Record<string, string>;
     /** Builds the Jira client the application uses (tests pass one with a fake `fetch` or short thresholds). */
     jira?: (logger: Logger) => JiraClient;
+    /** Issues per page of the Jira refresh search. */
+    refreshPageSize?: number;
   } = {},
 ): Promise<TestApp> {
   // Never reach the real Jira from a test; checked before a database is created.
@@ -93,6 +95,7 @@ export async function startTestApp(
     db,
     logger,
     ...(options.jira ? { jira: options.jira(logger) } : {}),
+    ...(options.refreshPageSize ? { refreshPageSize: options.refreshPageSize } : {}),
     ...(options.handlers ? { handlers: options.handlers } : {}),
     ...(options.openapiPath ? { openapiPath: options.openapiPath } : {}),
   });

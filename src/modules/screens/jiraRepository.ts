@@ -101,3 +101,122 @@ export async function updateSyncedState(
   const result = await client.jiraTicket.updateMany({ where: { id }, data: { ...state, lastSyncedAt: syncedAt } });
   return result.count > 0;
 }
+
+// ------------------------------------------------------------------------------------- tree, refresh, webhook
+
+/** A stored ticket with the columns the tree, the refresh and the webhook need (D-95, D-96). */
+export type SyncRow = TicketRow & {
+  screenId: number;
+  jiraIssueId: string;
+  parentTicketId: number | null;
+  parentLevel: JiraHierarchyLevel | null;
+};
+
+const SYNC_SELECT = { ...SELECT, screenId: true, jiraIssueId: true, parentTicketId: true, parentLevel: true } as const;
+
+/** Every ticket of a screen in creation order (`id` ascending, D-95), or none. */
+export function listTickets(client: Pick<JiraTicketsClient, 'jiraTicket'>, screenId: number): Promise<SyncRow[]> {
+  return client.jiraTicket.findMany({ where: { screenId }, orderBy: { id: 'asc' }, select: SYNC_SELECT });
+}
+
+/** The tickets with the given ids, locked until the end of the transaction, in a fixed order (no deadlocks). */
+export async function lockTickets(client: Pick<JiraTicketsClient, '$queryRaw'>, ids: number[]): Promise<number[]> {
+  if (ids.length === 0) return [];
+  const rows = await client.$queryRaw<{ id: number }[]>`
+    SELECT id FROM jira_ticket WHERE id = ANY(${ids}::int[]) ORDER BY id FOR UPDATE`;
+  return rows.map((r) => r.id);
+}
+
+/** One ticket by the stable Jira id, locked `FOR UPDATE` until the end of the transaction (Table 53, step 3). */
+export async function lockTicketByIssueId(
+  client: Pick<JiraTicketsClient, '$queryRaw'>,
+  jiraIssueId: string,
+): Promise<SyncRow | null> {
+  const rows = await client.$queryRaw<
+    {
+      id: number;
+      screen_id: number;
+      jira_issue_id: string;
+      jira_issue_key: string;
+      hierarchy_level: JiraHierarchyLevel;
+      issue_type: string;
+      summary: string;
+      status: string;
+      status_category: JiraStatusCategory;
+      parent_ticket_id: number | null;
+      parent_level: JiraHierarchyLevel | null;
+      last_synced_at: Date;
+    }[]
+  >`
+    SELECT id, screen_id, jira_issue_id, jira_issue_key, hierarchy_level, issue_type, summary, status,
+           status_category, parent_ticket_id, parent_level, last_synced_at
+      FROM jira_ticket WHERE jira_issue_id = ${jiraIssueId} FOR UPDATE`;
+  const r = rows[0];
+  if (r === undefined) return null;
+  return {
+    id: r.id,
+    screenId: r.screen_id,
+    jiraIssueId: r.jira_issue_id,
+    jiraIssueKey: r.jira_issue_key,
+    hierarchyLevel: r.hierarchy_level,
+    issueType: r.issue_type,
+    summary: r.summary,
+    status: r.status,
+    statusCategory: r.status_category,
+    parentTicketId: r.parent_ticket_id,
+    parentLevel: r.parent_level,
+    lastSyncedAt: r.last_synced_at,
+  };
+}
+
+/** Reads the given tickets (by id) as the transaction sees them. */
+export function findTicketsByIds(client: Pick<JiraTicketsClient, 'jiraTicket'>, ids: number[]): Promise<SyncRow[]> {
+  return client.jiraTicket.findMany({ where: { id: { in: ids } }, orderBy: { id: 'asc' }, select: SYNC_SELECT });
+}
+
+/** True when ANOTHER ticket already has the Jira key (the column is unique). */
+export async function keyTakenByOther(
+  client: Pick<JiraTicketsClient, 'jiraTicket'>,
+  key: string,
+  id: number,
+): Promise<boolean> {
+  return (await client.jiraTicket.count({ where: { jiraIssueKey: key, NOT: { id } } })) > 0;
+}
+
+/** A ticket of the screen by its stable Jira id: the candidate parent of an event (id and level only). */
+export function findTicketByIssueId(
+  client: Pick<JiraTicketsClient, 'jiraTicket'>,
+  screenId: number,
+  jiraIssueId: string,
+): Promise<{ id: number; hierarchyLevel: JiraHierarchyLevel } | null> {
+  return client.jiraTicket.findFirst({
+    where: { screenId, jiraIssueId },
+    select: { id: true, hierarchyLevel: true },
+  });
+}
+
+/** Columns a synchronization may write (D-97); `lastSyncedAt` always goes with them. */
+export type SyncChanges = Partial<{
+  jiraIssueKey: string;
+  issueType: string;
+  summary: string;
+  status: string;
+  statusCategory: JiraStatusCategory;
+  parentTicketId: number;
+  parentLevel: JiraHierarchyLevel;
+}>;
+
+/** Writes the changed columns and moves `last_synced_at`. */
+export async function writeSync(
+  client: Pick<JiraTicketsClient, 'jiraTicket'>,
+  id: number,
+  changes: SyncChanges,
+  syncedAt: Date,
+): Promise<void> {
+  await client.jiraTicket.update({ where: { id }, data: { ...changes, lastSyncedAt: syncedAt } });
+}
+
+/** Deletes a ticket; the foreign key of the parent (Table 30) deletes its children. */
+export async function deleteTicket(client: Pick<JiraTicketsClient, 'jiraTicket'>, id: number): Promise<void> {
+  await client.jiraTicket.delete({ where: { id } });
+}

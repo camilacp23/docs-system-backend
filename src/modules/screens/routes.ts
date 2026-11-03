@@ -1,7 +1,7 @@
 /**
  * Routes of the screens module (Module 4): binds each implemented operationId of the contract to its handler. Roles
- * are not declared here; the contract (x-roles) is the only source of authorization (D-39). Of the Jira operations only the creation of
- * tickets is implemented so far. The comment of a review is written through the comments service, which has no endpoints yet.
+ * are not declared here; the contract (x-roles) is the only source of authorization (D-39). The Jira operations are the creation of
+ * tickets and the tree. The comment of a review is written through the comments service, which has no endpoints yet.
  *
  * @module modules/screens/routes
  */
@@ -14,7 +14,9 @@ import { createCollectionService } from '../collections/service.js';
 import { createCommentService } from '../comments/service.js';
 import { createVariableService } from '../variables/service.js';
 import { createScreensController } from './controller.js';
+import { createIntegrationActor } from './jiraActor.js';
 import { createJiraTicketService } from './jiraTickets.js';
+import { createJiraTreeService } from './jiraTree.js';
 import { createScreenLookup, createScreenService } from './service.js';
 
 /**
@@ -31,15 +33,29 @@ export function screensHandlers(
     jiraBaseUrl: string | undefined;
     defaultProjectKey: string | undefined;
     logger: Logger;
+    /** E-mail of the reserved account that Jira-caused writes are attributed to (D-31, D-51). */
+    integrationUserEmail: string;
+    /** Issues per page of the refresh search (tests use a small one). */
+    refreshPageSize?: number;
   },
 ): OperationHandlers {
   const applications = createApplicationService(db);
   const lookup = createScreenLookup();
   const variables = createVariableService(db, applications, lookup);
   const collections = createCollectionService(db, applications, lookup, variables);
+  const runAsIntegration = createIntegrationActor(db, jiraDeps.integrationUserEmail);
   const controller = createScreensController(
     createScreenService(db, applications, variables, collections, createCommentService()),
     createJiraTicketService({ db, applications, ...jiraDeps }),
+    createJiraTreeService({
+      db,
+      applications,
+      jira: jiraDeps.jira,
+      jiraBaseUrl: jiraDeps.jiraBaseUrl,
+      logger: jiraDeps.logger,
+      runAsIntegration,
+      ...(jiraDeps.refreshPageSize === undefined ? {} : { pageSize: jiraDeps.refreshPageSize }),
+    }),
   );
   return {
     listScreens: controller.list,
@@ -50,5 +66,6 @@ export function screensHandlers(
     changeScreenStatus: controller.changeStatus,
     reviewScreen: controller.review,
     createJiraTicket: controller.createJiraTicket,
+    listJiraTickets: controller.listJiraTickets,
   };
 }

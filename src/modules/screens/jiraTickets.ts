@@ -31,6 +31,7 @@ import { ApiError, E, type FieldError } from '../../security/errors.js';
 import type { ApplicationService } from '../applications/service.js';
 import { createKeyedMutex } from './keyedMutex.js';
 import * as jiraRepo from './jiraRepository.js';
+import { createTicketView, type JiraTicketView } from './jiraView.js';
 import * as repo from './repository.js';
 
 /** Jira's limit for a summary. */
@@ -44,19 +45,6 @@ export type IssueTextInput = { summary: string; description?: string | null | un
 
 /** Body of `POST /screens/{id}/jira-ticket` (contract schema `JiraTicketCreate`): `storyId` or `newStory`. */
 export type JiraTicketInput = { storyId?: number | undefined; newStory?: IssueTextInput; subtask: IssueTextInput };
-
-/** A ticket as the API returns it (contract schema `JiraTicket`). */
-export type JiraTicketView = {
-  id: number;
-  jiraIssueKey: string;
-  hierarchyLevel: JiraHierarchyLevel;
-  issueType: string;
-  summary: string;
-  status: string;
-  statusCategory: jiraRepo.TicketRow['statusCategory'];
-  url: string;
-  lastSyncedAt: Date;
-};
 
 /** What `POST /screens/{id}/jira-ticket` answers (contract schema `JiraTicketCreatedEnvelope.data`). */
 export type JiraTicketCreated = {
@@ -149,19 +137,7 @@ function outcomeUnknown(error: JiraError): boolean {
 export function createJiraTicketService(deps: JiraTicketDeps): JiraTicketService {
   const { db, applications, jira, logger } = deps;
   const epicMutex = createKeyedMutex<number>();
-  const baseUrl = deps.jiraBaseUrl?.replace(/\/+$/, '');
-
-  const view = (row: jiraRepo.TicketRow): JiraTicketView => ({
-    id: row.id,
-    jiraIssueKey: row.jiraIssueKey,
-    hierarchyLevel: row.hierarchyLevel,
-    issueType: row.issueType,
-    summary: row.summary,
-    status: row.status,
-    statusCategory: row.statusCategory,
-    url: `${baseUrl ?? ''}/browse/${row.jiraIssueKey}`,
-    lastSyncedAt: row.lastSyncedAt,
-  });
+  const view = createTicketView(deps.jiraBaseUrl);
 
   return {
     async create(actorId, screenId, input) {

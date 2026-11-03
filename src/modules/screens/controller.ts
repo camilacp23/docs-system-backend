@@ -9,6 +9,7 @@ import type { DocumentationStatus } from '../../generated/prisma/client.js';
 import { assertIfMatch, etagOf, setEtag, setLocation } from '../../http/etag.js';
 import { paged, parsePagination, parseSort } from '../../http/pagination.js';
 import type { JiraTicketInput, JiraTicketService } from './jiraTickets.js';
+import type { JiraTreeService } from './jiraTree.js';
 import type { ScreenListQuery, ScreenView } from './repository.js';
 import type { RequestedStatus, ReviewInput, ScreenService } from './service.js';
 
@@ -32,8 +33,9 @@ function sendScreen(res: Response, screen: ScreenView, status = 200): void {
  *
  * @param service - Screens service.
  * @param tickets - Jira tickets service (creation of the "future to do" items).
+ * @param tree - Jira tree service (reading, with optional refresh).
  */
-export function createScreensController(service: ScreenService, tickets: JiraTicketService) {
+export function createScreensController(service: ScreenService, tickets: JiraTicketService, tree: JiraTreeService) {
   return {
     /** GET /screens */
     list: async (req: Request, res: Response): Promise<void> => {
@@ -93,6 +95,12 @@ export function createScreensController(service: ScreenService, tickets: JiraTic
     createJiraTicket: async (req: Request, res: Response): Promise<void> => {
       const created = await tickets.create(req.user!.id, idOf(req), req.body as JiraTicketInput);
       res.status(201).json({ data: created });
+    },
+    /** GET /screens/:id/jira-tickets (the ETag is the weak hash of the body that Express adds, D-72) */
+    listJiraTickets: async (req: Request, res: Response): Promise<void> => {
+      const raw: unknown = req.query.refresh;
+      const refresh = raw === true || raw === 'true';
+      res.json({ data: await tree.tree(idOf(req), { refresh }) });
     },
     /** DELETE /screens/:id */
     remove: async (req: Request, res: Response): Promise<void> => {
