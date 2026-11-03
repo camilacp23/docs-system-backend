@@ -247,6 +247,17 @@ export const E = {
       `The epic ${key} was created, but the story and the to-do weren't. Try again to add them to that epic.`,
       { key, created },
     ),
+  /**
+   * Jira created issues that could not be saved here (D-94): the screen was deleted meanwhile (`SCREEN_DELETED`) or
+   * the write failed (`SAVE_FAILED`). `unsaved` names every issue the user may need to delete in Jira.
+   */
+  jiraIssuesNotSaved: (unsaved: string[], created: Record<string, string>, reason: 'SCREEN_DELETED' | 'SAVE_FAILED') =>
+    new ApiError(
+      502,
+      'JIRA_PARTIAL_FAILURE',
+      `The screen was deleted while the tickets were being created. These Jira issues weren't saved here: ${unsaved.join(', ')}. Delete them in Jira if you don't need them.`,
+      { created, unsaved, reason },
+    ),
   jiraPartialFailure: (key: string, created: unknown, storyId: number) =>
     new ApiError(
       502,

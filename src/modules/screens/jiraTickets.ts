@@ -27,7 +27,7 @@ import {
   type JiraClient,
   type JiraIssue,
 } from '../../integrations/jira/index.js';
-import { E, type FieldError } from '../../security/errors.js';
+import { ApiError, E, type FieldError } from '../../security/errors.js';
 import type { ApplicationService } from '../applications/service.js';
 import { createKeyedMutex } from './keyedMutex.js';
 import * as jiraRepo from './jiraRepository.js';
@@ -99,6 +99,19 @@ function summaryErrors(field: string, summary: string): FieldError[] {
   }
   if (/[\r\n]/.test(summary)) return [{ field, rule: 'singleLine', message: 'Summary must be a single line.' }];
   return [];
+}
+
+/** An issue Jira created that could not be saved here (D-94). It stops the creation: the next issue needs its parent. */
+class UnsavedIssue extends Error {
+  constructor(
+    readonly key: string,
+    readonly level: JiraHierarchyLevel,
+    readonly reason: 'SCREEN_DELETED' | 'SAVE_FAILED',
+    /** Class and code of the error that stopped the write: never its message, which carries the query values. */
+    readonly cause?: { errorClass: string; code: string | null },
+  ) {
+    super(`Jira issue not saved (${reason})`);
+  }
 }
 
 /**
@@ -196,18 +209,32 @@ export function createJiraTicketService(deps: JiraTicketDeps): JiraTicketService
           projectKey,
           parentKey: parent?.jiraIssueKey,
         });
-        const row = await db.auditedTransaction((tx) =>
-          jiraRepo.createTicket(tx, {
-            screenId: screen.id,
-            createdById: actorId,
-            jiraIssueId: issue.id,
-            jiraIssueKey: issue.key,
-            hierarchyLevel: level,
-            issueType: PROVISIONAL_TYPE[level],
-            summary: text.summary,
-            parent: parent === null ? null : { id: parent.id, level: parent.hierarchyLevel as 'EPIC' | 'STANDARD' },
-          }),
-        );
+        let row: jiraRepo.TicketRow;
+        try {
+          row = await db.auditedTransaction(async (tx) => {
+            // The lock makes a concurrent deletion of the screen wait for this write, or lets us see that it happened.
+            if (!(await jiraRepo.lockScreenShared(tx, screen.id)))
+              throw new UnsavedIssue(issue.key, level, 'SCREEN_DELETED');
+            await warnIfArchived(tx, screen.id, application.id, issue.key);
+            return jiraRepo.createTicket(tx, {
+              screenId: screen.id,
+              createdById: actorId,
+              jiraIssueId: issue.id,
+              jiraIssueKey: issue.key,
+              hierarchyLevel: level,
+              issueType: PROVISIONAL_TYPE[level],
+              summary: text.summary,
+              parent: parent === null ? null : { id: parent.id, level: parent.hierarchyLevel as 'EPIC' | 'STANDARD' },
+            });
+          });
+        } catch (error) {
+          if (error instanceof UnsavedIssue) throw error;
+          const code = (error as { code?: unknown } | null)?.code;
+          throw new UnsavedIssue(issue.key, level, 'SAVE_FAILED', {
+            errorClass: error instanceof Error ? error.constructor.name : typeof error,
+            code: typeof code === 'string' ? code : null,
+          });
+        }
         made.push({ level, key: issue.key, row });
         return row;
       };
@@ -276,6 +303,54 @@ export function createJiraTicketService(deps: JiraTicketDeps): JiraTicketService
     return synced;
   }
 
+  /**
+   * D-94: the application was archived after the request started. The issue already exists in Jira, so it is saved
+   * anyway (the request is ordered before the archiving) and the event is logged.
+   */
+  async function warnIfArchived(
+    tx: Parameters<typeof applications.assertApplicationActive>[0],
+    screenId: number,
+    applicationId: number,
+    key: string,
+  ): Promise<void> {
+    try {
+      await applications.assertApplicationActive(tx, applicationId);
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.code !== 'APPLICATION_ARCHIVED') throw error;
+      logger.warn(
+        { operation: 'createJiraTicket', screenId, applicationId, key },
+        'the application was archived while the tickets were being created; the issue was saved anyway',
+      );
+    }
+  }
+
+  /** The answer for issues Jira created and this system could not save (D-94); the log names every key. */
+  function unsavedFailure(
+    error: UnsavedIssue,
+    screenId: number,
+    applicationId: number,
+    made: { level: JiraHierarchyLevel; key: string }[],
+  ): ApiError {
+    const all = [...made, { level: error.level, key: error.key }];
+    // A deleted screen takes its saved tickets with it (cascade): all of this request's issues are gone locally.
+    const unsaved = (error.reason === 'SCREEN_DELETED' ? all : all.slice(-1)).map((m) => m.key);
+    const names: Record<JiraHierarchyLevel, string> = { EPIC: 'epic', STANDARD: 'story', SUBTASK: 'subtask' };
+    const created = Object.fromEntries(all.map((m) => [names[m.level], m.key]));
+    logger.error(
+      {
+        operation: 'createJiraTicket',
+        screenId,
+        applicationId,
+        reason: error.reason,
+        ...error.cause,
+        unsaved,
+        createdKeys: all.map((m) => m.key),
+      },
+      'Jira created issues that could not be saved',
+    );
+    return E.jiraIssuesNotSaved(unsaved, created, error.reason);
+  }
+
   /** The error to answer for a failure during the creation, logged without secrets (D-92, D-94). */
   function failure(
     error: unknown,
@@ -284,6 +359,7 @@ export function createJiraTicketService(deps: JiraTicketDeps): JiraTicketService
     attempting: { level: JiraHierarchyLevel; parentKey: string | null } | null,
     made: { level: JiraHierarchyLevel; key: string; row: jiraRepo.TicketRow }[],
   ): unknown {
+    if (error instanceof UnsavedIssue) return unsavedFailure(error, screenId, applicationId, made);
     if (!(error instanceof JiraError)) return error;
     const unknown = outcomeUnknown(error);
     const context = {

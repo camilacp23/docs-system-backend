@@ -31,6 +31,12 @@ const SELECT = {
   lastSyncedAt: true,
 } as const;
 
+/** Locks the screen against deletion until the end of the transaction; `false` when it no longer exists. */
+export async function lockScreenShared(client: Pick<JiraTicketsClient, '$queryRaw'>, id: number): Promise<boolean> {
+  const rows = await client.$queryRaw<{ id: number }[]>`SELECT id FROM screen WHERE id = ${id} FOR SHARE`;
+  return rows.length > 0;
+}
+
 /** The Epic of a screen, or null (there is at most one: `jira_ticket_one_epic_per_screen`). */
 export function findEpic(client: Pick<JiraTicketsClient, 'jiraTicket'>, screenId: number): Promise<TicketRow | null> {
   return client.jiraTicket.findFirst({ where: { screenId, hierarchyLevel: 'EPIC' }, select: SELECT });
