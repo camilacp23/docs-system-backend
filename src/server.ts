@@ -11,6 +11,7 @@ import { assertReservedAccount, ReservedAccountError } from './db/reservedAccoun
 import { buildApp } from './app.js';
 import { createLogger } from './http/logger.js';
 import { StartupError } from './http/operations.js';
+import { missingJiraSettings } from './integrations/jira/index.js';
 
 /** Time given to in-flight requests before the process exits anyway. */
 const SHUTDOWN_TIMEOUT_MS = 10_000;
@@ -35,7 +36,15 @@ async function main(): Promise<void> {
   try {
     await db.base.$queryRaw`SELECT 1`; // fail fast if the database is unreachable
     await assertReservedAccount(db, config.integrationUserEmail); // actor of the webhook writes (TODO_FASE3 #3)
-    const { app, policies, notImplemented } = buildApp({ config, db, logger });
+    const { app, policies, notImplemented, jira } = buildApp({ config, db, logger });
+    const missingJira = missingJiraSettings(config.jira);
+    if (missingJira.length > 0) {
+      // D-89 / NFR-14: the API starts without Jira. Only the NAMES of the missing variables are logged.
+      logger.warn(
+        { missing: missingJira, jiraAvailable: jira.jiraAvailable },
+        'Jira is not fully configured: ticket features are unavailable until the variables are set',
+      );
+    }
     logger.info(
       { total: policies.size, notImplemented: notImplemented.length, operations: notImplemented },
       `${notImplemented.length} of ${policies.size} operations are not implemented yet (they answer 404 NOT_IMPLEMENTED)`,

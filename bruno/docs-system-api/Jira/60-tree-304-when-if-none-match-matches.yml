@@ -1,0 +1,24 @@
+info:
+  name: '60 Tree · 304 when If-None-Match matches'
+  type: http
+  seq: 60
+http:
+  method: GET
+  url: '{{baseUrl}}/screens/{{jrAlphaId}}/jira-tickets'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{jrReaderToken}}'
+    - name: If-None-Match
+      value: '{{jrTreeEtag}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        function all(d) { const r = []; if (d.epic) { r.push(d.epic); } d.stories.forEach(function (s) { r.push(s); s.subtasks.forEach(function (t) { r.push(t); }); }); return r; }
+        function by(d, key) { return all(d).filter(function (t) { return t.jiraIssueKey === key; })[0]; }
+        function v(k) { return bru.getVar(k); }
+        test("status 304", function () { expect(res.status).to.equal(304); });
+        test("no body", function () { expect(res.body === "" || res.body === undefined).to.equal(true); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,26 @@
+info:
+  name: '103 Archived · 422 APPLICATION_ARCHIVED creating a ticket'
+  type: http
+  seq: 103
+http:
+  method: POST
+  url: '{{baseUrl}}/screens/{{jrAlphaId}}/jira-ticket'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{jrDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "storyId": {{jrAS1Id}}, "subtask": { "summary": "{{jrPrefix}}Alpha archived" } }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        function v(k) { return bru.getVar(k); }
+        test("status 422", function () { expect(res.status).to.equal(422); });
+        test("error body has code APPLICATION_ARCHIVED, message and details", function () { expect(res.body.code).to.equal("APPLICATION_ARCHIVED"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("exact message", function () { expect(res.body.message).to.equal("This application is archived, so its documentation can't be changed."); });
+        test("details", function () { expect(res.body.details).to.deep.equal({ applicationId: bru.getVar("jrAppId") }); });
+settings:
+  encodeUrl: true

@@ -26,3 +26,7 @@ variables:
     value: '{{process.env.SANDBOX_FIXTURES_COLLECTION_ID}}'
   - name: documentedCollectionId
     value: '{{process.env.SANDBOX_FIXTURES_DOCUMENTED_COLLECTION_ID}}'
+  - name: jiraSimUrl
+    value: '{{process.env.SANDBOX_JIRA_BASE_URL}}'
+  - name: jiraWebhookSecret
+    value: '{{process.env.SANDBOX_JIRA_WEBHOOK_SECRET}}'

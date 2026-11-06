@@ -1,0 +1,18 @@
+info:
+  name: '115 Cleanup · delete Empty 204'
+  type: http
+  seq: 115
+http:
+  method: DELETE
+  url: '{{baseUrl}}/screens/{{jrEmptyId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{jrAdminToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 204", function () { expect(res.status).to.equal(204); });
+settings:
+  encodeUrl: true

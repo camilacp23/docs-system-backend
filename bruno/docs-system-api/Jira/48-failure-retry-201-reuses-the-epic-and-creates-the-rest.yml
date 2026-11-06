@@ -1,0 +1,25 @@
+info:
+  name: '48 Failure · retry 201 reuses the Epic and creates the rest'
+  type: http
+  seq: 48
+http:
+  method: POST
+  url: '{{baseUrl}}/screens/{{jrBetaId}}/jira-ticket'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{jrDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "newStory": { "summary": "{{jrPrefix}}Beta story" }, "subtask": { "summary": "{{jrPrefix}}Beta sub" } }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        function v(k) { return bru.getVar(k); }
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("Story and Subtask only", function () { expect(res.body.data.created).to.deep.equal(["STANDARD", "SUBTASK"]); });
+        test("the Epic is the one created by the failed request", function () { expect(res.body.data.epic.jiraIssueKey).to.equal(v("jrBEpicKey")); });
+settings:
+  encodeUrl: true

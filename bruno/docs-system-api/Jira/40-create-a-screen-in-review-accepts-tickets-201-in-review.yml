@@ -1,0 +1,25 @@
+info:
+  name: '40 Create · a screen in review accepts tickets 201 (IN_REVIEW)'
+  type: http
+  seq: 40
+http:
+  method: POST
+  url: '{{baseUrl}}/screens/{{jrGammaId}}/jira-ticket'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{jrDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "newStory": { "summary": "{{jrPrefix}}Gamma story" }, "subtask": { "summary": "{{jrPrefix}}Gamma sub" } }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        function v(k) { return bru.getVar(k); }
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("three levels", function () { expect(res.body.data.created).to.deep.equal(["EPIC", "STANDARD", "SUBTASK"]); });
+        test("epic summary", function () { expect(res.body.data.epic.summary).to.equal(bru.getVar("jrPrefix") + "Gamma (" + bru.getVar("jrAppName") + ")"); });
+settings:
+  encodeUrl: true

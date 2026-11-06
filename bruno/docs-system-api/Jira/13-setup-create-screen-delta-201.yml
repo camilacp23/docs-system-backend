@@ -1,0 +1,26 @@
+info:
+  name: '13 Setup · create screen Delta 201'
+  type: http
+  seq: 13
+http:
+  method: POST
+  url: '{{baseUrl}}/screens'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{jrDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "applicationId": {{jrAppId}}, "name": "{{jrPrefix}}Delta", "miroLink": null, "template": { "onStart": null, "workingProcess": null, "architecture": null, "dataModel": null, "requirements": null, "knownIssues": null, "risks": null }, "components": [], "variableLinks": [], "collectionLinks": [], "navigations": [] }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) { bru.setVar("jrDeltaId", res.body.data.id); }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("the screen belongs to the run application", function () { expect(res.body.data.applicationId).to.equal(bru.getVar("jrAppId")); expect(res.body.data.name).to.equal(bru.getVar("jrPrefix") + "Delta"); });
+settings:
+  encodeUrl: true

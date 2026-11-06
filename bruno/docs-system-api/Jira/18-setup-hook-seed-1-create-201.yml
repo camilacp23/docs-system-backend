@@ -1,0 +1,28 @@
+info:
+  name: '18 Setup · Hook seed 1 create 201'
+  type: http
+  seq: 18
+http:
+  method: POST
+  url: '{{baseUrl}}/screens/{{jrHookId}}/jira-ticket'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{jrDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "newStory": { "summary": "{{jrPrefix}}Hook story 1" }, "subtask": { "summary": "{{jrPrefix}}Hook sub 1" } }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        function v(k) { return bru.getVar(k); }
+        if (res.status === 201) { const d = res.body.data; bru.setVar("jrHEpicKey", d.epic.jiraIssueKey); bru.setVar("jrHS1Id", d.story.id); bru.setVar("jrHS1Key", d.story.jiraIssueKey); bru.setVar("jrHT1Id", d.subtask.id); bru.setVar("jrHT1Key", d.subtask.jiraIssueKey); }
+    - type: tests
+      code: |-
+        function v(k) { return bru.getVar(k); }
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("created", function () { expect(res.body.data.created).to.deep.equal(["EPIC", "STANDARD", "SUBTASK"]); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,28 @@
+info:
+  name: '66 Tree · without refresh the local copy is still the old one'
+  type: http
+  seq: 66
+http:
+  method: GET
+  url: '{{baseUrl}}/screens/{{jrAlphaId}}/jira-tickets'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{jrDevToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        function all(d) { const r = []; if (d.epic) { r.push(d.epic); } d.stories.forEach(function (s) { r.push(s); s.subtasks.forEach(function (t) { r.push(t); }); }); return r; }
+        function by(d, key) { return all(d).filter(function (t) { return t.jiraIssueKey === key; })[0]; }
+        function v(k) { return bru.getVar(k); }
+        if (res.status === 200) { bru.setVar("jrTreeNewest", res.body.data.sync.lastSyncedAt); }
+    - type: tests
+      code: |-
+        function all(d) { const r = []; if (d.epic) { r.push(d.epic); } d.stories.forEach(function (s) { r.push(s); s.subtasks.forEach(function (t) { r.push(t); }); }); return r; }
+        function by(d, key) { return all(d).filter(function (t) { return t.jiraIssueKey === key; })[0]; }
+        function v(k) { return bru.getVar(k); }
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("old values", function () { const d = res.body.data; expect(by(d, v("jrAT1Key")).status).to.equal("To Do"); expect(by(d, v("jrAS2Key")).status).to.equal("To Do"); expect(by(d, v("jrAS1Key")).summary).to.equal(v("jrPrefix") + "Alpha story 1"); expect(d.sync.stale).to.equal(false); });
+settings:
+  encodeUrl: true

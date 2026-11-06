@@ -1,0 +1,25 @@
+info:
+  name: '39 Create · App (OnStart) accepts tickets 201'
+  type: http
+  seq: 39
+http:
+  method: POST
+  url: '{{baseUrl}}/screens/{{jrOnStartId}}/jira-ticket'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{jrDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "newStory": { "summary": "{{jrPrefix}}OnStart story" }, "subtask": { "summary": "{{jrPrefix}}OnStart sub" } }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        function v(k) { return bru.getVar(k); }
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("three levels", function () { expect(res.body.data.created).to.deep.equal(["EPIC", "STANDARD", "SUBTASK"]); });
+        test("epic summary names the screen and the application", function () { expect(res.body.data.epic.summary).to.equal("App (OnStart) (" + bru.getVar("jrAppName") + ")"); });
+settings:
+  encodeUrl: true

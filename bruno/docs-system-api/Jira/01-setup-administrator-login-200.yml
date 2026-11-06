@@ -1,0 +1,30 @@
+info:
+  name: '01 Setup · administrator login 200'
+  type: http
+  seq: 1
+http:
+  method: POST
+  url: '{{baseUrl}}/auth/login'
+  headers:
+    - name: Origin
+      value: '{{origin}}'
+  body:
+    type: json
+    data: |-
+      { "email": "{{adminEmail}}", "password": "{{adminPassword}}" }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 200) { bru.setVar("jrAdminToken", res.body.data.accessToken); }
+        const run = Math.random().toString(36).slice(2, 10);
+        bru.setVar("jrRun", run);
+        bru.setVar("jrPrefix", "q" + run);
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("a token and a random name prefix are ready", function () { expect(bru.getVar("jrAdminToken")).to.be.a("string").and.not.empty; expect(bru.getVar("jrPrefix")).to.match(/^q[a-z0-9]+$/); expect(bru.getVar("jrPrefix").toLowerCase()).to.not.include("colsandbox"); });
+        test("the only Jira is the local simulator", function () { expect(bru.interpolate("{{jiraSimUrl}}")).to.match(/^http:\/\/(127\.0\.0\.1|localhost)(:[0-9]+)?\/?$/); });
+settings:
+  encodeUrl: true

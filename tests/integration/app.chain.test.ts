@@ -184,13 +184,13 @@ describe('application chain', () => {
       }
     });
 
-    it('the Jira webhook needs no user token and keeps its raw body (1 MB limit)', async () => {
-      const ok = await t.http
+    it('the Jira webhook needs no user token: its gate answers 401 INVALID_SIGNATURE before anything else (1 MB limit)', async () => {
+      const unsigned = await t.http
         .post('/api/v1/integrations/jira/webhook')
         .set('Content-Type', 'application/json')
         .send('{"a":1}');
-      assert.equal(ok.status, 404);
-      assert.equal(bodyOf(ok).details.reason, 'NOT_IMPLEMENTED');
+      assert.equal(unsigned.status, 401);
+      assert.equal(bodyOf(unsigned).code, 'INVALID_SIGNATURE');
       const big = await t.http
         .post('/api/v1/integrations/jira/webhook')
         .set('Content-Type', 'application/json')

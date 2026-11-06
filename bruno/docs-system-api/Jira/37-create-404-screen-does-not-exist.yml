@@ -1,0 +1,26 @@
+info:
+  name: '37 Create · 404 screen does not exist'
+  type: http
+  seq: 37
+http:
+  method: POST
+  url: '{{baseUrl}}/screens/999999/jira-ticket'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{jrDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "newStory": { "summary": "{{jrPrefix}}Alpha m" }, "subtask": { "summary": "{{jrPrefix}}Alpha m" } }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        function v(k) { return bru.getVar(k); }
+        test("status 404", function () { expect(res.status).to.equal(404); });
+        test("error body has code NOT_FOUND, message and details", function () { expect(res.body.code).to.equal("NOT_FOUND"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("exact message", function () { expect(res.body.message).to.equal("This screen doesn't exist. It may have been deleted."); });
+        test("details", function () { expect(res.body.details).to.deep.equal({ element: "screen", id: 999999 }); });
+settings:
+  encodeUrl: true
