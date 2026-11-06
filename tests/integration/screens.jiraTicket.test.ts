@@ -262,6 +262,21 @@ describe('POST /screens/{id}/jira-ticket (FR-12)', () => {
       await noJiraCall();
     });
 
+    it('400 for an empty summary ("") is the validator rule minLength, on the exact field, before any Jira call', async () => {
+      const { screen } = await arrange();
+      const empty = await post(screen.id, { newStory: { summary: '' }, subtask: { summary: '' } });
+      assert.equal(empty.status, 400);
+      assert.equal(bodyOf(empty).code, 'VALIDATION_ERROR');
+      assert.deepEqual(
+        bodyOf(empty).details.fields.map((f) => [f.field, f.rule]),
+        [
+          ['newStory.summary', 'minLength'],
+          ['subtask.summary', 'minLength'],
+        ],
+      );
+      await noJiraCall();
+    });
+
     it('400 comes before 404, and 404 before everything else', async () => {
       assert.equal((await post(999_999, { subtask: { summary: 'T' } })).status, 400);
       const missing = await post(999_999, newBody());
