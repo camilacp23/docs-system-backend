@@ -1,6 +1,6 @@
 # Decisiones de la Fase 3 (posteriores al SDD v1.0; incorporadas en el SDD v1.2)
 
-Aprobadas por la autora el 18 de octubre de 2026. D-60 a D-80 están incorporadas en el SDD v1.2 (Tabla 70). D-81 a D-97 (Módulo 4, B-14, B-15, B-18, B-19 y B-20) están pendientes de incorporar en el SDD.
+Aprobadas por la autora el 18 de octubre de 2026. D-60 a D-80 están incorporadas en el SDD v1.2 (Tabla 70). D-81 a D-97 (Módulo 4, B-14, B-15, B-18, B-19 y B-20) están pendientes de incorporar en el SDD; su descripción en el contrato se publicó en 0.3.5 (B-22).
 
 ## Decisiones de diseño
 
@@ -134,33 +134,39 @@ D-74 permite ciclos entre colecciones (`DERIVES_FROM`). Todo lector recursivo fu
 - **Resuelto en 0.3.4.** `POST /screens/{id}/review`: sin `If-Match` ni 412; un RETURN sin `comment`, con `""` o con `null` es 400 del validador y uno de solo espacios es 422 `COMMENT_REQUIRED`; un APPROVE con solo espacios no crea comentario; orden de errores de `/status` y `/review`.
 - **Resuelto en 0.3.4 (contrato) y pendiente en el SDD.** Payload del evento de revisión (`{ from, to, commentId }`, `entityType` `screen`, D-88): descrito en `AuditEntry.eventName` y `AuditEntry.newValue`. **También debe incorporarse al SDD** (junto con D-81 a D-88).
 
-### Pendiente para el contrato 0.3.5
+### Pendiente para una versión siguiente del contrato
 
-- **"Used by screens" (D-79).** `GET /collections/{id}` no devuelve las pantallas que usan la colección ni su modo de acceso. Con el Módulo 4 ya existen los datos (`screen_collection`); el contrato 0.3.5 debe decidir cómo exponerlos para S-15a y S-17.
-- **Operaciones de Jira del Módulo 4** (`POST /screens/{id}/jira-ticket`, `GET /screens/{id}/jira-tickets` y el webhook): se describen en 0.3.5 cuando se implementen. 0.3.4 no las toca.
+- **"Used by screens" (D-79).** `GET /collections/{id}` no devuelve las pantallas que usan la colección ni su modo de acceso. Con el Módulo 4 ya existen los datos (`screen_collection`); la siguiente versión del contrato debe decidir cómo exponerlos para S-15a y S-17. No entró en 0.3.5: pasó a la semana siguiente.
 
-### Módulo 4: Jira (B-18, pendiente para el contrato 0.3.5)
+- **Resuelto en 0.3.5.** Operaciones de Jira del Módulo 4 (`POST /screens/{id}/jira-ticket`, `GET /screens/{id}/jira-tickets` y el webhook): el contrato 0.3.5 las describe tal como las implementa esta rama (B-22).
 
-- **`JiraHierarchyLevel`.** El enum del contrato es `EPIC | STANDARD | SUBTASK`, mientras que Jira y el SDD (Tabla 23) hablan de `hierarchyLevel` 1, 0 y −1. El cliente mapea 1 → `EPIC`, 0 → `STANDARD` y −1 → `SUBTASK`. Documentar la correspondencia en el esquema.
-- **`jira:issue_created`.** `JiraWebhookEvent.webhookEvent` admite `jira:issue_created`, pero el webhook se registra solo para issue updated e issue deleted (SDD 7.2.8). Decidir si se quita del enum o se documenta que se ignora.
-- **Estado tras la creación (para B-19).** La respuesta de `POST /rest/api/3/issue` solo trae `id`, `key` y `self`, y `jira_ticket` exige `status`, `status_category`, `issue_type` y `hierarchy_level` (Tabla 23). B-19 debe decidir entre leer el issue con `GET` tras cada creación o fijar el estado inicial; no está decidido y el cliente ofrece ambas piezas (`createIssue` y `getIssue`). Conviene reflejar la decisión en las descripciones de `createJiraTicket`.
-- **`jiraAvailable` y `lastSyncedAt`.** `JiraTreeEnvelope.sync` ya declara `jiraAvailable`, `stale` y `lastSyncedAt`; B-19 y B-20 deben mapear `JiraCircuitOpenError`, `JiraNotConfiguredError` y `JiraConfigurationError` a `JIRA_UNAVAILABLE` (el catálogo no tiene un código propio para configuración inválida).
+### Módulo 4: Jira (B-18, resuelto en 0.3.5)
 
-### Módulo 4: creación de tickets (B-19, pendiente para el contrato 0.3.5)
+- **Resuelto en 0.3.5.** `JiraHierarchyLevel`. El enum del contrato es `EPIC | STANDARD | SUBTASK`, mientras que Jira y el SDD (Tabla 23) hablan de `hierarchyLevel` 1, 0 y −1. El cliente mapea 1 → `EPIC`, 0 → `STANDARD` y −1 → `SUBTASK`. Documentar la correspondencia en el esquema.
+- **Resuelto en 0.3.5.** `jira:issue_created`. `JiraWebhookEvent.webhookEvent` admite `jira:issue_created`, pero el webhook se registra solo para issue updated e issue deleted (SDD 7.2.8). Decidir si se quita del enum o se documenta que se ignora.
+- **Resuelto en 0.3.5.** Estado tras la creación (para B-19). La respuesta de `POST /rest/api/3/issue` solo trae `id`, `key` y `self`, y `jira_ticket` exige `status`, `status_category`, `issue_type` y `hierarchy_level` (Tabla 23). B-19 debe decidir entre leer el issue con `GET` tras cada creación o fijar el estado inicial; no está decidido y el cliente ofrece ambas piezas (`createIssue` y `getIssue`). Conviene reflejar la decisión en las descripciones de `createJiraTicket`.
+- **Resuelto en 0.3.5.** `jiraAvailable` y `lastSyncedAt`. `JiraTreeEnvelope.sync` ya declara `jiraAvailable`, `stale` y `lastSyncedAt`; B-19 y B-20 deben mapear `JiraCircuitOpenError`, `JiraNotConfiguredError` y `JiraConfigurationError` a `JIRA_UNAVAILABLE` (el catálogo no tiene un código propio para configuración inválida).
 
-- **Mensajes de `JIRA_PARTIAL_FAILURE` (D-94).** Agregar al catálogo (Tabla 59 del SDD y descripción del contrato) los tres mensajes nuevos (solo Epic; `SCREEN_DELETED`; `SAVE_FAILED`, que es otro texto) y la forma de `details`: `{ key, created: { epic }, ... }` sin `storyId` cuando solo se creó el Epic, y `{ created, unsaved, reason }` con `reason` `SCREEN_DELETED` o `SAVE_FAILED`. Agregar los ejemplos a `JiraError`.
-- **Regla `singleLine` (D-94).** Documentarla en `details.fields` de los 400 de `createJiraTicket` (`newStory.summary`, `subtask.summary`); un `summary` solo con espacios usa `required`.
-- **`JiraTicket.url`.** Es `<JIRA_BASE_URL>/browse/<clave>`.
-- **Valores provisionales (D-90).** Describir en `createJiraTicket` que `status`, `statusCategory`, `issueType` y `summary` del 201 pueden ser provisionales si la búsqueda final falla, y que se corrigen en la siguiente lectura o con el webhook.
-- **Sin `Location` (D-94).** El 201 de `POST /screens/{id}/jira-ticket` no lleva `Location`, porque los tickets no tienen una URL propia (el listado es `GET /screens/{id}/jira-tickets`); el contrato debe decirlo en la descripción de `createJiraTicket`.
-- **`created`.** Va en el orden `EPIC`, `STANDARD`, `SUBTASK`.
+### Módulo 4: creación de tickets (B-19, resuelto en 0.3.5)
 
-### Módulo 4: árbol de tickets y webhook (B-20, pendiente para el contrato 0.3.5)
+- **Resuelto en 0.3.5.** Mensajes de `JIRA_PARTIAL_FAILURE` (D-94). Agregar al catálogo (Tabla 59 del SDD y descripción del contrato) los tres mensajes nuevos (solo Epic; `SCREEN_DELETED`; `SAVE_FAILED`, que es otro texto) y la forma de `details`: `{ key, created: { epic }, ... }` sin `storyId` cuando solo se creó el Epic, y `{ created, unsaved, reason }` con `reason` `SCREEN_DELETED` o `SAVE_FAILED`. Agregar los ejemplos a `JiraError`.
+- **Resuelto en 0.3.5.** Regla `singleLine` (D-94). Documentarla en `details.fields` de los 400 de `createJiraTicket` (`newStory.summary`, `subtask.summary`); un `summary` solo con espacios usa `required`.
+- **Resuelto en 0.3.5.** `JiraTicket.url`. Es `<JIRA_BASE_URL>/browse/<clave>`.
+- **Resuelto en 0.3.5.** Valores provisionales (D-90). Describir en `createJiraTicket` que `status`, `statusCategory`, `issueType` y `summary` del 201 pueden ser provisionales si la búsqueda final falla, y que se corrigen en la siguiente lectura o con el webhook.
+- **Resuelto en 0.3.5.** Sin `Location` (D-94). El 201 de `POST /screens/{id}/jira-ticket` no lleva `Location`, porque los tickets no tienen una URL propia (el listado es `GET /screens/{id}/jira-tickets`); el contrato debe decirlo en la descripción de `createJiraTicket`.
+- **Resuelto en 0.3.5.** `created`. Va en el orden `EPIC`, `STANDARD`, `SUBTASK`.
 
-- **`sync` (D-95).** Describir en `listJiraTickets`: `jiraAvailable` = cliente configurado y circuito no abierto; `stale` = `true` siempre que se pidió `refresh` y no se completó (Jira no disponible, no configurado, falla o aplicación archivada) y `false` en los demás casos, también sin `refresh`; `lastSyncedAt` = momento de la lectura tras un refresh completado, y el máximo de la copia local en los demás casos (`null` sin filas). Agregar que Stories y Subtasks van por `id` ascendente, que cualquier rol puede pedir `refresh` y que sus escrituras se atribuyen a la cuenta reservada (D-95, D-97).
-- **`jira:issue_created` (D-96).** El webhook lo acepta y lo ignora con 204; documentarlo en `receiveJiraWebhook` (resuelve la nota de B-18).
-- **Reglas del webhook (D-96, D-97).** Describir el orden (firma antes de todo, 400, no rastreado, aplicación archivada, evento anterior, sin cambios), que un `timestamp` igual se aplica, que sin `timestamp` se usa el de recepción, que un padre o nivel que no encaja se ignora conservando la estructura local, que el borrado de un Epic o una Story borra en cascada, y que la ruta responde 401 también cuando `JIRA_WEBHOOK_SECRET` no está configurado.
+### Módulo 4: árbol de tickets y webhook (B-20, resuelto en 0.3.5)
+
+- **Resuelto en 0.3.5.** `sync` (D-95). Describir en `listJiraTickets`: `jiraAvailable` = cliente configurado y circuito no abierto; `stale` = `true` siempre que se pidió `refresh` y no se completó (Jira no disponible, no configurado, falla o aplicación archivada) y `false` en los demás casos, también sin `refresh`; `lastSyncedAt` = momento de la lectura tras un refresh completado, y el máximo de la copia local en los demás casos (`null` sin filas). Agregar que Stories y Subtasks van por `id` ascendente, que cualquier rol puede pedir `refresh` y que sus escrituras se atribuyen a la cuenta reservada (D-95, D-97).
+- **Resuelto en 0.3.5.** `jira:issue_created` (D-96). El webhook lo acepta y lo ignora con 204; documentarlo en `receiveJiraWebhook` (resuelve la nota de B-18).
+- **Resuelto en 0.3.5.** Reglas del webhook (D-96, D-97). Describir el orden (firma antes de todo, 400, no rastreado, aplicación archivada, evento anterior, sin cambios), que un `timestamp` igual se aplica, que sin `timestamp` se usa el de recepción, que un padre o nivel que no encaja se ignora conservando la estructura local, que el borrado de un Epic o una Story borra en cascada, y que la ruta responde 401 también cuando `JIRA_WEBHOOK_SECRET` no está configurado.
 
 ### Pendiente antes de desplegar varias instancias
 
 El API asume un solo proceso: los límites de solicitudes en memoria (D-60) y la exclusión por pantalla de la creación del Epic (D-93). Antes de desplegar varias instancias se necesita un almacén compartido para los contadores del límite y un mecanismo compartido para la exclusión del Epic.
+
+### Pendientes de despliegue (no son del contrato)
+
+- **Registro del webhook en Jira.** Un administrador de Jira debe registrarlo, con un secreto, cuando el API tenga una URL pública, en el proyecto por defecto del departamento y en cada proyecto configurado para una aplicación. Mientras tanto, la copia local se corrige con `refresh=true`.
+- **Renovación del token de Jira.** El token de la cuenta de integración vence; hay que renovarlo antes de su vencimiento. Con un token vencido, Jira responde 401 y el API lo trata como no disponible (D-89).
