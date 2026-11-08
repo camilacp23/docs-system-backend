@@ -36,6 +36,40 @@ export function etagOfJson(representation: unknown): string {
   return `W/"${createHash('sha256').update(JSON.stringify(representation)).digest('hex').slice(0, 16)}"`;
 }
 
+/** Counters that are part of the ETag of a screen (they change without touching `updated_at`). */
+export type ScreenEtagSource = { updatedAt: Date | string; pendingSubtasks: number; commentCount: number };
+
+/** `W/"<updatedAt ms>"`, optionally followed by `-<pendingSubtasks>-<commentCount>`; captures the milliseconds. */
+const SCREEN_ETAG = /^W\/"(\d+)(?:-\d+-\d+)?"$/;
+
+/**
+ * ETag of a screen (D-101): `W/"<updatedAt ms>-<pendingSubtasks>-<commentCount>"`. The counters change without
+ * touching `updated_at` (Jira tickets, comments), so they are part of the validator used by `If-None-Match`.
+ *
+ * @param screen - The screen as the API returns it.
+ * @returns The weak ETag.
+ */
+export function screenEtagOf(screen: ScreenEtagSource): string {
+  return `W/"${new Date(screen.updatedAt).getTime()}-${screen.pendingSubtasks}-${screen.commentCount}"`;
+}
+
+/**
+ * Verifies `If-Match` of a screen (D-101): only the `updatedAt` part is compared, so a change of the counters between
+ * the read and the save is not a 412. The former format `W/"<ms>"` is accepted; any other format is a mismatch.
+ *
+ * @param req - Request.
+ * @param element - Noun of the resource for the message ("screen").
+ * @param currentETag - Full ETag (`screenEtagOf`) of the row as read INSIDE the transaction that will write.
+ * @throws {ApiError} 412 PRECONDITION_FAILED with the full `details.currentETag`.
+ */
+export function assertScreenIfMatch(req: Request, element: string, currentETag: string): void {
+  const supplied = req.get('if-match');
+  if (supplied === undefined) return;
+  const suppliedMs = SCREEN_ETAG.exec(supplied)?.[1];
+  const currentMs = SCREEN_ETAG.exec(currentETag)?.[1];
+  if (suppliedMs === undefined || suppliedMs !== currentMs) throw E.preconditionFailed(element, currentETag);
+}
+
 /**
  * Sets the ETag header of a response.
  *

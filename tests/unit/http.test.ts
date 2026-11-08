@@ -2,7 +2,15 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { Request, Response } from 'express';
-import { assertIfMatch, etagOf, etagOfJson, setEtag, setLocation } from '../../src/http/etag.js';
+import {
+  assertIfMatch,
+  assertScreenIfMatch,
+  etagOf,
+  etagOfJson,
+  screenEtagOf,
+  setEtag,
+  setLocation,
+} from '../../src/http/etag.js';
 import { assertIdInRange, elementOfPath, INT32_MAX } from '../../src/http/ids.js';
 import { paged, parsePagination, parseSort } from '../../src/http/pagination.js';
 import { ApiError } from '../../src/security/errors.js';
@@ -51,6 +59,36 @@ describe('ETag and If-Match', () => {
       'Someone else saved changes to this screen after you opened it. Reload to see their version.',
     );
     assert.equal(thrown(() => assertIfMatch(reqWith('"2"'), 'screen', 'W/"2"')).status, 412); // exact comparison
+  });
+
+  it('builds the ETag of a screen from updatedAt and the two counters (D-101)', () => {
+    const base = { updatedAt: new Date(1727548800123), pendingSubtasks: 3, commentCount: 5 };
+    assert.equal(screenEtagOf(base), 'W/"1727548800123-3-5"');
+    assert.equal(screenEtagOf({ ...base, updatedAt: '2024-09-28T18:40:00.123Z' }), 'W/"1727548800123-3-5"');
+    assert.notEqual(screenEtagOf({ ...base, pendingSubtasks: 2 }), screenEtagOf(base));
+    assert.notEqual(screenEtagOf({ ...base, commentCount: 6 }), screenEtagOf(base));
+  });
+
+  it('If-Match of a screen compares only the updatedAt part and accepts the former format (D-101)', () => {
+    const current = 'W/"2000-3-5"';
+    assertScreenIfMatch(reqWith(undefined), 'screen', current);
+    assertScreenIfMatch(reqWith('W/"2000-3-5"'), 'screen', current);
+    assertScreenIfMatch(reqWith('W/"2000-0-0"'), 'screen', current); // the counters changed: not a 412
+    assertScreenIfMatch(reqWith('W/"2000"'), 'screen', current); // former format
+    for (const supplied of [
+      'W/"1999-3-5"',
+      'W/"1999"',
+      '2000',
+      '"2000"',
+      'W/"2000-3"',
+      'W/"2000-a-b"',
+      'W/"2000-1-2-3"',
+      '*',
+    ]) {
+      const e = thrown(() => assertScreenIfMatch(reqWith(supplied), 'screen', current));
+      assert.equal(e.status, 412, supplied);
+      assert.deepEqual(e.details, { element: 'screen', currentETag: current });
+    }
   });
 
   it('builds Location for a 201', () => {
