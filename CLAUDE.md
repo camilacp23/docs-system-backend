@@ -77,5 +77,6 @@ Databases: `docs_system` (dev), `docs_shadow` (Prisma shadow). Roles created by
 `npm run lint` · `npm run typecheck` · `npm test` (new tests) · `npm run test:legacy` (153 checks,
 once it exists) all green; contract changes validated with
 `npx @redocly/cli@2.11.1 lint api/openapi.yaml --extends recommended` and
-`python api/check_contract_vs_db.py api/openapi.yaml "-h localhost -U postgres -d docs_system"`;
+`npm run db:test:template` followed by
+`python api/check_contract_vs_db.py api/openapi.yaml "-h localhost -U postgres -d docs_test_template"`;
 a short report listing files changed, tests run with counts, and anything left open or assumed.
