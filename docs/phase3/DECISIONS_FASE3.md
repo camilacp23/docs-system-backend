@@ -163,6 +163,10 @@ D-74 permite ciclos entre colecciones (`DERIVES_FROM`). Todo lector recursivo fu
 - **Resuelto en 0.3.5.** `jira:issue_created` (D-96). El webhook lo acepta y lo ignora con 204; documentarlo en `receiveJiraWebhook` (resuelve la nota de B-18).
 - **Resuelto en 0.3.5.** Reglas del webhook (D-96, D-97). Describir el orden (firma antes de todo, 400, no rastreado, aplicación archivada, evento anterior, sin cambios), que un `timestamp` igual se aplica, que sin `timestamp` se usa el de recepción, que un padre o nivel que no encaja se ignora conservando la estructura local, que el borrado de un Epic o una Story borra en cascada, y que la ruta responde 401 también cuando `JIRA_WEBHOOK_SECRET` no está configurado.
 
+### ETag de la pantalla (D-101, resuelto en 0.3.6)
+
+- **Resuelto en 0.3.6.** ETag de la pantalla y regla de If-Match (D-101). Describir en la convención de `info.description`, en `components.headers.ETag`, en el parámetro `IfMatch` y en `getScreen`, `updateScreen` y `changeScreenStatus`: el formato `W/"<updatedAt ms>-<pendingSubtasks>-<commentCount>"`, que `If-None-Match` compara todo, que `If-Match` compara solo `updatedAt` (sin 412 por los contadores), que el formato anterior se acepta y que otro formato da 412 con `details.currentETag` completo.
+
 ### Pendiente antes de desplegar varias instancias
 
 El API asume un solo proceso: los límites de solicitudes en memoria (D-60) y la exclusión por pantalla de la creación del Epic (D-93). Antes de desplegar varias instancias se necesita un almacén compartido para los contadores del límite y un mecanismo compartido para la exclusión del Epic.
