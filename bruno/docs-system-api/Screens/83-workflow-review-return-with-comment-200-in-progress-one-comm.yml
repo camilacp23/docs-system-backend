@@ -25,7 +25,7 @@ runtime:
       code: |-
         test("status 200", function () { expect(res.status).to.equal(200); });
         test("the status is IN_PROGRESS", function () { expect(res.body.data.documentationStatus).to.equal("IN_PROGRESS"); });
-        test("the ETag is a weak validator", function () { expect(res.headers["etag"]).to.match(/^W\/"\d+"$/); });
+        test("the ETag is a weak validator", function () { expect(res.headers["etag"]).to.match(/^W\/"\d+-\d+-\d+"$/); });
         test("commentCount is 1", function () { expect(res.body.data.commentCount).to.equal(1); });
 settings:
   encodeUrl: true
