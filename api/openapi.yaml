@@ -3112,6 +3112,31 @@ components:
         id: { type: integer, minimum: 1 }
         targetScreenId: { type: integer, minimum: 1 }
         description: { type: [string, 'null'], maxLength: 2000 }
+    ComponentUse:
+      type: object
+      description: |
+        A use of a variable or a collection by a component, as a screen returns it. A write
+        sends `targetId` instead of `target` (see `ComponentUseWrite`).
+      required: [id, targetType, target, description]
+      properties:
+        id: { type: integer }
+        targetType: { type: string, enum: [VARIABLE, COLLECTION] }
+        target: { $ref: '#/components/schemas/Ref' }
+        description: { type: [string, 'null'] }
+    Component:
+      type: object
+      description: |
+        A component of a screen, as a screen returns it. `uses` is always present (empty when
+        the component uses nothing) and is ordered by the name of the target and then by `id`.
+        A write sends `ComponentWrite`.
+      required: [id, name, type, onSelect, description, uses]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        type: { type: string, description: 'Power Apps control type, free text (Button, Gallery, Text input...)' }
+        onSelect: { type: [string, 'null'] }
+        description: { type: [string, 'null'] }
+        uses: { type: array, items: { $ref: '#/components/schemas/ComponentUse' } }
     ScreenWrite:
       type: object
       description: |
@@ -3169,24 +3194,7 @@ components:
           properties:
             miroLink: { type: [string, 'null'] }
             template: { $ref: '#/components/schemas/ScreenTemplate' }
-            components:
-              type: array
-              items:
-                allOf:
-                  - $ref: '#/components/schemas/ComponentWrite'
-                  - type: object
-                    required: [id]
-                    properties:
-                      uses:
-                        type: array
-                        items:
-                          type: object
-                          required: [id, targetType, target]
-                          properties:
-                            id: { type: integer }
-                            targetType: { type: string, enum: [VARIABLE, COLLECTION] }
-                            target: { $ref: '#/components/schemas/Ref' }
-                            description: { type: [string, 'null'] }
+            components: { type: array, items: { $ref: '#/components/schemas/Component' } }
             variableLinks:
               type: array
               items:
