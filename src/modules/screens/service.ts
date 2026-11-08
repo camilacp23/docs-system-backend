@@ -24,7 +24,7 @@
 import { reconcile } from '../../db/reconcile.js';
 import type { Database } from '../../db/prisma.js';
 import type { AccessMode, DocumentationStatus } from '../../generated/prisma/client.js';
-import { etagOf } from '../../http/etag.js';
+import { screenEtagOf } from '../../http/etag.js';
 import { INT32_MAX, assertIdInRange } from '../../http/ids.js';
 import { repeatedFields } from '../../http/repeats.js';
 import { E, type FieldError } from '../../security/errors.js';
@@ -665,7 +665,7 @@ export function createScreenService(
         const application = await applications.get(current.applicationId);
         const refs = await resolveRefs(tx, input, current);
         await applications.assertApplicationActive(tx, current.applicationId);
-        assertCurrent(etagOf(current));
+        assertCurrent(screenEtagOf(current));
 
         // Business rules, in the order of D-84 and D-87.
         if (current.isAppContext && input.name !== current.name) throw E.appContextProtected('rename');
@@ -766,7 +766,7 @@ export function createScreenService(
         const current = await repo.findScreenById(tx, id);
         if (!current) throw E.notFound(ELEMENT, id);
         await applications.assertApplicationActive(tx, current.applicationId);
-        assertCurrent(etagOf(current));
+        assertCurrent(screenEtagOf(current));
 
         const outcome = planStatusChange(current.documentationStatus, status, actor.role as Role, current.template);
         if (!outcome.ok) {

@@ -32,7 +32,7 @@ describe('screens: GET /screens/{id}', () => {
   const dev = () => asUser(t, t.users.developer.token);
   const reader = () => asUser(t, t.users.reader.token);
 
-  it('200 returns the Screen with ETag W/"<updatedAt ms>", author, counters and the origin rows flagged', async () => {
+  it('200 returns the Screen with ETag W/"<updatedAt ms>-<pendingSubtasks>-<commentCount>", author, counters and the origin rows flagged', async () => {
     const origin = await insertScreen(t, app.id, { name: 'Origin' });
     const variable = await insertVariable(t, app.id, {
       name: 'locOrigin',
@@ -44,7 +44,10 @@ describe('screens: GET /screens/{id}', () => {
     const res = await reader().get(`/screens/${origin.id}`);
     assert.equal(res.status, 200);
     const screen = screenOf(res);
-    assert.equal(res.headers.etag, `W/"${new Date(screen.updatedAt).getTime()}"`);
+    assert.equal(
+      res.headers.etag,
+      `W/"${new Date(screen.updatedAt).getTime()}-${screen.pendingSubtasks}-${screen.commentCount}"`,
+    );
     assert.equal(screen.name, 'Origin');
     assert.equal(screen.applicationId, app.id);
     assert.equal(screen.isAppContext, false);

@@ -83,7 +83,7 @@ describe('screens: POST /screens/{id}/review', () => {
       assert.equal(body.id, screen.id);
       assert.equal(body.documentationStatus, 'APPROVED');
       assert.equal(body.commentCount, 0);
-      assert.match(String(res.headers.etag), /^W\/"\d+"$/);
+      assert.match(String(res.headers.etag), /^W\/"\d+-\d+-\d+"$/);
       assert.notEqual(res.headers.etag, etag);
       assert.equal(res.headers.etag, String((await dev().get(`/screens/${screen.id}`)).headers.etag));
 

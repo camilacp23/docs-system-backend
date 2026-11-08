@@ -50,7 +50,10 @@ describe('screens: POST /screens', () => {
       assert.equal(res.status, 201);
       const screen = screenOf(res);
       assert.equal(res.headers.location, `/api/v1/screens/${screen.id}`);
-      assert.equal(res.headers.etag, `W/"${new Date(screen.updatedAt).getTime()}"`);
+      assert.equal(
+        res.headers.etag,
+        `W/"${new Date(screen.updatedAt).getTime()}-${screen.pendingSubtasks}-${screen.commentCount}"`,
+      );
       assert.equal(screen.documentationStatus, 'UNDOCUMENTED');
       assert.deepEqual(screen.author, { id: t.users.developer.id, name: 'Dev Eloper' });
       assert.equal(screen.isAppContext, false);

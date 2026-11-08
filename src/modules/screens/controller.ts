@@ -6,7 +6,7 @@
  */
 import type { Request, Response } from 'express';
 import type { DocumentationStatus } from '../../generated/prisma/client.js';
-import { assertIfMatch, etagOf, setEtag, setLocation } from '../../http/etag.js';
+import { assertScreenIfMatch, screenEtagOf, setEtag, setLocation } from '../../http/etag.js';
 import { paged, parsePagination, parseSort } from '../../http/pagination.js';
 import type { JiraTicketInput, JiraTicketService } from './jiraTickets.js';
 import type { JiraTreeService } from './jiraTree.js';
@@ -25,9 +25,9 @@ const text = (value: unknown): string | undefined => (typeof value === 'string' 
 const integer = (value: unknown): number | undefined =>
   typeof value === 'string' || typeof value === 'number' ? Number(value) : undefined;
 
-/** Sends a single screen with its ETag. */
+/** Sends a single screen with its ETag (D-101: `updatedAt` and the two counters the response already carries). */
 function sendScreen(res: Response, screen: ScreenView, status = 200): void {
-  setEtag(res, etagOf(screen));
+  setEtag(res, screenEtagOf(screen));
   res.status(status).json({ data: screen });
 }
 
@@ -76,7 +76,7 @@ export function createScreensController(
       const screen = await service.update(
         idOf(req),
         req.body as Parameters<ScreenService['update']>[1],
-        (currentETag) => assertIfMatch(req, ELEMENT, currentETag),
+        (currentETag) => assertScreenIfMatch(req, ELEMENT, currentETag),
       );
       sendScreen(res, screen);
     },
@@ -87,7 +87,7 @@ export function createScreensController(
         { id: req.user!.id, role: req.user!.role },
         idOf(req),
         body.status,
-        (currentETag) => assertIfMatch(req, ELEMENT, currentETag),
+        (currentETag) => assertScreenIfMatch(req, ELEMENT, currentETag),
       );
       sendScreen(res, screen);
     },

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Technical Documentation System API
-  version: 0.3.5
+  version: 0.3.6
   summary: REST API contracts — SDD Interface Viewpoint (Bitácora 3, Activities 5 and 6)
   description: |
     Contracts of the eleven modules (41 operations of SRS Table 25), the
@@ -18,6 +18,10 @@ info:
       last read; a mismatch returns 412.
     - Every GET returns an `ETag`. Send it back in `If-None-Match`: when nothing
       changed the answer is 304 with no body.
+    - Screens are the exception to the format of the `ETag`: the one of a screen
+      also carries its two counters, `W/"<updatedAt ms>-<pendingSubtasks>-<commentCount>"`,
+      and `If-Match` of a screen compares only the `updatedAt` part (see
+      `GET /screens/{id}`).
     - Every response, success or error, carries the `X-Request-Id` header. A
       value sent by the client is kept when it has 8 to 64 characters among
       letters, digits, `.`, `_` and `-`; otherwise the server generates one.
@@ -121,6 +125,17 @@ info:
     optional, as `issue.id` is the only field the server requires.
     `JiraHierarchyLevel` documents its correspondence with the level of Jira
     (1, 0 and -1). No operation was added or removed (50).
+
+    Changes in 0.3.6 (ETag of a screen): the `ETag` of a screen, in `GET`, `POST`
+    and `PUT /screens/{id}`, `PUT /screens/{id}/status` and
+    `POST /screens/{id}/review`, is now
+    `W/"<updatedAt ms>-<pendingSubtasks>-<commentCount>"`, because both counters
+    change without touching `updatedAt` (Jira tickets, comments), so
+    `If-None-Match` compares all of it. `If-Match` of `PUT /screens/{id}` and
+    `PUT /screens/{id}/status` compares only the `updatedAt` part, accepts the
+    former `W/"<updatedAt ms>"` format and answers 412 for any other format; the
+    412 still carries the full ETag in `details.currentETag`. The other resources
+    keep `W/"<updatedAt ms>"`. No operation was added or removed (50).
 
     Error catalog (`code` -> HTTP status: `message`):
 
@@ -1221,7 +1236,13 @@ paths:
       x-capability: 'Create and edit screens (template)'
       x-roles: [ADMINISTRATOR, DEVELOPER, READER]
       summary: Get a screen with its template, components and links
-      description: 'Roles: all.'
+      description: |
+        Roles: all. The `ETag` is `W/"<updatedAt ms>-<pendingSubtasks>-<commentCount>"`:
+        the counters change without touching `updatedAt` (Jira tickets created,
+        refreshed or updated by the webhook, comments), so `If-None-Match` compares
+        all of it and answers 304 only when neither the screen nor either counter
+        changed. The same `ETag` is sent by the answers of `POST /screens`,
+        `PUT /screens/{id}`, `PUT /screens/{id}/status` and `POST /screens/{id}/review`.
       parameters:
         - $ref: '#/components/parameters/IfNoneMatch'
       responses:
@@ -1265,9 +1286,13 @@ paths:
         or deleted here, even when they are missing from the body. `usedIn = origin` in
         the body is a 400.
         `If-Match` is always checked when sent, also when the body changes nothing.
+        Only its `updatedAt` part is compared, inside the transaction: a change of
+        `pendingSubtasks` or `commentCount` between the read and the save is not a 412.
+        The former format `W/"<updatedAt ms>"` is accepted; a value in any other format
+        is a 412, whose `details.currentETag` is the full `ETag`.
         An update that changes nothing writes nothing: it answers 200 with the same
-        `ETag`, `updatedAt` and status. A change in any nested array also moves the
-        `ETag` of the screen.
+        `updatedAt` and status, and with the same `ETag` unless a counter changed. A
+        change in any nested array also moves the `ETag` of the screen.
         Resulting status: editing an APPROVED screen in any way (a column or a nested
         item) returns it to IN_PROGRESS; an UNDOCUMENTED screen in which a template
         field goes from no content to content (not null and not empty after trimming
@@ -1367,7 +1392,9 @@ paths:
         not empty after trimming spaces).
         The errors are checked in this order: 400, 404, 422 APPLICATION_ARCHIVED,
         412, 422 INVALID_TRANSITION, 422 TEMPLATE_INCOMPLETE. `If-Match` is optional;
-        when sent it is compared with the screen locked inside the transaction.
+        when sent, its `updatedAt` part is compared with the screen locked inside the
+        transaction (same rule as `PUT /screens/{id}`: a change of the counters is not
+        a 412, and the former `W/"<updatedAt ms>"` format is accepted).
         Asking for the status the screen already has is a 422 INVALID_TRANSITION
         (`details { from, to }`, with `to` equal to `from`). TEMPLATE_INCOMPLETE applies
         only to IN_PROGRESS -> IN_REVIEW and lists in `details.fields` the template
@@ -2276,7 +2303,10 @@ components:
       name: If-Match
       in: header
       required: false
-      description: ETag from the last GET; if the resource changed since, the update is rejected with 412.
+      description: |
+        ETag from the last GET; if the resource changed since, the update is rejected with 412.
+        For a screen only the `updatedAt` part is compared, so a change of its counters is not a 412;
+        the former format `W/"<updatedAt ms>"` is accepted, and any other format is a 412.
       schema: { type: string, example: 'W/"1727548800123"' }
     IfNoneMatch:
       name: If-None-Match
@@ -2290,7 +2320,10 @@ components:
       description: URL of the created resource
       schema: { type: string, example: /api/v1/variables/42 }
     ETag:
-      description: Weak validator. A single resource with `updatedAt` sends one derived from it; listings and other responses send a weak hash of the body.
+      description: |
+        Weak validator. A single resource with `updatedAt` sends one derived from it (`W/"<updatedAt ms>"`);
+        a screen also appends its `pendingSubtasks` and `commentCount` (`W/"<updatedAt ms>-<pendingSubtasks>-<commentCount>"`);
+        listings and other responses send a weak hash of the body.
       schema: { type: string, example: 'W/"1727548800123"' }
     XRequestId:
       description: Identifier of the request, also written in the server log. Quote it when reporting a problem.
