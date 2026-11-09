@@ -71,14 +71,18 @@ const bindOperation =
     next();
   };
 
-/** D-62: an integer id beyond the range of the column cannot exist, so it is 404 without reaching Prisma. */
+/**
+ * D-62: an integer id beyond the range of the column cannot exist, so it is 404 without reaching Prisma. The message
+ * names the element in the singular (Table 59): for `/dependencies/{type}/{id}` that is the type without its plural
+ * `s` (`screens` is "screen").
+ */
 const checkIdRange =
   (policy: OperationPolicy): RequestHandler =>
   (req, _res, next) => {
     const id = req.params.id;
     if (id !== undefined) {
       const element = policy.path.startsWith('/dependencies/')
-        ? String(req.params.type).toLowerCase()
+        ? String(req.params.type).toLowerCase().replace(/s$/, '')
         : elementOfPath(policy.path);
       assertIdInRange(id, element);
     }

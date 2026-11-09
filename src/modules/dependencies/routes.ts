@@ -20,5 +20,6 @@ export function dependenciesHandlers(db: Pick<Database, 'base'>, hooks?: Depende
   const controller = createDependenciesController(createDependenciesService(createDependenciesRepository(db, hooks)));
   return {
     getDependencyGraph: controller.graph,
+    getNodeNeighborhood: controller.neighborhood,
   };
 }
