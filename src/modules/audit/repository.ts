@@ -78,12 +78,40 @@ function whereOf(filters: AuditFilters): Prisma.Sql {
   return conditions.length === 0 ? Prisma.empty : Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`;
 }
 
-/** The newest `RECENT_ACTIVITY_LIMIT` records of an application, on the given connection. */
-function recentOn(client: AuditReadClient, applicationId: number): Promise<AuditRow[]> {
-  return client.$queryRaw<AuditRow[]>`${SELECT_ROW}
+/**
+ * The statement that counts the records that match `filters`. Exported so a test can ask PostgreSQL for its plan.
+ *
+ * @param filters - The filters of the list.
+ */
+export function countStatement(filters: AuditFilters): Prisma.Sql {
+  return Prisma.sql`SELECT count(*) AS total FROM audit_log a ${whereOf(filters)}`;
+}
+
+/**
+ * The statement that reads one page of the list. Exported so a test can ask PostgreSQL for its plan.
+ *
+ * @param filters - The filters of the list.
+ * @param skip - Records to skip.
+ * @param take - Records in the page.
+ */
+export function pageStatement(filters: AuditFilters, skip: number, take: number): Prisma.Sql {
+  return Prisma.sql`${SELECT_ROW}
+    ${whereOf(filters)}
+    ORDER BY a.created_at DESC, a.id DESC
+    LIMIT ${take} OFFSET ${skip}`;
+}
+
+/** The statement of the recent activity of an application. */
+export function recentStatement(applicationId: number): Prisma.Sql {
+  return Prisma.sql`${SELECT_ROW}
     WHERE a.application_id = ${applicationId}
     ORDER BY a.created_at DESC, a.id DESC
     LIMIT ${RECENT_ACTIVITY_LIMIT}`;
+}
+
+/** The newest `RECENT_ACTIVITY_LIMIT` records of an application, on the given connection. */
+function recentOn(client: AuditReadClient, applicationId: number): Promise<AuditRow[]> {
+  return client.$queryRaw<AuditRow[]>(recentStatement(applicationId));
 }
 
 /**
@@ -106,13 +134,9 @@ export function createAuditRepository(db: Pick<Database, 'base'>, hooks: AuditHo
   return {
     readPage: (filters, skip, take) =>
       snapshot(async (tx) => {
-        const where = whereOf(filters);
-        const counted = await tx.$queryRaw<{ total: bigint }[]>`SELECT count(*) AS total FROM audit_log a ${where}`;
+        const counted = await tx.$queryRaw<{ total: bigint }[]>(countStatement(filters));
         await hooks.afterCount?.();
-        const rows = await tx.$queryRaw<AuditRow[]>`${SELECT_ROW}
-          ${where}
-          ORDER BY a.created_at DESC, a.id DESC
-          LIMIT ${take} OFFSET ${skip}`;
+        const rows = await tx.$queryRaw<AuditRow[]>(pageStatement(filters, skip, take));
         return { rows, total: Number(counted[0]?.total ?? 0n) };
       }),
 
