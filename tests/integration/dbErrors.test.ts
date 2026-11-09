@@ -157,7 +157,7 @@ const EXPECTED_BY_NAME = new Map<string, string>([
 describe('database error table', () => {
   let t: TestApp;
   before(async () => {
-    t = await startTestApp();
+    t = await startTestApp({ reportServerErrors: false }); // it causes database errors on purpose
   });
   after(async () => {
     await t.close();
@@ -379,7 +379,7 @@ describe('database errors provoked on a real database', () => {
   };
 
   before(async () => {
-    t = await startTestApp();
+    t = await startTestApp({ reportServerErrors: false }); // it causes database errors on purpose
     ids.appA = await q(
       `INSERT INTO application (name, platform, created_by) VALUES ('SAR', 'Power Apps', $1) RETURNING id`,
       [t.users.admin.id],

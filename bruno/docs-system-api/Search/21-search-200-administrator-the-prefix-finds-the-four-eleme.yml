@@ -1,0 +1,28 @@
+info:
+  name: '21 Search · 200 administrator, the prefix finds the four elements by name, ordered by name'
+  type: http
+  seq: 21
+http:
+  method: GET
+  url: '{{baseUrl}}/search?applicationId={{seaAppId}}&q={{seaPrefix}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{seaAdminToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 200) { bru.setVar("seaEtag", res.headers["etag"]); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        const keys = function (r) { return r.body.data.map(function (x) { return x.type + ":" + x.id; }); };
+        test("an ETag is sent", function () { expect(res.headers["etag"]).to.match(/^W[/]/); });
+        test("one result per element, four in all, with the envelope", function () { expect(res.body.total).to.equal(4); expect(res.body.page).to.equal(1); expect(res.body.pageSize).to.equal(20); expect(res.body.data).to.have.length(4); });
+        test("name, type and id order: Btn, Col, Gvar, Pantalla", function () { expect(keys(res)).to.deep.equal(["COMPONENT:" + bru.getVar("seaBtnId"), "COLLECTION:" + bru.getVar("seaColId"), "VARIABLE:" + bru.getVar("seaVarId"), "SCREEN:" + bru.getVar("seaScrId")]); });
+        test("every match is the name, so there is no snippet", function () { res.body.data.forEach(function (r) { expect(r.matchedIn).to.equal("name"); expect(r.snippet).to.equal(null); }); });
+        test("each variant has only its own fields", function () { const by = {}; res.body.data.forEach(function (r) { by[r.type] = r; }); expect(Object.keys(by.SCREEN).sort()).to.deep.equal(["documentationStatus", "id", "matchedIn", "name", "snippet", "type"]); expect(Object.keys(by.VARIABLE).sort()).to.deep.equal(["environments", "id", "matchedIn", "name", "screen", "snippet", "type"]); expect(Object.keys(by.COLLECTION).sort()).to.deep.equal(["environments", "id", "matchedIn", "name", "snippet", "type"]); expect(Object.keys(by.COMPONENT).sort()).to.deep.equal(["id", "matchedIn", "name", "screen", "snippet", "type"]); });
+        test("navigation: the component carries its screen, the variable has no origin screen, environments are listed", function () { const by = {}; res.body.data.forEach(function (r) { by[r.type] = r; }); expect(by.COMPONENT.screen).to.deep.equal({ id: bru.getVar("seaScrId"), name: bru.getVar("seaPrefix") + "Pantalla" }); expect(by.VARIABLE.screen).to.equal(null); expect(by.VARIABLE.environments).to.deep.equal(["DEV", "PROD"]); expect(by.COLLECTION.environments).to.deep.equal(["DEV"]); expect(by.SCREEN.documentationStatus).to.be.oneOf(["UNDOCUMENTED", "DRAFT"]); });
+settings:
+  encodeUrl: true

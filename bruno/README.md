@@ -10,6 +10,7 @@ The collection `docs-system-api/` (Bruno OpenCollection YAML, created with Bruno
 | `Applications` | 32 | register (App (OnStart) screen, `Location`, `ETag`), duplicate name, list with `q` / `status`, get, `If-Match` 412, full replacement, archive and unarchive, role matrix (Developer and Reader read, cannot write) |
 | `Dependencies` | 55 | dependency graph (FR-15): every node and edge variant and its own fields, the order, `ETag` and 304, `types` / `environment` filters, neighborhood with `depth` 1 to 3 and cycles of `DERIVES_FROM` and `NAVIGATES_TO`, 401 / 404 / 400, Reader and Developer roles; reads Sandbox Fixtures without changing it |
 | `Audit` | 54 | audit history (FR-20, FR-21): the history of a run application and of single elements (create, update, delete, the review event, a field of a collection, a password change without its value), `ETag` and 304, filters, inclusive `from` / `to` to the millisecond, pagination, the empty page for an unknown application, the Developer's own actions and the `OWN_ACTIONS` 403, the 400 rules (400 before 403), 401 / 403 Reader; the records of deleted elements remain after the cleanup; reads Sandbox Fixtures without changing it |
+| `Search` | 56 | advanced search (FR-17, FR-18): a run application whose four elements carry a random prefix that starts with a letter, found by name, description, template, field name, creation condition, `OnSelect`, control type and `usedIn` (UTF-8: `CONFIGURACIÓN` finds `Configuración` and the other way round), ordinary `.`, `_` and `%`, trimmed `q`, pagination, filters without text (`types`, `environment`, `documentationStatus`, `scope`, also one that applies to no selected type), another application with the same name that never leaks, `ETag` and 304, the 400 rules (neither `q` nor a filter, `q` too short, 400 before 404) and the 404s, Developer and Reader; searches Sandbox Fixtures without changing it; the cleanup leaves `total` = 0 |
 
 Every request asserts status code, response body (error `code`, `message`, `details`) and the relevant headers
 (`ETag`, `Location`, `Set-Cookie`, `Cache-Control`, `Retry-After`). Requests run in folder order: later ones use the
@@ -76,6 +77,17 @@ and the records of the run stay by design. To check that a run that stopped half
 ```bash
 API_FIRST_PASS="Audit/01-setup-administrator-login-200.yml Audit/02-setup-create-developer-201.yml" npm run test:api -- Audit
 ```
+
+The `Search` folder also runs twice in a row on the same database and after an unfinished setup, because every assertion is limited to the elements of its own run (the prefix) and its cleanup ends with `total` = 0:
+
+```bash
+API_FIRST_PASS="Search" npm run test:api -- Search                                            # two complete runs
+API_FIRST_PASS="Search/0?-*.yml Search/10-*.yml Search/11-*.yml" npm run test:api -- Search     # after an interruption
+```
+
+In `Search`, texts with spaces are written with real spaces in the URL (Bruno encodes them; a typed `%20` would be encoded again).
+The request validator refuses unencoded reserved characters (`! ' ( ) *` among them) in a query value, so a `q` that
+contains them must be percent-encoded by the client; the requests of the folder avoid them.
 
 To run only the CLI against an API you started yourself:
 

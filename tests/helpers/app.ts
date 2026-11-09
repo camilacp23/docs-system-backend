@@ -34,6 +34,90 @@ export const bodyOf = (res: { body: unknown }): ApiBody => res.body as ApiBody;
 
 export const TEST_ORIGIN = 'http://localhost:5173';
 
+/**
+ * An error the server logged (pino level error or above): the log of a 500, found by the `requestId` that the client
+ * received in `details.requestId`. Only the diagnostic fields are kept, never the request headers or body.
+ *
+ * Database and Prisma errors log their class, the Prisma code, the SQLSTATE and the constraint, table and model, but
+ * not their message or stack, because those embed the values of the query (the server's own policy). Any other error
+ * also logs its message and stack.
+ */
+export type ServerErrorLog = {
+  requestId: string | undefined;
+  method?: string;
+  path?: string;
+  msg?: string;
+  reason?: string;
+  errorClass?: string;
+  code?: string;
+  prismaCode?: string;
+  sqlstate?: string;
+  constraint?: string;
+  table?: string;
+  model?: string;
+  message?: string;
+  stack?: string;
+};
+
+/** The fields of a server log line that explain an error. */
+const SERVER_ERROR_FIELDS = [
+  'method',
+  'path',
+  'msg',
+  'reason',
+  'errorClass',
+  'code',
+  'prismaCode',
+  'sqlstate',
+  'constraint',
+  'table',
+  'model',
+  'message',
+  'stack',
+] as const;
+
+/**
+ * Collects the errors a server logs and prints the failure of each request as it happens. Feed it every line of the
+ * pino destination of the server of a test (`startTestApp` does; so does any test that builds its own server).
+ *
+ * The line was already redacted by pino, and only the diagnostic fields are printed (`[server error] requestId=...`),
+ * so the cause of a 500 is in the output of the test that received it. Only the failure of a request is printed (the
+ * line of the error handler); the other error lines (Jira, the HTTP logger) are kept in `entries` but not printed.
+ *
+ * @param report - Print the failures to stderr (default true).
+ */
+export function serverErrorSink(report = true): { entries: ServerErrorLog[]; accept: (line: string) => void } {
+  const entries: ServerErrorLog[] = [];
+  return {
+    entries,
+    accept: (line) => {
+      const failure = parseServerError(line);
+      if (failure === undefined) return;
+      entries.push(failure);
+      if (report && failure.msg === 'request failed') {
+        console.error(`[server error] requestId=${failure.requestId ?? '-'} ${JSON.stringify(failure)}`);
+      }
+    },
+  };
+}
+
+/** The error entry of a log line, or `undefined` when the line is not an error (level 50 or above) or not JSON. */
+function parseServerError(line: string): ServerErrorLog | undefined {
+  let entry: Record<string, unknown>;
+  try {
+    entry = JSON.parse(line) as Record<string, unknown>;
+  } catch {
+    return undefined;
+  }
+  if (typeof entry['level'] !== 'number' || entry['level'] < 50) return undefined;
+  const found: ServerErrorLog = { requestId: typeof entry['requestId'] === 'string' ? entry['requestId'] : undefined };
+  for (const field of SERVER_ERROR_FIELDS) {
+    const value = entry[field];
+    if (typeof value === 'string') found[field] = value;
+  }
+  return found;
+}
+
 export type TestApp = {
   testDb: TestDb;
   config: AppConfig;
@@ -45,6 +129,11 @@ export type TestApp = {
   owner: pg.Client;
   /** Lines written by the application logger (JSON). */
   logs: string[];
+  /**
+   * The errors the server logged so far, with their `requestId`. A test that gets a 500 finds there why (the same
+   * failure of a request is also printed to stderr as soon as it is written, unless `reportServerErrors` is false).
+   */
+  errorLogs: () => ServerErrorLog[];
   users: Record<'admin' | 'developer' | 'reader' | 'inactive', { id: number; token: string }>;
   close: () => Promise<void>;
 };
@@ -78,6 +167,11 @@ export async function startTestApp(
     jira?: (logger: Logger) => JiraClient;
     /** Issues per page of the Jira refresh search. */
     refreshPageSize?: number;
+    /**
+     * Print each error the server logs to stderr as it happens (default true). A test that causes a server error on
+     * purpose passes false.
+     */
+    reportServerErrors?: boolean;
   } = {},
 ): Promise<TestApp> {
   // Never reach the real Jira from a test; checked before a database is created.
@@ -89,7 +183,13 @@ export async function startTestApp(
   const logs: string[] = [];
   const config = loadConfig(testEnv(testDb.appUrl, options.env));
   assertJiraConfigIsLocal(config.jira, 'test application');
-  const logger = createLogger(config, { write: (line: string) => void logs.push(line) });
+  const sink = serverErrorSink(options.reportServerErrors ?? true);
+  const logger = createLogger(config, {
+    write: (line: string) => {
+      logs.push(line);
+      sink.accept(line);
+    },
+  });
   const built = buildApp({
     config,
     db,
@@ -125,6 +225,7 @@ export async function startTestApp(
     http: supertest(built.app),
     owner,
     logs,
+    errorLogs: () => [...sink.entries],
     users,
     close: async () => {
       await db.base.$disconnect();

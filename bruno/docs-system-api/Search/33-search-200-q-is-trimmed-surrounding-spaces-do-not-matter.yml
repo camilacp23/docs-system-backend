@@ -1,0 +1,19 @@
+info:
+  name: '33 Search · 200 q is trimmed: surrounding spaces do not matter'
+  type: http
+  seq: 33
+http:
+  method: GET
+  url: '{{baseUrl}}/search?applicationId={{seaAppId}}&q=  {{seaPrefix}}Gvar &pageSize=20'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{seaAdminToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("only that variable, found in name", function () { expect(res.body.total).to.equal(1); const r = res.body.data[0]; expect(r.type).to.equal("VARIABLE"); expect(r.id).to.equal(bru.getVar("seaVarId")); expect(r.matchedIn).to.equal("name"); expect(r.snippet).to.equal(null); });
+settings:
+  encodeUrl: true

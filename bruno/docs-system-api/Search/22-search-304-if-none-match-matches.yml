@@ -1,0 +1,22 @@
+info:
+  name: '22 Search · 304 if-none-match matches'
+  type: http
+  seq: 22
+http:
+  method: GET
+  url: '{{baseUrl}}/search?applicationId={{seaAppId}}&q={{seaPrefix}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{seaAdminToken}}'
+    - name: If-None-Match
+      value: '{{seaEtag}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 304", function () { expect(res.status).to.equal(304); });
+        test("no body", function () { expect(res.body === "" || res.body === undefined || res.body === null).to.equal(true); });
+        test("the ETag is repeated", function () { expect(res.headers["etag"]).to.equal(bru.getVar("seaEtag")); });
+settings:
+  encodeUrl: true

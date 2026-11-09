@@ -1,0 +1,21 @@
+info:
+  name: '60 Fixtures · Sandbox Fixtures is searched, not changed'
+  type: http
+  seq: 60
+http:
+  method: GET
+  url: '{{baseUrl}}/search?applicationId={{fixturesAppId}}&q=Sandbox&pageSize=100'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{seaReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the two screens, the two variables and the two collections of the fixtures, by name", function () { const names = res.body.data.map(function (r) { return r.type + ":" + r.name; }).sort(); expect(names).to.deep.equal(["COLLECTION:colSandbox", "COLLECTION:colSandboxDocumented", "SCREEN:Sandbox Screen A", "SCREEN:Sandbox Screen B", "VARIABLE:gSandboxLinked", "VARIABLE:gSandboxShared"]); expect(res.body.total).to.equal(6); });
+        test("the fixture ids are the known ones", function () { const ids = res.body.data.map(function (r) { return r.type + ":" + r.id; }); expect(ids).to.include.members(["SCREEN:" + bru.getEnvVar("screenAId"), "SCREEN:" + bru.getEnvVar("screenBId"), "VARIABLE:" + bru.getEnvVar("sharedVariableId"), "COLLECTION:" + bru.getEnvVar("collectionId")]); });
+        test("a run element never shows up in the fixtures", function () { res.body.data.forEach(function (r) { expect(r.name.indexOf(bru.getVar("seaPrefix"))).to.equal(-1); }); });
+settings:
+  encodeUrl: true

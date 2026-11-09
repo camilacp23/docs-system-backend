@@ -1,0 +1,19 @@
+info:
+  name: '39 Search · 200 a dot is an ordinary character, not a wildcard'
+  type: http
+  seq: 39
+http:
+  method: GET
+  url: '{{baseUrl}}/search?applicationId={{seaAppId}}&q={{seaPrefix}}Gva.'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{seaAdminToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("nothing", function () { expect(res.body.total).to.equal(0); expect(res.body.data).to.deep.equal([]); });
+settings:
+  encodeUrl: true
