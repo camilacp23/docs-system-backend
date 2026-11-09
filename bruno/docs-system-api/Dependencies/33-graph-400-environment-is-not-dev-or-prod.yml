@@ -1,0 +1,21 @@
+info:
+  name: '33 Graph · 400 environment is not DEV or PROD'
+  type: http
+  seq: 33
+http:
+  method: GET
+  url: '{{baseUrl}}/dependencies/graph?applicationId={{depAppId}}&environment=STAGING'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{depAdminToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 400", function () { expect(res.status).to.equal(400); });
+        test("error body has code VALIDATION_ERROR, message and details", function () { expect(res.body.code).to.equal("VALIDATION_ERROR"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+
+        test("details.fields names environment", function () { expect(res.body.details.fields.map(function (f) { return f.field; })).to.include("environment"); });
+settings:
+  encodeUrl: true

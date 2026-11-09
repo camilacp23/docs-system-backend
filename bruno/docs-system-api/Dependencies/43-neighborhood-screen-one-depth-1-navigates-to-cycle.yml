@@ -1,0 +1,29 @@
+info:
+  name: '43 Neighborhood · screen One depth 1 (NAVIGATES_TO cycle)'
+  type: http
+  seq: 43
+http:
+  method: GET
+  url: '{{baseUrl}}/dependencies/screens/{{depScrOneId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{depDevToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        const nodes = res.body.data.nodes, edges = res.body.data.edges;
+        const keys = nodes.map(function (n) { return n.key; });
+        const byName = function (n) { return nodes.find(function (x) { return x.name === n; }); };
+        const kinds = function () { const c = {}; edges.forEach(function (e) { c[e.kind] = (c[e.kind] || 0) + 1; }); return c; };
+        test("every edge points to two nodes of the response and nothing repeats", function () { const set = new Set(keys); expect(set.size).to.equal(keys.length); expect(new Set(edges.map(function (e) { return e.id; })).size).to.equal(edges.length); edges.forEach(function (e) { expect(set.has(e.source), e.id + " source").to.equal(true); expect(set.has(e.target), e.id + " target").to.equal(true); }); });
+        test("the default depth is 1: the component, the variable, the collection and the other screen", function () {
+          const p = bru.getVar("depPrefix");
+          expect(nodes.map(function (n) { return n.name; })).to.have.members([p + "One", p + "Two", "btnGo", p + "Glob", p + "ColA"]);
+        });
+        test("the screen cycle gives Two once and both NAVIGATES_TO edges", function () { expect(nodes.filter(function (n) { return n.name === bru.getVar("depPrefix") + "Two"; })).to.have.length(1); expect(edges.filter(function (e) { return e.kind === "NAVIGATES_TO"; })).to.have.length(2); });
+        test("an edge between two neighbors is included", function () { expect(edges.some(function (e) { return e.kind === "USES"; })).to.equal(true); });
+settings:
+  encodeUrl: true

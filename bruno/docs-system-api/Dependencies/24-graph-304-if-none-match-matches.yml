@@ -1,0 +1,22 @@
+info:
+  name: '24 Graph · 304 if-none-match matches'
+  type: http
+  seq: 24
+http:
+  method: GET
+  url: '{{baseUrl}}/dependencies/graph?applicationId={{depAppId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{depReaderToken}}'
+    - name: If-None-Match
+      value: '{{depGraphEtag}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 304", function () { expect(res.status).to.equal(304); });
+        test("no body", function () { expect(res.body === "" || res.body === undefined || res.body === null).to.equal(true); });
+        test("the ETag is repeated", function () { expect(res.headers["etag"]).to.equal(bru.getVar("depGraphEtag")); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,19 @@
+info:
+  name: '114 Cleanup · the graph of Sandbox Fixtures is untouched'
+  type: http
+  seq: 114
+http:
+  method: GET
+  url: '{{baseUrl}}/dependencies/graph?applicationId={{fixturesAppId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{depReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("same body as before the run", function () { expect(JSON.stringify(res.body)).to.equal(bru.getVar("depFixturesBody")); });
+settings:
+  encodeUrl: true

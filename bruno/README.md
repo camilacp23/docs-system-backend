@@ -8,6 +8,7 @@ The collection `docs-system-api/` (Bruno OpenCollection YAML, created with Bruno
 | `Auth` | 22 | login, refresh with rotation and reuse detection, logout, Origin check, login rate limit |
 | `Users` | 36 | create, list, read, update with `If-Match`, role change, logical deactivation, reserved account, last administrator, session revocation, 413 |
 | `Applications` | 32 | register (App (OnStart) screen, `Location`, `ETag`), duplicate name, list with `q` / `status`, get, `If-Match` 412, full replacement, archive and unarchive, role matrix (Developer and Reader read, cannot write) |
+| `Dependencies` | 55 | dependency graph (FR-15): every node and edge variant and its own fields, the order, `ETag` and 304, `types` / `environment` filters, neighborhood with `depth` 1 to 3 and cycles of `DERIVES_FROM` and `NAVIGATES_TO`, 401 / 404 / 400, Reader and Developer roles; reads Sandbox Fixtures without changing it |
 
 Every request asserts status code, response body (error `code`, `message`, `details`) and the relevant headers
 (`ETag`, `Location`, `Set-Cookie`, `Cache-Control`, `Retry-After`). Requests run in folder order: later ones use the

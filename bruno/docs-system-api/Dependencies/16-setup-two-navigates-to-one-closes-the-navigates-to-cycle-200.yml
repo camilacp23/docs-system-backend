@@ -1,0 +1,31 @@
+info:
+  name: '16 Setup · Two navigates to One (closes the NAVIGATES_TO cycle) 200'
+  type: http
+  seq: 16
+http:
+  method: PUT
+  url: '{{baseUrl}}/screens/{{depScrTwoId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{depDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{depPrefix}}Two",
+        "miroLink": "https://miro.com/app/board/{{depRun}}/",
+        "template": { "onStart": null, "workingProcess": null, "architecture": null, "dataModel": null, "requirements": null, "knownIssues": null, "risks": null },
+        "components": [],
+        "variableLinks": [],
+        "collectionLinks": [],
+        "navigations": [{ "targetScreenId": {{depScrOneId}}, "description": null }]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("Two navigates to One", function () { expect(res.body.data.navigations.map(function (n) { return n.targetScreen.id; })).to.deep.equal([Number(bru.getVar("depScrOneId"))]); });
+settings:
+  encodeUrl: true

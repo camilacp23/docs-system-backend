@@ -1,7 +1,7 @@
 # docs-system-api (Bruno collection)
 
 Requests and assertions for every implemented operation, grouped by module: `Auth`, `Users`, `Applications`,
-`Screens`, `Variables`, `Collections` and `Jira` (529 requests and 1340 assertions in all). It runs against the isolated database
+`Screens`, `Variables`, `Collections`, `Jira` and `Dependencies` (584 requests and 1478 assertions in all). It runs against the isolated database
 `docs_sandbox`, never against `docs_system`.
 
 ```bash
@@ -90,6 +90,27 @@ before connecting and `current_database()` after connecting, and refuses anythin
 | `SANDBOX_FIXTURES_LINKED_VARIABLE_ID`  | `linkedVariableId` | `gSandboxLinked`                   |
 | `SANDBOX_FIXTURES_COLLECTION_ID`       | `collectionId`     | `colSandbox`                       |
 | `SANDBOX_FIXTURES_DOCUMENTED_COLLECTION_ID` | `documentedCollectionId` | `colSandboxDocumented`  |
+
+## Dependencies folder
+
+55 requests (`seq` 8). Like the other folders it logs in the administrator, creates a Developer and a Reader with random
+e-mails and an application of its own (`Dependencies <suffix>`), and names what it creates with a random prefix. It builds
+one small graph through the API: three screens (App (OnStart), `One`, `Two`), three variables (one created by `Two`, two
+without origin), two collections, one component, and every kind of edge, with a `DERIVES_FROM` cycle (`ColA` and `ColB`)
+and a `NAVIGATES_TO` cycle (`One` and `Two`). Sandbox Fixtures is only read: the graph of its application is read at the
+start and must be byte-for-byte the same at the end. At the end it deletes what it created, lists with `q=<prefix>`
+that `total` is 0, and checks that the graph of the run application has only App (OnStart). A run that is interrupted
+leaves only rows with its own prefix and its own application, which no later run reads.
+
+| Requests | Covers |
+| -------- | ------ |
+| 1-16     | Setup: administrator, Developer and Reader, run application, App (OnStart), screen `Two`, variables `Glob`, `ProdOnly` and `Ctx`, collections `ColA` and `ColB`, both cycles closed with a PUT, screen `One` |
+| 20-24    | Graph: 401; 200 as Administrator (nine nodes, eleven edges, each variant with only its own fields, order by kind), Developer and Reader get the same body and `ETag`; 304 with `If-None-Match` |
+| 25-28    | Filters: `types=SCREEN`, `types=COMPONENT` (the component keeps its `screenId`), `environment=PROD`, `types=VARIABLE&environment=DEV`; no edge points outside the response |
+| 29-33    | Graph errors: 404 application (also outside the `integer` range), 400 for a missing `applicationId`, an unknown type and an unknown environment, with `code`, `message` and `details` |
+| 40-50    | Neighborhood: 401; collection `depth` 1 as Reader (the screens that use it, one `ACCESSES` edge per link, and the `DERIVES_FROM` cycle once) and 304; screen `depth` 1 and 3 (cycle without repeats, both directions); 404 for a missing element, an id outside the range and a type that does not match; 400 for `depth` 0 and 4 and for `types` |
+| 60-61    | Sandbox Fixtures: its graph and the neighborhood of a fixture collection are read; nothing of the run is in them |
+| 100-114  | Cleanup: deletes, `total` 0 for screens, variables and collections, only App (OnStart) left, fixtures untouched |
 
 ## Jira folder
 
