@@ -197,6 +197,10 @@ D-74 permite ciclos entre colecciones (`DERIVES_FROM`). Todo lector recursivo fu
 - **`q` con espacios y más de 100 caracteres.** El validador mide `q` sin recortar, así que un `q` de 100 caracteres rodeado de espacios responde 400 `maxLength` aunque, recortado, cumpla D-105 a. Se acepta la limitación; para la próxima versión del contrato, medir `q` ya recortado o documentar el límite sobre el texto sin recortar.
 - **Caracteres reservados en los parámetros de consulta.** El validador rechaza con 400 ("Parameter 'q' must be url encoded. Its value may not contain reserved characters") un parámetro de consulta que trae sin codificar caracteres reservados (por ejemplo `! ' ( ) *`). `encodeURIComponent` y `URLSearchParams` no codifican todos. El frontend debe codificar todos los parámetros de consulta según RFC 3986 (búsqueda, filtros y fechas de la auditoría); se revisa en el cliente HTTP del frontend.
 
+### Pruebas bajo carga: 500 por P2028 en pantallas
+
+- Bajo carga, `PUT /screens` puede responder 500 por P2028 (corte de la transacción de Prisma a los 5 s), visto en `screens.concurrency`. Coincide con las lecturas de pantallas que lanzan consultas en paralelo dentro de la transacción (aviso de pg "client.query… already executing"). Se trata en la tarea de lecturas secuenciales de pantallas y colecciones, con mediciones, antes de decidir cualquier cambio de configuración. Las pruebas ya registran la causa de cada 500 (`[server error] requestId=…`, con el código de Prisma o de PostgreSQL), también la de `sandbox:graph`.
+
 ### Pendiente antes de desplegar varias instancias
 
 El API asume un solo proceso: los límites de solicitudes en memoria (D-60) y la exclusión por pantalla de la creación del Epic (D-93). Antes de desplegar varias instancias se necesita un almacén compartido para los contadores del límite y un mecanismo compartido para la exclusión del Epic.
