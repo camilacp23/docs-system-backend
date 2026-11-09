@@ -12,9 +12,10 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { after, before, describe, it } from 'node:test';
+import { after, before, describe, it, mock } from 'node:test';
 import pg from 'pg';
 import { buildApp } from '../../src/app.js';
+import { createModuleHandlers } from '../../src/modules/index.js';
 import { loadConfig } from '../../src/config/index.js';
 import { loadSeedConfig } from '../../src/config/seed.js';
 import { createPrisma, type Database } from '../../src/db/prisma.js';
@@ -28,7 +29,7 @@ import {
 } from '../../scripts/lib/sandbox.js';
 import { insertFixtureRows } from '../../scripts/lib/sandboxFixtures.js';
 import { runSandboxGraphCli, SANDBOX_GRAPH_BASE_URL } from '../../scripts/lib/sandboxGraph.js';
-import { testEnv } from '../helpers/app.js';
+import { serverErrorSink, testEnv } from '../helpers/app.js';
 import { createTestDb, type TestDb } from '../helpers/testDb.js';
 
 describe('sandbox:graph, the real path', () => {
@@ -39,6 +40,9 @@ describe('sandbox:graph, the real path', () => {
   let dir: string | undefined;
   let envFile = '';
   let routedFetch: typeof fetch = fetch;
+  let builtApp: ReturnType<typeof buildApp> | undefined;
+  let serverConfig: ReturnType<typeof loadConfig> | undefined;
+  const extraServers: Server[] = [];
 
   before(async () => {
     try {
@@ -57,7 +61,13 @@ describe('sandbox:graph, the real path', () => {
         INTEGRATION_USER_EMAIL: SANDBOX_RESERVED_EMAIL,
       });
       const config = loadConfig(env);
-      const built = buildApp({ config, db, logger: createLogger(config, { write: () => undefined }) });
+      // The server errors of this API are printed (`[server error] requestId=...`) when a request answers 500, like
+      // the app of `startTestApp`; this test starts its own servers, so it wires the same sink.
+      const sink = serverErrorSink();
+      const logger = createLogger(config, { write: sink.accept });
+      const built = buildApp({ config, db, logger });
+      builtApp = built;
+      serverConfig = config;
 
       // What `npm run sandbox:db` leaves behind: the seed, then the fixtures, then the credentials file.
       const password = generatePassword();
@@ -101,6 +111,10 @@ describe('sandbox:graph, the real path', () => {
         failures.push(error);
       }
     };
+    for (const extra of extraServers.splice(0)) {
+      await attempt(() => extra.closeAllConnections());
+      await attempt(() => new Promise<void>((resolve) => extra.close(() => resolve())));
+    }
     await attempt(() => server?.closeAllConnections());
     await attempt(
       () => server && new Promise<void>((resolve, reject) => server!.close((e) => (e ? reject(e) : resolve()))),
@@ -162,5 +176,64 @@ describe('sandbox:graph, the real path', () => {
     const password = readFileSync(envFile, 'utf8').split('SANDBOX_ADMIN_PASSWORD=')[1]!.trim();
     assert.ok(!text.includes(password) && !run.out.join('\n').includes(password));
     assert.ok(!/bearer|authorization/i.test(text));
+  });
+  it('when the API answers 500, the log of that error is printed with the same requestId, and no credential', async () => {
+    // A second server over the same database whose createVariable fails with a known error: a real 500 through the real
+    // error handler. Its logs go to their own sink, so the entry can be read.
+    const sink = serverErrorSink();
+    const logger = createLogger(serverConfig!, { write: sink.accept });
+    const handlers = {
+      ...createModuleHandlers({
+        db: db!,
+        jira: builtApp!.jira,
+        jiraBaseUrl: serverConfig!.jira.baseUrl,
+        defaultProjectKey: serverConfig!.jira.projectKey,
+        logger,
+        integrationUserEmail: serverConfig!.integrationUserEmail,
+      }),
+      createVariable: () => {
+        throw new Error('known failure of the sandbox graph test');
+      },
+    };
+    const failing = createServer(buildApp({ config: serverConfig!, db: db!, logger, handlers }).app);
+    extraServers.push(failing);
+    await new Promise<void>((resolve) => failing.listen(0, '127.0.0.1', resolve));
+    const port = (failing.address() as AddressInfo).port;
+    const toFailing: typeof fetch = (input, init) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      return fetch(url.replace(SANDBOX_GRAPH_BASE_URL, `http://127.0.0.1:${port}/api/v1`), init);
+    };
+
+    const printed = mock.method(console, 'error', () => undefined);
+    let run: Awaited<ReturnType<typeof runCommand>>;
+    try {
+      const out: string[] = [];
+      const err: string[] = [];
+      const code = await runSandboxGraphCli(['--prefix', 'cc99ee'], {
+        envFile,
+        fetchImpl: toFailing,
+        log: (line) => out.push(line),
+        error: (line) => err.push(line),
+      });
+      run = { code, out, err };
+    } finally {
+      printed.mock.restore();
+    }
+
+    assert.equal(run.code, 1);
+    const text = run.err.join('\n');
+    const requestId = /Reference: ([^.\s]+)\./.exec(text)?.[1];
+    assert.ok(requestId, text);
+    assert.match(text, /answered 500 INTERNAL_ERROR/);
+
+    const entry = sink.entries.find((e) => e.requestId === requestId);
+    assert.ok(entry, 'the server error of that request was kept');
+    assert.equal(entry.message, 'known failure of the sandbox graph test');
+    assert.match(entry.stack ?? '', /\n\s+at /);
+    const output = printed.mock.calls.map((c) => String(c.arguments[0])).join('\n');
+    assert.ok(output.includes(`[server error] requestId=${requestId}`), output);
+    assert.ok(output.includes('known failure of the sandbox graph test'));
+    const password = readFileSync(envFile, 'utf8').split('SANDBOX_ADMIN_PASSWORD=')[1]!.trim();
+    assert.ok(!output.includes(password) && !/bearer|authorization|cookie/i.test(output));
   });
 });

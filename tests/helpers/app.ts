@@ -76,6 +76,31 @@ const SERVER_ERROR_FIELDS = [
   'stack',
 ] as const;
 
+/**
+ * Collects the errors a server logs and prints the failure of each request as it happens. Feed it every line of the
+ * pino destination of the server of a test (`startTestApp` does; so does any test that builds its own server).
+ *
+ * The line was already redacted by pino, and only the diagnostic fields are printed (`[server error] requestId=...`),
+ * so the cause of a 500 is in the output of the test that received it. Only the failure of a request is printed (the
+ * line of the error handler); the other error lines (Jira, the HTTP logger) are kept in `entries` but not printed.
+ *
+ * @param report - Print the failures to stderr (default true).
+ */
+export function serverErrorSink(report = true): { entries: ServerErrorLog[]; accept: (line: string) => void } {
+  const entries: ServerErrorLog[] = [];
+  return {
+    entries,
+    accept: (line) => {
+      const failure = parseServerError(line);
+      if (failure === undefined) return;
+      entries.push(failure);
+      if (report && failure.msg === 'request failed') {
+        console.error(`[server error] requestId=${failure.requestId ?? '-'} ${JSON.stringify(failure)}`);
+      }
+    },
+  };
+}
+
 /** The error entry of a log line, or `undefined` when the line is not an error (level 50 or above) or not JSON. */
 function parseServerError(line: string): ServerErrorLog | undefined {
   let entry: Record<string, unknown>;
@@ -158,19 +183,11 @@ export async function startTestApp(
   const logs: string[] = [];
   const config = loadConfig(testEnv(testDb.appUrl, options.env));
   assertJiraConfigIsLocal(config.jira, 'test application');
-  const serverErrors: ServerErrorLog[] = [];
-  const report = options.reportServerErrors ?? true;
+  const sink = serverErrorSink(options.reportServerErrors ?? true);
   const logger = createLogger(config, {
     write: (line: string) => {
       logs.push(line);
-      const failure = parseServerError(line);
-      if (failure === undefined) return;
-      serverErrors.push(failure);
-      // The line was redacted by pino; only the diagnostic fields are printed. Written at once so that the cause of a
-      // 500 is in the output of the test that received it. Only the failure of a request is printed (the line of the
-      // error handler); the other error lines (Jira, the HTTP logger) are kept in `errorLogs()` but not printed.
-      if (report && failure.msg === 'request failed')
-        console.error(`[server error] requestId=${failure.requestId ?? '-'} ${JSON.stringify(failure)}`);
+      sink.accept(line);
     },
   });
   const built = buildApp({
@@ -208,7 +225,7 @@ export async function startTestApp(
     http: supertest(built.app),
     owner,
     logs,
-    errorLogs: () => [...serverErrors],
+    errorLogs: () => [...sink.entries],
     users,
     close: async () => {
       await db.base.$disconnect();
