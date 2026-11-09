@@ -14,6 +14,7 @@ import { authHandlers } from './auth/routes.js';
 import { collectionsHandlers } from './collections/routes.js';
 import { dependenciesHandlers } from './dependencies/routes.js';
 import { screensHandlers } from './screens/routes.js';
+import { searchHandlers } from './search/routes.js';
 import { usersHandlers } from './users/routes.js';
 import { variablesHandlers } from './variables/routes.js';
 
@@ -47,5 +48,6 @@ export function createModuleHandlers(deps: {
     ...collectionsHandlers(deps.db),
     ...dependenciesHandlers(deps.db),
     ...auditHandlers(deps.db),
+    ...searchHandlers(deps.db),
   };
 }
