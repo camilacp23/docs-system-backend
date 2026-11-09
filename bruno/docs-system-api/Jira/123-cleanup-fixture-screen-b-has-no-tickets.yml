@@ -1,0 +1,19 @@
+info:
+  name: '123 Cleanup · fixture screen B has no tickets'
+  type: http
+  seq: 123
+http:
+  method: GET
+  url: '{{baseUrl}}/screens/{{screenBId}}/jira-tickets'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{jrReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("empty tree", function () { expect(res.body.data).to.deep.equal({ epic: null, stories: [], sync: { jiraAvailable: true, stale: false, lastSyncedAt: null } }); });
+settings:
+  encodeUrl: true

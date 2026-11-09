@@ -1,0 +1,22 @@
+info:
+  name: '32 Administrator · 200 actorUserId of the Developer'
+  type: http
+  seq: 32
+http:
+  method: GET
+  url: '{{baseUrl}}/audit-log?actorUserId={{audDevId}}&pageSize=100'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{audAdminToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 200) { bru.setVar("audDevTotal", res.body.total); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("every record is an action of that user", function () { expect(res.body.total).to.be.greaterThan(3); res.body.data.forEach(function (e) { expect(e.actor.id).to.equal(bru.getVar("audDevId")); }); });
+settings:
+  encodeUrl: true

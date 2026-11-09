@@ -1,0 +1,27 @@
+info:
+  name: 04 Setup · create reader 201
+  type: http
+  seq: 4
+http:
+  method: POST
+  url: '{{baseUrl}}/users'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varAdminToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Variables reader",
+        "email": "varreader-{{varRun}}@sandbox.local",
+        "password": "Sandbox-Pass-2026",
+        "role": "READER"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+settings:
+  encodeUrl: true

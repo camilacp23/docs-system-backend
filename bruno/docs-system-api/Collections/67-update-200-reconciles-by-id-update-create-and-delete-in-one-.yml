@@ -1,0 +1,44 @@
+info:
+  name: '67 Update 200 (reconciles by id: update, create and delete in one PUT)'
+  type: http
+  seq: 67
+http:
+  method: PUT
+  url: '{{baseUrl}}/collections/{{varColAId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+    - name: If-Match
+      value: '{{varColAEtag}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{varPrefix}}ColA",
+        "creationCondition": "ClearCollect on entering the screen",
+        "description": "Main collection of the run",
+        "environments": [{ "environment": "DEV", "notes": "Dev note" }, { "environment": "PROD", "notes": "Prod note" }],
+        "fields": [{ "id": {{varFieldIdId}}, "name": "Id", "dataType": "NUMBER", "position": 0 }, { "id": {{varFieldNameId}}, "name": "FullName", "dataType": "TEXT", "description": "Display name", "position": 1 }, { "name": "CreatedAt", "dataType": "DATE_TIME", "position": 2 }],
+        "variableAssignments": [{ "id": {{varAsgGlobId}}, "variableId": {{varGlobId}}, "screenId": {{screenAId}}, "assignmentFunction": "SET", "tableFunction": "First", "usedIn": "OnVisible" }, { "variableId": {{varCtxId}}, "screenId": {{screenAId}}, "assignmentFunction": "UPDATE_CONTEXT", "tableFunction": null, "usedIn": "btnNew.OnSelect" }],
+        "derivedFrom": [{{varColBId}}]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 200) {
+          const d = res.body.data;
+          bru.setVar("varColAEtag", res.headers["etag"]);
+          bru.setVar("varFieldNewId", d.fields.find(function (f) { return f.name === "CreatedAt"; }).id);
+          bru.setVar("varAsgNewId", d.variableAssignments.find(function (a) { return a.usedIn === "btnNew.OnSelect"; }).id);
+        }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the ETag moved", function () { expect(res.headers["etag"]).to.match(/^W\/"\d+"$/); expect(res.headers["etag"]).to.not.equal(bru.getVar("varColAEtag0")); });
+        test("the updated field keeps its id, the omitted one is gone, the new one has a new id", function () { const f = res.body.data.fields; expect(f.map(function (x) { return [x.name, x.position]; })).to.deep.equal([["Id", 0], ["FullName", 1], ["CreatedAt", 2]]); expect(f[1].id).to.equal(Number(bru.interpolate("{{varFieldNameId}}"))); expect(f[0].id).to.equal(Number(bru.interpolate("{{varFieldIdId}}"))); const ids = f.map(function (x) { return x.id; }); expect(ids).to.not.include(Number(bru.interpolate("{{varFieldStatusId}}"))); expect(f[2].id).to.not.equal(Number(bru.interpolate("{{varFieldNameId}}"))); expect(f[2].id).to.not.equal(Number(bru.interpolate("{{varFieldIdId}}"))); expect(res.body.data.fieldCount).to.equal(3); });
+        test("the updated assignment keeps its id, the omitted one is gone, the new one was created", function () { const a = res.body.data.variableAssignments; expect(a).to.have.length(2); const g = a.find(function (x) { return x.id === Number(bru.interpolate("{{varAsgGlobId}}")); }); expect(g.tableFunction).to.equal("First"); expect(a.map(function (x) { return x.id; })).to.not.include(Number(bru.interpolate("{{varAsgCtxId}}"))); expect(a.find(function (x) { return x.usedIn === "btnNew.OnSelect"; }).id).to.not.equal(Number(bru.interpolate("{{varAsgGlobId}}"))); });
+        test("derivedFrom is unchanged", function () { expect(res.body.data.derivedFrom.map(function (c) { return c.id; })).to.deep.equal([Number(bru.interpolate("{{varColBId}}"))]); });
+settings:
+  encodeUrl: true

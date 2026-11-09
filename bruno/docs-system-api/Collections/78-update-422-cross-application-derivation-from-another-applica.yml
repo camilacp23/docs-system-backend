@@ -1,0 +1,32 @@
+info:
+  name: '78 Update 422 (CROSS_APPLICATION: derivation from another application)'
+  type: http
+  seq: 78
+http:
+  method: PUT
+  url: '{{baseUrl}}/collections/{{varColAId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{varPrefix}}ColA",
+        "creationCondition": "ClearCollect on entering the screen",
+        "description": "Main collection of the run",
+        "environments": [{ "environment": "DEV", "notes": "Dev note" }, { "environment": "PROD", "notes": "Prod note" }],
+        "fields": [{ "id": {{varFieldIdId}}, "name": "FullName", "dataType": "NUMBER", "position": 0 }, { "id": {{varFieldNameId}}, "name": "Id", "dataType": "TEXT", "description": "Display name", "position": 1 }, { "id": {{varFieldNewId}}, "name": "CreatedAt", "dataType": "DATE_TIME", "position": 2 }],
+        "variableAssignments": [{ "id": {{varAsgGlobId}}, "variableId": {{varGlobId}}, "screenId": {{screenAId}}, "assignmentFunction": "SET", "tableFunction": "First", "usedIn": "OnVisible" }, { "id": {{varAsgNewId}}, "variableId": {{varCtxId}}, "screenId": {{screenAId}}, "assignmentFunction": "UPDATE_CONTEXT", "tableFunction": null, "usedIn": "btnNew.OnSelect" }],
+        "derivedFrom": [{{varForeignId}}]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 422", function () { expect(res.status).to.equal(422); });
+        test("error body has code CROSS_APPLICATION, message and details", function () { expect(res.body.code).to.equal("CROSS_APPLICATION"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("message and details", function () { expect(res.body.message).to.equal("You can only link elements of the same application."); expect(res.body.details).to.deep.equal({ field: "derivedFrom[0]" }); });
+settings:
+  encodeUrl: true

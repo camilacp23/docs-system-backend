@@ -1,0 +1,29 @@
+info:
+  name: '25 Create · new Story under the existing Epic 201'
+  type: http
+  seq: 25
+http:
+  method: POST
+  url: '{{baseUrl}}/screens/{{jrAlphaId}}/jira-ticket'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{jrDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "newStory": { "summary": "{{jrPrefix}}Alpha story 2" }, "subtask": { "summary": "{{jrPrefix}}Alpha sub 3" } }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        function v(k) { return bru.getVar(k); }
+        if (res.status === 201) { const d = res.body.data; bru.setVar("jrAS2Id", d.story.id); bru.setVar("jrAS2Key", d.story.jiraIssueKey); bru.setVar("jrAT3Id", d.subtask.id); bru.setVar("jrAT3Key", d.subtask.jiraIssueKey); }
+    - type: tests
+      code: |-
+        function v(k) { return bru.getVar(k); }
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("Story and Subtask created", function () { expect(res.body.data.created).to.deep.equal(["STANDARD", "SUBTASK"]); });
+        test("same Epic, a different Story", function () { expect(res.body.data.epic.id).to.equal(v("jrAEpicId")); expect(res.body.data.story.id).to.not.equal(v("jrAS1Id")); });
+settings:
+  encodeUrl: true

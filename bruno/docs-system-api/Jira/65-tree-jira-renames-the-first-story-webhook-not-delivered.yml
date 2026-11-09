@@ -1,0 +1,22 @@
+info:
+  name: '65 Tree · Jira renames the first Story (webhook not delivered)'
+  type: http
+  seq: 65
+http:
+  method: POST
+  url: '{{jiraSimUrl}}/__sim/issues/{{jrAS1Key}}/edit'
+  body:
+    type: json
+    data: |-
+      { "summary": "{{jrPrefix}}Alpha story 1 renamed" }
+  auth: inherit
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        const simBase = bru.interpolate("{{jiraSimUrl}}"); if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(simBase)) { throw new Error("jiraSimUrl is not local: the request is not sent"); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+settings:
+  encodeUrl: true

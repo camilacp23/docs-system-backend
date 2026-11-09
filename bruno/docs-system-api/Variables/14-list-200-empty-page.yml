@@ -1,0 +1,19 @@
+info:
+  name: '14 List 200 (empty page: nothing has this prefix yet)'
+  type: http
+  seq: 14
+http:
+  method: GET
+  url: '{{baseUrl}}/variables?applicationId={{fixturesAppId}}&q={{varPrefix}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("an empty page, not an error", function () { expect(res.body).to.deep.equal({ data: [], page: 1, pageSize: 20, total: 0 }); });
+settings:
+  encodeUrl: true

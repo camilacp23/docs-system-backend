@@ -1,0 +1,27 @@
+info:
+  name: 17.5 Login 401 (failed attempt 5 of 5, random e-mail)
+  type: http
+  seq: 21
+http:
+  method: POST
+  url: '{{baseUrl}}/auth/login'
+  body:
+    type: json
+    data: |-
+      {
+        "email": "{{rateLimitEmail}}",
+        "password": "Wrong-Password-123"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 401", function () { expect(res.status).to.equal(401); });
+        test("error body has code INVALID_CREDENTIALS, message and details", function () {
+          expect(res.body.code).to.equal("INVALID_CREDENTIALS");
+          expect(res.body.message).to.be.a("string").and.not.empty;
+          expect(res.body).to.have.property("details");
+        });
+settings:
+  encodeUrl: true

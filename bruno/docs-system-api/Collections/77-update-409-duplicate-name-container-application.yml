@@ -1,0 +1,32 @@
+info:
+  name: '77 Update 409 (DUPLICATE_NAME, container application)'
+  type: http
+  seq: 77
+http:
+  method: PUT
+  url: '{{baseUrl}}/collections/{{varColAId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{varPrefix}}ColB",
+        "creationCondition": "ClearCollect on entering the screen",
+        "description": "Main collection of the run",
+        "environments": [{ "environment": "DEV", "notes": "Dev note" }, { "environment": "PROD", "notes": "Prod note" }],
+        "fields": [{ "id": {{varFieldIdId}}, "name": "FullName", "dataType": "NUMBER", "position": 0 }, { "id": {{varFieldNameId}}, "name": "Id", "dataType": "TEXT", "description": "Display name", "position": 1 }, { "id": {{varFieldNewId}}, "name": "CreatedAt", "dataType": "DATE_TIME", "position": 2 }],
+        "variableAssignments": [{ "id": {{varAsgGlobId}}, "variableId": {{varGlobId}}, "screenId": {{screenAId}}, "assignmentFunction": "SET", "tableFunction": "First", "usedIn": "OnVisible" }, { "id": {{varAsgNewId}}, "variableId": {{varCtxId}}, "screenId": {{screenAId}}, "assignmentFunction": "UPDATE_CONTEXT", "tableFunction": null, "usedIn": "btnNew.OnSelect" }],
+        "derivedFrom": [{{varColBId}}]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 409", function () { expect(res.status).to.equal(409); });
+        test("error body has code DUPLICATE_NAME, message and details", function () { expect(res.body.code).to.equal("DUPLICATE_NAME"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("message and details", function () { expect(res.body.message).to.equal("A collection named " + bru.getVar("varPrefix") + "ColB already exists in Sandbox Fixtures."); expect(res.body.details).to.deep.equal({ field: "name", type: "collection", name: bru.getVar("varPrefix") + "ColB", application: "Sandbox Fixtures", container: "application" }); });
+settings:
+  encodeUrl: true

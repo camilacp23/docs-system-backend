@@ -1,0 +1,19 @@
+info:
+  name: 15 Logout 204 (idempotent, no cookie)
+  type: http
+  seq: 15
+http:
+  method: POST
+  url: '{{baseUrl}}/auth/logout'
+  headers:
+    - name: Origin
+      value: '{{origin}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: before-request
+      code: await bru.cookies.jar().deleteCookies(bru.getEnvVar("baseUrl") + "/auth");
+    - type: tests
+      code: test("status 204", function () { expect(res.status).to.equal(204); });
+settings:
+  encodeUrl: true

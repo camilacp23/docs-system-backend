@@ -1,0 +1,32 @@
+info:
+  name: '76 Update 403 (reader)'
+  type: http
+  seq: 76
+http:
+  method: PUT
+  url: '{{baseUrl}}/collections/{{varColAId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varReaderToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{varPrefix}}ColA",
+        "creationCondition": "ClearCollect on entering the screen",
+        "description": "Main collection of the run",
+        "environments": [{ "environment": "DEV", "notes": "Dev note" }, { "environment": "PROD", "notes": "Prod note" }],
+        "fields": [{ "id": {{varFieldIdId}}, "name": "Id", "dataType": "NUMBER", "position": 0 }, { "id": {{varFieldNameId}}, "name": "Name", "dataType": "TEXT", "description": "Display name", "position": 1 }, { "id": {{varFieldStatusId}}, "name": "Status", "dataType": "TEXT", "position": 2 }],
+        "variableAssignments": [{ "id": {{varAsgGlobId}}, "variableId": {{varGlobId}}, "screenId": {{screenAId}}, "assignmentFunction": "SET", "tableFunction": "CountRows", "usedIn": "OnVisible" }, { "id": {{varAsgCtxId}}, "variableId": {{varCtxId}}, "screenId": {{screenAId}}, "assignmentFunction": "UPDATE_CONTEXT", "tableFunction": null, "usedIn": "btnSave.OnSelect" }],
+        "derivedFrom": [{{varColBId}}]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 403", function () { expect(res.status).to.equal(403); });
+        test("error body has code FORBIDDEN, message and details", function () { expect(res.body.code).to.equal("FORBIDDEN"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("the roles that may do it are listed", function () { expect(res.body.details.requiredRoles).to.have.members(["ADMINISTRATOR", "DEVELOPER"]); });
+settings:
+  encodeUrl: true

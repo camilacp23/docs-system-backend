@@ -1,0 +1,20 @@
+info:
+  name: '41 Filters · 200 environment=PROD restricts variables and collections only'
+  type: http
+  seq: 41
+http:
+  method: GET
+  url: '{{baseUrl}}/search?applicationId={{seaAppId}}&environment=PROD'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{seaAdminToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        const kinds = function (r) { const c = {}; r.body.data.forEach(function (x) { c[x.type] = (c[x.type] || 0) + 1; }); return c; };
+        test("1 variable (PROD), 0 collections (DEV only), the 2 screens and the component unfiltered", function () { expect(kinds(res)).to.deep.equal({ VARIABLE: 1, SCREEN: 2, COMPONENT: 1 }); expect(res.body.total).to.equal(4); });
+settings:
+  encodeUrl: true

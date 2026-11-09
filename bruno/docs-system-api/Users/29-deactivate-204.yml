@@ -1,0 +1,21 @@
+info:
+  name: 29 Deactivate 204 (logical deletion)
+  type: http
+  seq: 29
+http:
+  method: DELETE
+  url: '{{baseUrl}}/users/{{devId}}'
+  headers:
+    - name: Authorization
+      value: Bearer {{adminToken}}
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 204 without body", function () {
+          expect(res.status).to.equal(204);
+          expect(res.body === "" || res.body === undefined || res.body === null).to.equal(true);
+        });
+settings:
+  encodeUrl: true

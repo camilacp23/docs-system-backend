@@ -1,0 +1,24 @@
+info:
+  name: '40 Fields 200 (default pageSize 100, ordered)'
+  type: http
+  seq: 40
+http:
+  method: GET
+  url: '{{baseUrl}}/collections/{{varColAId}}/fields'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 200) { bru.setVar("varFieldsEtag", res.headers["etag"]); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("collection envelope", function () { expect(res.body).to.include.keys("data", "page", "pageSize", "total"); expect(res.body.page).to.equal(1); expect(res.body.pageSize).to.equal(100); expect(res.body.total).to.equal(3); });
+        test("ordered by position, with the field shape", function () { expect(res.body.data.map(function (f) { return f.name; })).to.deep.equal(["Id", "Name", "Status"]); res.body.data.forEach(function (f) { expect(f).to.have.all.keys("id", "name", "dataType", "description", "position"); }); expect(res.body.data[1].description).to.equal("Display name"); });
+        test("the list has an ETag", function () { expect(res.headers["etag"]).to.be.a("string").and.not.empty; });
+settings:
+  encodeUrl: true

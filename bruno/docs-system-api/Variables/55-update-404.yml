@@ -1,0 +1,35 @@
+info:
+  name: 55 Update 404
+  type: http
+  seq: 55
+http:
+  method: PUT
+  url: '{{baseUrl}}/variables/999999999'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{varPrefix}}Global",
+        "dataType": "TEXT",
+        "scope": "GLOBAL",
+        "description": null,
+        "originScreenId": null,
+        "environments": [{ "environment": "DEV", "notes": "Dev note" }]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 404", function () { expect(res.status).to.equal(404); });
+        test("error body has code NOT_FOUND, message and details", function () {
+          expect(res.body.code).to.equal("NOT_FOUND");
+          expect(res.body.message).to.be.a("string").and.not.empty;
+          expect(res.body).to.have.property("details");
+        });
+        test("the missing element is the variable", function () { expect(res.body.details.element).to.equal("variable"); });
+settings:
+  encodeUrl: true

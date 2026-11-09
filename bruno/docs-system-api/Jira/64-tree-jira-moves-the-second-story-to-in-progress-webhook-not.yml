@@ -1,0 +1,22 @@
+info:
+  name: '64 Tree · Jira moves the second Story to In Progress (webhook not delivered)'
+  type: http
+  seq: 64
+http:
+  method: POST
+  url: '{{jiraSimUrl}}/__sim/issues/{{jrAS2Key}}/status'
+  body:
+    type: json
+    data: |-
+      { "status": "In Progress" }
+  auth: inherit
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        const simBase = bru.interpolate("{{jiraSimUrl}}"); if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(simBase)) { throw new Error("jiraSimUrl is not local: the request is not sent"); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+settings:
+  encodeUrl: true

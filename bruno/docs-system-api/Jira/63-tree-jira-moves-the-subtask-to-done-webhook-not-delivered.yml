@@ -1,0 +1,23 @@
+info:
+  name: '63 Tree · Jira moves the Subtask to Done (webhook not delivered)'
+  type: http
+  seq: 63
+http:
+  method: POST
+  url: '{{jiraSimUrl}}/__sim/issues/{{jrAT1Key}}/status'
+  body:
+    type: json
+    data: |-
+      { "status": "Done" }
+  auth: inherit
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        const simBase = bru.interpolate("{{jiraSimUrl}}"); if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(simBase)) { throw new Error("jiraSimUrl is not local: the request is not sent"); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("a signed delivery was returned, not sent", function () { expect(res.body.event.webhookEvent).to.equal("jira:issue_updated"); expect(res.body.headers["x-hub-signature"]).to.match(/^sha256=[0-9a-f]{64}$/); });
+settings:
+  encodeUrl: true

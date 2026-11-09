@@ -1,0 +1,19 @@
+info:
+  name: '55 List 200 (undocumented=true: the collections of the run)'
+  type: http
+  seq: 55
+http:
+  method: GET
+  url: '{{baseUrl}}/collections?applicationId={{fixturesAppId}}&q={{varPrefix}}&undocumented=true'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("none of the run is linked to a screen", function () { expect(res.body.total).to.equal(2); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,30 @@
+info:
+  name: '35 Dependencies 200 (a new variable: three empty arrays)'
+  type: http
+  seq: 35
+http:
+  method: GET
+  url: '{{baseUrl}}/variables/{{varGlobalId}}/dependencies'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 200) { bru.setVar("varDepsEtag", res.headers["etag"]); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the three arrays are always present, empty, and there is no origin", function () {
+          expect(res.body.data).to.deep.equal({
+            variable: { id: bru.getVar("varGlobalId"), name: bru.getVar("varPrefix") + "Global" },
+            originScreen: null,
+            screens: [],
+            collections: [],
+            components: []
+          });
+        });
+settings:
+  encodeUrl: true

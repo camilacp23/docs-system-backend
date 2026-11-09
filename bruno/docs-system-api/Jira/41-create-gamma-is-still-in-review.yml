@@ -1,0 +1,19 @@
+info:
+  name: '41 Create · Gamma is still IN_REVIEW'
+  type: http
+  seq: 41
+http:
+  method: GET
+  url: '{{baseUrl}}/screens/{{jrGammaId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{jrDevToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("IN_REVIEW", function () { expect(res.body.data.documentationStatus).to.equal("IN_REVIEW"); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,36 @@
+info:
+  name: 21 Create 400 (repeated environment names its position)
+  type: http
+  seq: 21
+http:
+  method: POST
+  url: '{{baseUrl}}/variables'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{fixturesAppId}},
+        "name": "{{varPrefix}}Twice",
+        "dataType": "TEXT",
+        "scope": "GLOBAL",
+        "environments": [{ "environment": "PROD", "notes": "a" }, { "environment": "PROD", "notes": "different" }]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 400", function () { expect(res.status).to.equal(400); });
+        test("error body has code VALIDATION_ERROR, message and details", function () {
+          expect(res.body.code).to.equal("VALIDATION_ERROR");
+          expect(res.body.message).to.be.a("string").and.not.empty;
+          expect(res.body).to.have.property("details");
+        });
+        test("the repeated environment is the second item", function () {
+          expect(res.body.details.fields).to.deep.equal([{ field: "environments[1].environment", rule: "unique", message: "This value is repeated. Each one must be unique." }]);
+        });
+settings:
+  encodeUrl: true

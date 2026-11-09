@@ -1,0 +1,19 @@
+info:
+  name: '27 Search · 200 the name of a field of the collection'
+  type: http
+  seq: 27
+http:
+  method: GET
+  url: '{{baseUrl}}/search?applicationId={{seaAppId}}&q={{seaPrefix}}Campo'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{seaAdminToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("only that collection, found in fieldName", function () { expect(res.body.total).to.equal(1); const r = res.body.data[0]; expect(r.type).to.equal("COLLECTION"); expect(r.id).to.equal(bru.getVar("seaColId")); expect(r.matchedIn).to.equal("fieldName"); expect(r.snippet).to.equal(bru.getVar("seaPrefix") + "Campo"); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,24 @@
+info:
+  name: '56 Failure · retry 201 with the storyId adds only the Subtask'
+  type: http
+  seq: 56
+http:
+  method: POST
+  url: '{{baseUrl}}/screens/{{jrDeltaId}}/jira-ticket'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{jrDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "storyId": {{jrDStoryId}}, "subtask": { "summary": "{{jrPrefix}}Delta sub" } }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        function v(k) { return bru.getVar(k); }
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("only the Subtask", function () { expect(res.body.data.created).to.deep.equal(["SUBTASK"]); expect(res.body.data.story.id).to.equal(v("jrDStoryId")); expect(res.body.data.epic.jiraIssueKey).to.equal(v("jrDEpicKey")); });
+settings:
+  encodeUrl: true

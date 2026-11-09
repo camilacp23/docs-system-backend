@@ -1,0 +1,47 @@
+info:
+  name: 18 Create 201 (CONTEXT with origin, NUMBER, DEV and PROD)
+  type: http
+  seq: 18
+http:
+  method: POST
+  url: '{{baseUrl}}/variables'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{fixturesAppId}},
+        "name": "{{varPrefix}}Ctx",
+        "dataType": "NUMBER",
+        "scope": "CONTEXT",
+        "originScreenId": {{screenAId}},
+        "environments": [{ "environment": "DEV" }, { "environment": "PROD", "notes": "Prod note" }]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) { bru.setVar("varCtxId", res.body.data.id); }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("body is the variable with its environments", function () {
+          const d = res.body.data;
+          expect(d).to.include.keys("id", "applicationId", "name", "dataType", "scope", "originScreen", "fullTraceability", "environments", "description", "environmentDetails", "createdAt", "updatedAt");
+          expect(d.applicationId).to.equal(Number(bru.interpolate("{{fixturesAppId}}")));
+        });
+        test("Location points to the new variable", function () { expect(res.headers["location"]).to.equal("/api/v1/variables/" + res.body.data.id); });
+        test("ETag is a weak validator", function () { expect(res.headers["etag"]).to.match(/^W\/"\d+"$/); });
+        test("the origin screen makes it fully traceable", function () {
+          const d = res.body.data;
+          expect(d.scope).to.equal("CONTEXT");
+          expect(d.dataType).to.equal("NUMBER");
+          expect(d.originScreen).to.deep.equal({ id: Number(bru.interpolate("{{screenAId}}")), name: "Sandbox Screen A" });
+          expect(d.fullTraceability).to.equal(true);
+          expect(d.environments).to.have.members(["DEV", "PROD"]);
+        });
+settings:
+  encodeUrl: true

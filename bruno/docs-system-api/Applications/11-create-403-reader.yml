@@ -1,0 +1,31 @@
+info:
+  name: 11 Create 403 (reader)
+  type: http
+  seq: 11
+http:
+  method: POST
+  url: '{{baseUrl}}/applications'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{appReaderToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Forbidden {{appRun}}",
+        "platform": "Web"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 403", function () { expect(res.status).to.equal(403); });
+        test("error body has code FORBIDDEN, message and details", function () {
+          expect(res.body.code).to.equal("FORBIDDEN");
+          expect(res.body.message).to.be.a("string").and.not.empty;
+          expect(res.body).to.have.property("details");
+        });
+        test("details.requiredRoles", function () { expect(res.body.details.requiredRoles).to.deep.equal(["ADMINISTRATOR"]); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,32 @@
+info:
+  name: '52 Update 200 (nothing changes: same ETag)'
+  type: http
+  seq: 52
+http:
+  method: PUT
+  url: '{{baseUrl}}/variables/{{varGlobalId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+    - name: If-Match
+      value: '{{varGlobalEtag}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{varPrefix}}Global",
+        "dataType": "TEXT",
+        "scope": "GLOBAL",
+        "description": "Edited by the collection",
+        "originScreenId": null,
+        "environments": [{ "environment": "DEV", "notes": "Dev note" }, { "environment": "PROD", "notes": "Added" }]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the ETag is the same", function () { expect(res.headers["etag"]).to.equal(bru.getVar("varGlobalEtag")); });
+settings:
+  encodeUrl: true

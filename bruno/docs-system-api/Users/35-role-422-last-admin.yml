@@ -1,0 +1,30 @@
+info:
+  name: 35 Change role 422 (LAST_ACTIVE_ADMIN, own role to DEVELOPER)
+  type: http
+  seq: 35
+http:
+  method: PUT
+  url: '{{baseUrl}}/users/{{adminId}}/role'
+  headers:
+    - name: Authorization
+      value: Bearer {{adminToken}}
+  body:
+    type: json
+    data: |-
+      {
+        "role": "DEVELOPER"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 422", function () { expect(res.status).to.equal(422); });
+        test("error body has code LAST_ACTIVE_ADMIN, message and details", function () {
+          expect(res.body.code).to.equal("LAST_ACTIVE_ADMIN");
+          expect(res.body.message).to.be.a("string").and.not.empty;
+          expect(res.body).to.have.property("details");
+        });
+        test("message asks to promote another user", function () { expect(res.body.message).to.equal("There must be at least one active administrator. Promote another user first."); });
+settings:
+  encodeUrl: true

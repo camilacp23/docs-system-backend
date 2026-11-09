@@ -1,0 +1,23 @@
+info:
+  name: 16 Get 200 (administrator)
+  type: http
+  seq: 16
+http:
+  method: GET
+  url: '{{baseUrl}}/applications/{{appId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{appAdminToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the application and its ETag", function () {
+          expect(res.body.data.id).to.equal(bru.getVar("appId"));
+          expect(res.body.data.appContextScreen.id).to.equal(bru.getVar("appScreenId"));
+          expect(res.headers["etag"]).to.equal(bru.getVar("appEtag"));
+        });
+settings:
+  encodeUrl: true

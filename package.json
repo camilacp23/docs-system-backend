@@ -1,44 +1,107 @@
 {
   "name": "docs-system-backend",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "private": true,
   "type": "module",
-  "description": "Base del backend (Fase 2): modelo físico, migraciones, seguridad y código de referencia verificado (contrato 0.3.0, CP-01 a CP-11)",
+  "description": "Backend de Documentación técnica (Fase 3, desarrollo): base verificada en la Fase 2 (modelo físico, migraciones, seguridad, contrato 0.3.0) sobre la que se construyen los módulos",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.22.0"
   },
   "scripts": {
+    "prepare": "husky",
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.build.json && node scripts/copy-sql.mjs",
+    "start": "node dist/server.js",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "node --import tsx --test \"tests/unit/**/*.test.ts\" \"tests/integration/**/*.test.ts\"",
+    "test:unit": "node --import tsx --test \"tests/unit/**/*.test.ts\"",
+    "test:integration": "node --import tsx --test \"tests/integration/**/*.test.ts\"",
+    "test:perf": "node --import tsx --test \"tests/perf/**/*.test.ts\"",
+    "test:legacy": "bash scripts/test-legacy.sh",
+    "db:test:template": "tsx scripts/db-test-template.ts",
     "prisma:generate": "prisma generate",
     "db:deploy": "prisma migrate deploy",
+    "db:seed": "tsx src/scripts/seed.ts",
+    "sandbox:db": "tsx scripts/sandbox-db.ts",
+    "sandbox:api": "tsx scripts/sandbox-api.ts",
+    "sandbox:jira": "tsx scripts/sandbox-jira.ts",
+    "sandbox:graph": "tsx scripts/sandbox-graph.ts",
     "db:drift": "prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --exit-code",
     "test:audit-e2e": "tsx tests/04_prisma_audit_e2e.test.ts",
     "test:jira-signature": "tsx tests/05_jira_signature.test.ts",
     "test:workflow": "tsx tests/06_documentation_workflow.test.ts",
     "test:auth": "tsx tests/07_auth_rbac.test.ts",
-    "test:validation": "node tests/08_request_validation.test.mjs"
+    "test:validation": "node tests/08_request_validation.test.mjs",
+    "test:api": "bash scripts/test-api.sh"
   },
   "dependencies": {
-    "@prisma/adapter-pg": "7.10.0",
-    "@prisma/client": "7.10.0",
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
     "bcryptjs": "3.0.3",
     "cookie-parser": "1.4.7",
+    "cors": "2.8.6",
     "express": "4.22.3",
     "express-openapi-validator": "5.6.2",
     "express-rate-limit": "8.7.0",
+    "helmet": "8.3.0",
     "jsonwebtoken": "9.0.3",
     "pg": "8.23.0",
+    "pino": "10.4.0",
+    "pino-http": "11.0.0",
     "yaml": "2.9.1"
   },
   "devDependencies": {
+    "@commitlint/cli": "21.2.4",
+    "@commitlint/config-conventional": "21.2.4",
+    "@eslint/js": "10.0.1",
     "@types/cookie-parser": "1.4.10",
+    "@types/cors": "2.8.19",
     "@types/express": "4.17.25",
     "@types/jsonwebtoken": "9.0.10",
+    "@types/node": "22.20.5",
     "@types/pg": "8.23.1",
     "@types/supertest": "7.2.1",
+    "@usebruno/cli": "4.2.1",
     "dotenv": "18.0.4",
-    "prisma": "7.10.0",
+    "eslint": "10.13.0",
+    "eslint-config-prettier": "10.1.8",
+    "globals": "17.13.0",
+    "husky": "9.1.7",
+    "lint-staged": "17.6.0",
+    "pino-pretty": "13.2.0",
+    "prettier": "3.9.10",
+    "prisma": "7.10.1",
     "supertest": "7.3.1",
     "tsx": "4.23.15",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.71.2"
+  },
+  "lint-staged": {
+    "*.{ts,js,mjs}": [
+      "node node_modules/eslint/bin/eslint.js --fix",
+      "node node_modules/prettier/bin/prettier.cjs --write"
+    ],
+    "*.{json,yml,yaml}": [
+      "node node_modules/prettier/bin/prettier.cjs --write"
+    ]
+  },
+  "overrides": {
+    "@azure/identity": {
+      "@azure/msal-node": "7.1.1"
+    },
+    "@usebruno/cli": {
+      "axios": "1.20.0",
+      "form-data": "4.0.6",
+      "js-yaml": "4.3.2",
+      "uuid": "11.1.1",
+      "yaml": "2.9.1",
+      "follow-redirects": "1.16.2",
+      "csv-parse": "7.0.3",
+      "@faker-js/faker": "10.6.0"
+    }
   }
 }

@@ -1,0 +1,34 @@
+info:
+  name: '66 Update 200 (nothing changes: same ETag)'
+  type: http
+  seq: 66
+http:
+  method: PUT
+  url: '{{baseUrl}}/collections/{{varColAId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+    - name: If-Match
+      value: '{{varColAEtag}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{varPrefix}}ColA",
+        "creationCondition": "ClearCollect on entering the screen",
+        "description": "Main collection of the run",
+        "environments": [{ "environment": "DEV", "notes": "Dev note" }, { "environment": "PROD", "notes": "Prod note" }],
+        "fields": [{ "id": {{varFieldIdId}}, "name": "Id", "dataType": "NUMBER", "position": 0 }, { "id": {{varFieldNameId}}, "name": "Name", "dataType": "TEXT", "description": "Display name", "position": 1 }, { "id": {{varFieldStatusId}}, "name": "Status", "dataType": "TEXT", "position": 2 }],
+        "variableAssignments": [{ "id": {{varAsgGlobId}}, "variableId": {{varGlobId}}, "screenId": {{screenAId}}, "assignmentFunction": "SET", "tableFunction": "CountRows", "usedIn": "OnVisible" }, { "id": {{varAsgCtxId}}, "variableId": {{varCtxId}}, "screenId": {{screenAId}}, "assignmentFunction": "UPDATE_CONTEXT", "tableFunction": null, "usedIn": "btnSave.OnSelect" }],
+        "derivedFrom": [{{varColBId}}]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the ETag is the same", function () { expect(res.headers["etag"]).to.equal(bru.getVar("varColAEtag")); });
+        test("the representation is the same", function () { expect(res.body.data.fields.map(function (f) { return f.id; })).to.deep.equal([Number(bru.interpolate("{{varFieldIdId}}")), Number(bru.interpolate("{{varFieldNameId}}")), Number(bru.interpolate("{{varFieldStatusId}}"))]); });
+settings:
+  encodeUrl: true

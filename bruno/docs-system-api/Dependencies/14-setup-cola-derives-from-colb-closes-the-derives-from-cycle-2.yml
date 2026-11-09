@@ -1,0 +1,30 @@
+info:
+  name: '14 Setup · ColA derives from ColB (closes the DERIVES_FROM cycle) 200'
+  type: http
+  seq: 14
+http:
+  method: PUT
+  url: '{{baseUrl}}/collections/{{depColAId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{depDevToken}}'
+    - name: If-Match
+      value: '{{depColAEtag}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{depPrefix}}ColA",
+        "environments": [{ "environment": "DEV" }],
+        "variableAssignments": [{ "variableId": {{depGlobId}}, "screenId": {{depAppScreenId}}, "assignmentFunction": "SET", "tableFunction": "First", "usedIn": "OnStart" }],
+        "derivedFrom": [{{depColBId}}]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("ColA derives from ColB", function () { expect(res.body.data.derivedFrom.map(function (r) { return r.id; })).to.deep.equal([Number(bru.getVar("depColBId"))]); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,25 @@
+info:
+  name: 23 Create a second application 201
+  type: http
+  seq: 23
+http:
+  method: POST
+  url: '{{baseUrl}}/applications'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{appAdminToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{appName}} B",
+        "platform": "Web"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,27 @@
+info:
+  name: '95 Webhook · signed JSON that is not an object 400'
+  type: http
+  seq: 95
+http:
+  method: POST
+  url: '{{baseUrl}}/integrations/jira/webhook'
+  headers:
+    - name: Content-Type
+      value: 'application/json'
+  body:
+    type: json
+    data: ''
+  auth: inherit
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        const CryptoJS = require("crypto-js"); const raw = "\"not an event\""; req.setHeader("X-Hub-Signature", "sha256=" + CryptoJS.HmacSHA256(raw, bru.interpolate("{{jiraWebhookSecret}}")).toString(CryptoJS.enc.Hex)); req.setBody(raw, { raw: true });
+    - type: tests
+      code: |-
+        test("status 400", function () { expect(res.status).to.equal(400); });
+        test("error body has code VALIDATION_ERROR, message and details", function () { expect(res.body.code).to.equal("VALIDATION_ERROR"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("exact message", function () { expect(res.body.message).to.equal("Check the highlighted fields."); });
+        test("details.fields", function () { expect(res.body.details.fields).to.deep.equal([{ field: "body", rule: "type", message: "must be a JSON object" }]); });
+settings:
+  encodeUrl: true

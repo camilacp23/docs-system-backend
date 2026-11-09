@@ -1,0 +1,28 @@
+info:
+  name: '68 Workflow · status 412 stale If-Match with currentETag'
+  type: http
+  seq: 68
+http:
+  method: PUT
+  url: '{{baseUrl}}/screens/{{scrCId}}/status'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrDevToken}}'
+    - name: If-Match
+      value: 'W/"1"'
+  body:
+    type: json
+    data: |-
+      {
+        "status": "IN_PROGRESS"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 412", function () { expect(res.status).to.equal(412); });
+        test("error body has code PRECONDITION_FAILED, message and details", function () { expect(res.body.code).to.equal("PRECONDITION_FAILED"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("details carry the current ETag", function () { expect(res.body.details.element).to.equal("screen"); expect(res.body.details.currentETag).to.equal(bru.getVar("scrCEtag")); });
+settings:
+  encodeUrl: true

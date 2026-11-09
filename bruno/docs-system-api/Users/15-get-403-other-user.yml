@@ -1,0 +1,23 @@
+info:
+  name: 15 Get 403 (a developer reads another user)
+  type: http
+  seq: 15
+http:
+  method: GET
+  url: '{{baseUrl}}/users/{{readerId}}'
+  headers:
+    - name: Authorization
+      value: Bearer {{devToken}}
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 403", function () { expect(res.status).to.equal(403); });
+        test("error body has code FORBIDDEN, message and details", function () {
+          expect(res.body.code).to.equal("FORBIDDEN");
+          expect(res.body.message).to.be.a("string").and.not.empty;
+          expect(res.body).to.have.property("details");
+        });
+settings:
+  encodeUrl: true

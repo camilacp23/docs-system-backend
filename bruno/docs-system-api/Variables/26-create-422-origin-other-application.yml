@@ -1,0 +1,39 @@
+info:
+  name: '26 Create 422 (INVALID_ORIGIN_SCREEN: screen of another application)'
+  type: http
+  seq: 26
+http:
+  method: POST
+  url: '{{baseUrl}}/variables'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{varAppId}},
+        "name": "{{varPrefix}}Foreign",
+        "dataType": "TEXT",
+        "scope": "GLOBAL",
+        "originScreenId": {{screenAId}},
+        "environments": [{ "environment": "DEV" }]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 422", function () { expect(res.status).to.equal(422); });
+        test("error body has code INVALID_ORIGIN_SCREEN, message and details", function () {
+          expect(res.body.code).to.equal("INVALID_ORIGIN_SCREEN");
+          expect(res.body.message).to.be.a("string").and.not.empty;
+          expect(res.body).to.have.property("details");
+        });
+        test("message and details name the screen and the application of the variable", function () {
+          const app = bru.getVar("varAppName");
+          expect(res.body.message).to.equal("Sandbox Screen A belongs to another application. Choose a screen of " + app + ".");
+          expect(res.body.details).to.deep.equal({ field: "originScreenId", screenId: Number(bru.interpolate("{{screenAId}}")), screen: "Sandbox Screen A", application: app });
+        });
+settings:
+  encodeUrl: true

@@ -1,0 +1,19 @@
+info:
+  name: '106 Omit · the variable no longer lists the assignment'
+  type: http
+  seq: 106
+http:
+  method: GET
+  url: '{{baseUrl}}/variables/{{varGlobId}}/dependencies'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("no collection assigns the variable", function () { expect(res.body.data.collections).to.deep.equal([]); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,35 @@
+info:
+  name: '08 Setup · create screen Two 201'
+  type: http
+  seq: 8
+http:
+  method: POST
+  url: '{{baseUrl}}/screens'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{depDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{depAppId}},
+        "name": "{{depPrefix}}Two",
+        "miroLink": "https://miro.com/app/board/{{depRun}}/",
+        "template": { "onStart": null, "workingProcess": null, "architecture": null, "dataModel": null, "requirements": null, "knownIssues": null, "risks": null },
+        "components": [],
+        "variableLinks": [],
+        "collectionLinks": [],
+        "navigations": []
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) { bru.setVar("depScrTwoId", res.body.data.id); }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("the screen is ready", function () { expect(bru.getVar("depScrTwoId")).to.be.a("number"); });
+settings:
+  encodeUrl: true

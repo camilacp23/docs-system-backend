@@ -1,0 +1,30 @@
+info:
+  name: 29 Archive 200
+  type: http
+  seq: 29
+http:
+  method: PUT
+  url: '{{baseUrl}}/applications/{{appId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{appAdminToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{appName}}",
+        "platform": "Power Apps 2",
+        "status": "ARCHIVED"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 200) { bru.setVar("appEtag", res.headers["etag"]); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the application is archived", function () { expect(res.body.data.status).to.equal("ARCHIVED"); });
+settings:
+  encodeUrl: true

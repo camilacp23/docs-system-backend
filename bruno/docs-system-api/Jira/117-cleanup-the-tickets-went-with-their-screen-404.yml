@@ -1,0 +1,24 @@
+info:
+  name: '117 Cleanup · the tickets went with their screen 404'
+  type: http
+  seq: 117
+http:
+  method: GET
+  url: '{{baseUrl}}/screens/{{jrAlphaId}}/jira-tickets'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{jrReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        function all(d) { const r = []; if (d.epic) { r.push(d.epic); } d.stories.forEach(function (s) { r.push(s); s.subtasks.forEach(function (t) { r.push(t); }); }); return r; }
+        function by(d, key) { return all(d).filter(function (t) { return t.jiraIssueKey === key; })[0]; }
+        function v(k) { return bru.getVar(k); }
+        test("status 404", function () { expect(res.status).to.equal(404); });
+        test("error body has code NOT_FOUND, message and details", function () { expect(res.body.code).to.equal("NOT_FOUND"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("exact message", function () { expect(res.body.message).to.equal("This screen doesn't exist. It may have been deleted."); });
+        test("details", function () { expect(res.body.details).to.deep.equal({ element: "screen", id: Number(bru.getVar("jrAlphaId")) }); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,19 @@
+info:
+  name: '30 Administrator · 200 one millisecond later or earlier leaves it out'
+  type: http
+  seq: 30
+http:
+  method: GET
+  url: '{{baseUrl}}/audit-log?entityType=variable&entityId={{audVarAdmId}}&from={{audStampPlus}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{audAdminToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("from one millisecond after excludes the record", function () { expect(res.body.data.map(function (e) { return e.id; })).to.not.include(bru.getVar("audStampId")); });
+settings:
+  encodeUrl: true

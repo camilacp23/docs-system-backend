@@ -1,0 +1,31 @@
+info:
+  name: '02 Setup · create Developer 201'
+  type: http
+  seq: 2
+http:
+  method: POST
+  url: '{{baseUrl}}/users'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{audAdminToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Audit auddeveloper",
+        "email": "auddeveloper-{{audRun}}@sandbox.local",
+        "password": "Sandbox-Pass-2026",
+        "role": "DEVELOPER"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) { bru.setVar("audDevId", res.body.data.id); }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("the user is ready", function () { expect(bru.getVar("audDevId")).to.be.a("number"); });
+settings:
+  encodeUrl: true

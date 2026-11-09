@@ -23,9 +23,15 @@ export type AuditContext = { userId: number };
 export const auditContext = new AsyncLocalStorage<AuditContext>();
 
 const WRITE_OPERATIONS = new Set([
-  'create', 'createMany', 'createManyAndReturn',
-  'update', 'updateMany', 'updateManyAndReturn',
-  'upsert', 'delete', 'deleteMany',
+  'create',
+  'createMany',
+  'createManyAndReturn',
+  'update',
+  'updateMany',
+  'updateManyAndReturn',
+  'upsert',
+  'delete',
+  'deleteMany',
 ]);
 
 type BaseTx = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>;
@@ -33,8 +39,7 @@ type BaseTx = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transact
 export function createPrisma(connectionString: string) {
   const base = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
 
-  const setActor = (userId: number) =>
-    base.$executeRaw`SELECT set_config('app.user_id', ${String(userId)}, true)`;
+  const setActor = (userId: number) => base.$executeRaw`SELECT set_config('app.user_id', ${String(userId)}, true)`;
 
   const prisma = base.$extends({
     name: 'audit-context',
@@ -61,7 +66,7 @@ export function createPrisma(connectionString: string) {
     if (!ctx) throw new Error('auditedTransaction requires an audit context (authenticated request)');
     return base.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.user_id', ${String(ctx.userId)}, true)`;
-      return fn(tx as BaseTx);
+      return fn(tx);
     });
   }
 
@@ -73,3 +78,6 @@ export function createPrisma(connectionString: string) {
  *   app.use((req, _res, next) =>
  *     req.user ? auditContext.run({ userId: req.user.id }, next) : next());
  */
+
+/** The object returned by `createPrisma`: `prisma` (audited), `base` (plain, reads) and `auditedTransaction`. */
+export type Database = ReturnType<typeof createPrisma>;

@@ -1,0 +1,45 @@
+info:
+  name: '17 Create · Beta 201 with content (DRAFT, D-81)'
+  type: http
+  seq: 17
+http:
+  method: POST
+  url: '{{baseUrl}}/screens'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{scrAppId}},
+        "name": "{{scrPrefix}}Beta",
+        "miroLink": null,
+        "template": {
+          "onStart": null,
+          "workingProcess": null,
+          "architecture": "Beta architecture",
+          "dataModel": null,
+          "requirements": null,
+          "knownIssues": "   ",
+          "risks": "Beta risks"
+        },
+        "components": [],
+        "variableLinks": [],
+        "collectionLinks": [],
+        "navigations": []
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) { bru.setVar("scrBId", res.body.data.id); }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("Location points to the new screen", function () { expect(res.headers["location"]).to.equal("/api/v1/screens/" + res.body.data.id); });
+        test("ETag is a weak validator", function () { expect(res.headers["etag"]).to.match(/^W\/"\d+-\d+-\d+"$/); });
+        test("DRAFT, and the texts are stored as they arrive", function () { const d = res.body.data; expect(d.documentationStatus).to.equal("DRAFT"); expect(d.template.architecture).to.equal("Beta architecture"); expect(d.template.risks).to.equal("Beta risks"); expect(d.template.knownIssues).to.equal("   "); expect(d.template.onStart).to.equal(null); });
+settings:
+  encodeUrl: true

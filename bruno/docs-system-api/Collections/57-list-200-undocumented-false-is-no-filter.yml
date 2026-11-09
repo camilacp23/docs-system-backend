@@ -1,0 +1,19 @@
+info:
+  name: '57 List 200 (undocumented=false is no filter)'
+  type: http
+  seq: 57
+http:
+  method: GET
+  url: '{{baseUrl}}/collections?applicationId={{fixturesAppId}}&q=colSandbox&undocumented=false'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("both fixtures, the second one documented", function () { expect(res.body.total).to.equal(2); expect(res.body.data.map(function (c) { return [c.id, c.name, c.documented]; })).to.deep.equal([[Number(bru.interpolate("{{collectionId}}")), "colSandbox", false], [Number(bru.interpolate("{{documentedCollectionId}}")), "colSandboxDocumented", true]]); });
+settings:
+  encodeUrl: true

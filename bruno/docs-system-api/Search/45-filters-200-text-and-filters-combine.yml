@@ -1,0 +1,20 @@
+info:
+  name: '45 Filters · 200 text and filters combine'
+  type: http
+  seq: 45
+http:
+  method: GET
+  url: '{{baseUrl}}/search?applicationId={{seaAppId}}&q={{seaPrefix}}&types=SCREEN,COLLECTION&environment=DEV'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{seaAdminToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        const keys = function (r) { return r.body.data.map(function (x) { return x.type + ":" + x.id; }); };
+        test("the collection (DEV) and the screen (unfiltered by environment)", function () { expect(keys(res)).to.deep.equal(["COLLECTION:" + bru.getVar("seaColId"), "SCREEN:" + bru.getVar("seaScrId")]); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,50 @@
+info:
+  name: '21 Graph · 200 as Administrator (every node and edge kind)'
+  type: http
+  seq: 21
+http:
+  method: GET
+  url: '{{baseUrl}}/dependencies/graph?applicationId={{depAppId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{depAdminToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 200) { bru.setVar("depGraphEtag", res.headers["etag"]); bru.setVar("depGraphBody", JSON.stringify(res.body)); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        const nodes = res.body.data.nodes, edges = res.body.data.edges;
+        const keys = nodes.map(function (n) { return n.key; });
+        const byName = function (n) { return nodes.find(function (x) { return x.name === n; }); };
+        const kinds = function () { const c = {}; edges.forEach(function (e) { c[e.kind] = (c[e.kind] || 0) + 1; }); return c; };
+        test("every edge points to two nodes of the response and nothing repeats", function () { const set = new Set(keys); expect(set.size).to.equal(keys.length); expect(new Set(edges.map(function (e) { return e.id; })).size).to.equal(edges.length); edges.forEach(function (e) { expect(set.has(e.source), e.id + " source").to.equal(true); expect(set.has(e.target), e.id + " target").to.equal(true); }); });
+        test("nine nodes: App (OnStart), 2 screens, 3 variables, 2 collections, 1 component", function () { expect(nodes).to.have.length(9); expect(nodes.map(function (n) { return n.type; })).to.deep.equal(["SCREEN", "SCREEN", "SCREEN", "VARIABLE", "VARIABLE", "VARIABLE", "COLLECTION", "COLLECTION", "COMPONENT"]); });
+        test("eleven edges, one per link, the origin row is not an ACCESSES", function () { expect(kinds()).to.deep.equal({ CONTAINS: 1, CREATES: 1, ACCESSES: 3, FEEDS: 1, USES: 1, DERIVES_FROM: 2, NAVIGATES_TO: 2 }); edges.forEach(function (e) { expect(e.usedIn).to.not.equal("origin"); }); });
+        test("each node has only its own fields", function () {
+          const p = bru.getVar("depPrefix");
+          expect(byName("App (OnStart)")).to.have.all.keys("key", "id", "type", "name", "documentationStatus", "isAppContext", "miroLink");
+          expect(byName("App (OnStart)").isAppContext).to.equal(true);
+          expect(byName(p + "Two").miroLink).to.equal("https://miro.com/app/board/" + bru.getVar("depRun") + "/");
+          expect(byName(p + "One").miroLink).to.equal(null);
+          expect(byName(p + "Ctx")).to.have.all.keys("key", "id", "type", "name", "scope", "untraced");
+          expect(byName(p + "Ctx").untraced).to.equal(false);
+          expect(byName(p + "Glob").untraced).to.equal(true);
+          expect(byName(p + "ColA")).to.have.all.keys("key", "id", "type", "name");
+          expect(byName("btnGo")).to.have.all.keys("key", "id", "type", "name", "screenId");
+          expect(byName("btnGo").screenId).to.equal(Number(bru.getVar("depScrOneId")));
+        });
+        test("each edge has only its own fields", function () {
+          edges.forEach(function (e) {
+            if (e.kind === "ACCESSES") expect(e).to.have.all.keys("id", "source", "target", "kind", "accessMode", "usedIn");
+            else if (e.kind === "FEEDS") { expect(e).to.have.all.keys("id", "source", "target", "kind", "usedIn", "assignmentFunction", "tableFunction"); expect(e.tableFunction).to.equal("First"); }
+            else expect(e).to.have.all.keys("id", "source", "target", "kind");
+          });
+        });
+        test("the order is by kind (Table 63)", function () { expect(edges.map(function (e) { return e.kind; })).to.deep.equal(["CONTAINS", "CREATES", "ACCESSES", "ACCESSES", "ACCESSES", "FEEDS", "USES", "DERIVES_FROM", "DERIVES_FROM", "NAVIGATES_TO", "NAVIGATES_TO"]); });
+        test("the ETag is a weak validator", function () { expect(res.headers["etag"]).to.match(/^W\/"/); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,47 @@
+info:
+  name: '16 Create · Alpha 201 without content (UNDOCUMENTED, D-81)'
+  type: http
+  seq: 16
+http:
+  method: POST
+  url: '{{baseUrl}}/screens'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{scrAppId}},
+        "name": "{{scrPrefix}}Alpha",
+        "miroLink": null,
+        "template": {
+          "onStart": null,
+          "workingProcess": null,
+          "architecture": null,
+          "dataModel": null,
+          "requirements": null,
+          "knownIssues": null,
+          "risks": null
+        },
+        "components": [],
+        "variableLinks": [],
+        "collectionLinks": [],
+        "navigations": []
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) { bru.setVar("scrAId", res.body.data.id); bru.setVar("scrAEtag", res.headers["etag"]); }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("Location points to the new screen", function () { expect(res.headers["location"]).to.equal("/api/v1/screens/" + res.body.data.id); });
+        test("ETag is a weak validator", function () { expect(res.headers["etag"]).to.match(/^W\/"\d+-\d+-\d+"$/); });
+        test("body is the screen, without content", function () { const d = res.body.data; expect(d).to.include.keys("id", "applicationId", "name", "isAppContext", "documentationStatus", "author", "pendingSubtasks", "commentCount", "createdAt", "updatedAt", "miroLink", "template", "components", "variableLinks", "collectionLinks", "navigations"); expect(d.applicationId).to.equal(Number(bru.getVar("scrAppId"))); expect(d.name).to.equal(bru.getVar("scrPrefix") + "Alpha"); expect(d.isAppContext).to.equal(false); expect(d.commentCount).to.equal(0); expect(d.pendingSubtasks).to.equal(0); });
+        test("UNDOCUMENTED with an empty template and no links", function () { const d = res.body.data; expect(d.documentationStatus).to.equal("UNDOCUMENTED"); expect(Object.values(d.template)).to.deep.equal([null, null, null, null, null, null, null]); expect(d.components).to.deep.equal([]); expect(d.variableLinks).to.deep.equal([]); expect(d.collectionLinks).to.deep.equal([]); expect(d.navigations).to.deep.equal([]); });
+        test("the caller is the author", function () { expect(res.body.data.author.name).to.equal("Screens developer"); });
+settings:
+  encodeUrl: true

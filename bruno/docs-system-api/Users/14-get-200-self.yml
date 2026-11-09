@@ -1,0 +1,30 @@
+info:
+  name: 14 Get 200 (a developer reads their own user)
+  type: http
+  seq: 14
+http:
+  method: GET
+  url: '{{baseUrl}}/users/{{devId}}'
+  headers:
+    - name: Authorization
+      value: Bearer {{devToken}}
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: if (res.status === 200) { bru.setVar("devEtagCreated", bru.getVar("devEtag")); bru.setVar("devEtag", res.headers["etag"]); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("body is the user", function () {
+          const d = res.body.data;
+          expect(d).to.include.keys("id", "name", "email", "role", "status", "lastLoginAt", "createdAt", "updatedAt");
+          expect(d).to.not.have.property("passwordHash");
+          expect(d.id).to.equal(bru.getVar("devId"));
+        });
+        test("ETag is a weak validator, newer than the one from creation (the login touched the row)", function () {
+          expect(res.headers["etag"]).to.match(/^W\/"\d+"$/);
+          expect(res.headers["etag"]).to.not.equal(bru.getVar("devEtagCreated"));
+        });
+settings:
+  encodeUrl: true

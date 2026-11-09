@@ -1,0 +1,32 @@
+info:
+  name: '73 Update 404 (nested assignment id that does not exist, D-75)'
+  type: http
+  seq: 73
+http:
+  method: PUT
+  url: '{{baseUrl}}/collections/{{varColAId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{varPrefix}}ColA",
+        "creationCondition": "ClearCollect on entering the screen",
+        "description": "Main collection of the run",
+        "environments": [{ "environment": "DEV", "notes": "Dev note" }, { "environment": "PROD", "notes": "Prod note" }],
+        "fields": [{ "id": {{varFieldIdId}}, "name": "FullName", "dataType": "NUMBER", "position": 0 }, { "id": {{varFieldNameId}}, "name": "Id", "dataType": "TEXT", "description": "Display name", "position": 1 }, { "id": {{varFieldNewId}}, "name": "CreatedAt", "dataType": "DATE_TIME", "position": 2 }],
+        "variableAssignments": [{ "id": 999999, "variableId": {{varGlobId}}, "screenId": {{screenAId}}, "assignmentFunction": "SET", "usedIn": "OnVisible" }],
+        "derivedFrom": [{{varColBId}}]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 404", function () { expect(res.status).to.equal(404); });
+        test("error body has code NOT_FOUND, message and details", function () { expect(res.body.code).to.equal("NOT_FOUND"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("details name the assignment and its position", function () { expect(res.body.details).to.deep.equal({ element: "variable assignment", id: 999999, field: "variableAssignments[0].id" }); });
+settings:
+  encodeUrl: true

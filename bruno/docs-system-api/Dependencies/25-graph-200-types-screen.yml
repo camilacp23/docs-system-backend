@@ -1,0 +1,24 @@
+info:
+  name: '25 Graph · 200 types=SCREEN'
+  type: http
+  seq: 25
+http:
+  method: GET
+  url: '{{baseUrl}}/dependencies/graph?applicationId={{depAppId}}&types=SCREEN'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{depReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        const nodes = res.body.data.nodes, edges = res.body.data.edges;
+        const keys = nodes.map(function (n) { return n.key; });
+        const byName = function (n) { return nodes.find(function (x) { return x.name === n; }); };
+        const kinds = function () { const c = {}; edges.forEach(function (e) { c[e.kind] = (c[e.kind] || 0) + 1; }); return c; };
+        test("every edge points to two nodes of the response and nothing repeats", function () { const set = new Set(keys); expect(set.size).to.equal(keys.length); expect(new Set(edges.map(function (e) { return e.id; })).size).to.equal(edges.length); edges.forEach(function (e) { expect(set.has(e.source), e.id + " source").to.equal(true); expect(set.has(e.target), e.id + " target").to.equal(true); }); });
+        test("only screens and the navigation between them", function () { expect(nodes).to.have.length(3); nodes.forEach(function (n) { expect(n.type).to.equal("SCREEN"); }); expect(kinds()).to.deep.equal({ NAVIGATES_TO: 2 }); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,26 @@
+info:
+  name: '71 Workflow · Beta DRAFT to IN_PROGRESS 200'
+  type: http
+  seq: 71
+http:
+  method: PUT
+  url: '{{baseUrl}}/screens/{{scrBId}}/status'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "status": "IN_PROGRESS"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the status is IN_PROGRESS", function () { expect(res.body.data.documentationStatus).to.equal("IN_PROGRESS"); });
+        test("the ETag is a weak validator", function () { expect(res.headers["etag"]).to.match(/^W\/"\d+-\d+-\d+"$/); });
+settings:
+  encodeUrl: true

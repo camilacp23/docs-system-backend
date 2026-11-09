@@ -1,0 +1,27 @@
+info:
+  name: '86 Webhook · Jira moves the Subtask to Done (newer event)'
+  type: http
+  seq: 86
+http:
+  method: POST
+  url: '{{jiraSimUrl}}/__sim/issues/{{jrHT1Key}}/status'
+  body:
+    type: json
+    data: |-
+      { "status": "Done" }
+  auth: inherit
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        const simBase = bru.interpolate("{{jiraSimUrl}}"); if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(simBase)) { throw new Error("jiraSimUrl is not local: the request is not sent"); }
+        bru.setVar("jrDoneTs", Math.max(Date.now(), Number(bru.getVar("jrWhTs")) + 1000)); req.setBody({ status: "Done", timestamp: Number(bru.getVar("jrDoneTs")) });
+    - type: after-response
+      code: |-
+        if (res.status === 200) { bru.setVar("jrWhRaw", res.body.rawBody); bru.setVar("jrWhSig", res.body.headers["x-hub-signature"]); bru.setVar("jrWhId", res.body.headers["x-atlassian-webhook-identifier"]); bru.setVar("jrWhTs", res.body.event.timestamp); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the event has the timestamp asked for", function () { expect(res.body.event.timestamp).to.equal(Number(bru.getVar("jrDoneTs"))); });
+settings:
+  encodeUrl: true

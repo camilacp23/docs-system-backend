@@ -1,0 +1,31 @@
+info:
+  name: '83 Workflow · review RETURN with comment 200 (IN_PROGRESS, one comment)'
+  type: http
+  seq: 83
+http:
+  method: POST
+  url: '{{baseUrl}}/screens/{{scrCId}}/review'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrAdminToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "decision": "RETURN",
+        "comment": "Document the risks of the gallery."
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 200) { bru.setVar("scrCEtag", res.headers["etag"]); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the status is IN_PROGRESS", function () { expect(res.body.data.documentationStatus).to.equal("IN_PROGRESS"); });
+        test("the ETag is a weak validator", function () { expect(res.headers["etag"]).to.match(/^W\/"\d+-\d+-\d+"$/); });
+        test("commentCount is 1", function () { expect(res.body.data.commentCount).to.equal(1); });
+settings:
+  encodeUrl: true

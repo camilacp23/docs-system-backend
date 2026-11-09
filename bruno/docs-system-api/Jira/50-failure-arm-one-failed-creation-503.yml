@@ -1,0 +1,22 @@
+info:
+  name: '50 Failure · arm one failed creation (503)'
+  type: http
+  seq: 50
+http:
+  method: POST
+  url: '{{jiraSimUrl}}/__sim/faults'
+  body:
+    type: json
+    data: |-
+      { "kind": "503", "count": 1, "appliesTo": "create" }
+  auth: inherit
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        const simBase = bru.interpolate("{{jiraSimUrl}}"); if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(simBase)) { throw new Error("jiraSimUrl is not local: the request is not sent"); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+settings:
+  encodeUrl: true

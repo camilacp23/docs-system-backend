@@ -1,0 +1,38 @@
+info:
+  name: '25 Create 422 (INVALID_ORIGIN_SCREEN: CONTEXT in App (OnStart))'
+  type: http
+  seq: 25
+http:
+  method: POST
+  url: '{{baseUrl}}/variables'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{fixturesAppId}},
+        "name": "{{varPrefix}}Onstart",
+        "dataType": "TEXT",
+        "scope": "CONTEXT",
+        "originScreenId": {{varFxAppScreenId}},
+        "environments": [{ "environment": "DEV" }]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 422", function () { expect(res.status).to.equal(422); });
+        test("error body has code INVALID_ORIGIN_SCREEN, message and details", function () {
+          expect(res.body.code).to.equal("INVALID_ORIGIN_SCREEN");
+          expect(res.body.message).to.be.a("string").and.not.empty;
+          expect(res.body).to.have.property("details");
+        });
+        test("message and details", function () {
+          expect(res.body.message).to.equal("Context variables are created inside a screen, not in App (OnStart).");
+          expect(res.body.details).to.deep.equal({ field: "originScreenId" });
+        });
+settings:
+  encodeUrl: true

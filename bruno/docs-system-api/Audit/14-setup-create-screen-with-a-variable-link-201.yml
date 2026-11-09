@@ -1,0 +1,35 @@
+info:
+  name: '14 Setup · create screen with a variable link 201'
+  type: http
+  seq: 14
+http:
+  method: POST
+  url: '{{baseUrl}}/screens'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{audDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{audAppId}},
+        "name": "{{audPrefix}}Scr",
+        "miroLink": null,
+        "template": { "onStart": "a", "workingProcess": "b", "architecture": "c", "dataModel": "d", "requirements": "e", "knownIssues": "f", "risks": "g" },
+        "components": [],
+        "variableLinks": [{ "variableId": {{audVarAdmId}}, "accessMode": "READ", "usedIn": "OnVisible" }],
+        "collectionLinks": [],
+        "navigations": []
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) { bru.setVar("audScrId", res.body.data.id); }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("the screen is ready", function () { expect(bru.getVar("audScrId")).to.be.a("number"); });
+settings:
+  encodeUrl: true

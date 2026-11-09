@@ -1,0 +1,25 @@
+info:
+  name: '93 Webhook · byte-for-byte: spaced body with an escape, signed outside the simulator 204'
+  type: http
+  seq: 93
+http:
+  method: POST
+  url: '{{baseUrl}}/integrations/jira/webhook'
+  headers:
+    - name: Content-Type
+      value: 'application/json'
+  body:
+    type: json
+    data: ''
+  auth: inherit
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        const CryptoJS = require("crypto-js"); const raw = "{\n  \"webhookEvent\" :  \"jira:issue_updated\",\n  \"timestamp\": " + (Date.now() + 20000) + ",\n  \"issue\": { \"id\": \"" + bru.getVar("jrHT2JiraId") + "\", \"key\": \"" + bru.getVar("jrHT2Key") + "\",\n    \"fields\": { \"summary\": \"" + bru.getVar("jrPrefix") + "Hook sub 2 caf\\u00e9\" } }\n}"; req.setHeader("X-Hub-Signature", "sha256=" + CryptoJS.HmacSHA256(raw, bru.interpolate("{{jiraWebhookSecret}}")).toString(CryptoJS.enc.Hex)); req.setBody(raw, { raw: true });
+    - type: tests
+      code: |-
+        test("status 204", function () { expect(res.status).to.equal(204); });
+        test("no body", function () { expect(res.body === "" || res.body === undefined || res.body === null).to.equal(true); });
+settings:
+  encodeUrl: true

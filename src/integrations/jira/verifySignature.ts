@@ -14,8 +14,10 @@ export function verifyJiraSignature(rawBody: Buffer, header: string | undefined,
   if (sep < 1) return false;
   const method = header.slice(0, sep).toLowerCase();
   const given = header.slice(sep + 1);
-  if (!SUPPORTED.has(method) || !/^[0-9a-f]+$/i.test(given)) return false;   // Atlassian may add methods later
+  if (!SUPPORTED.has(method) || !/^[0-9a-f]+$/i.test(given)) return false; // Atlassian may add methods later
   const expected = createHmac(method, secret).update(rawBody).digest();
+  // Buffer.from(hex) silently drops a trailing odd nibble: compare the text length too, so "<valid hex>0" is rejected.
+  if (given.length !== expected.length * 2) return false;
   const received = Buffer.from(given, 'hex');
   return received.length === expected.length && timingSafeEqual(received, expected);
 }

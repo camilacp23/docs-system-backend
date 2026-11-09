@@ -1,0 +1,18 @@
+info:
+  name: 76 Cleanup · delete other 204 (administrator)
+  type: http
+  seq: 76
+http:
+  method: DELETE
+  url: '{{baseUrl}}/variables/{{varOtherId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varAdminToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 204", function () { expect(res.status).to.equal(204); });
+settings:
+  encodeUrl: true

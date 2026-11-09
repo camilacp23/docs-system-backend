@@ -1,0 +1,32 @@
+info:
+  name: '09 Setup · create variable Glob (GLOBAL, DEV and PROD) 201'
+  type: http
+  seq: 9
+http:
+  method: POST
+  url: '{{baseUrl}}/variables'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{depDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{depAppId}},
+        "name": "{{depPrefix}}Glob",
+        "dataType": "TEXT",
+        "scope": "GLOBAL",
+        "environments": [{ "environment": "DEV" }, { "environment": "PROD" }]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) { bru.setVar("depGlobId", res.body.data.id); }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("the variable is ready", function () { expect(bru.getVar("depGlobId")).to.be.a("number"); });
+settings:
+  encodeUrl: true

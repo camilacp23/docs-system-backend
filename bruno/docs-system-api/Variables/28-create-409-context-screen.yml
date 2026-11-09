@@ -1,0 +1,39 @@
+info:
+  name: '28 Create 409 (DUPLICATE_NAME, CONTEXT with origin: container screen)'
+  type: http
+  seq: 28
+http:
+  method: POST
+  url: '{{baseUrl}}/variables'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{fixturesAppId}},
+        "name": "{{varPrefix}}Ctx",
+        "dataType": "TEXT",
+        "scope": "CONTEXT",
+        "originScreenId": {{screenAId}},
+        "environments": [{ "environment": "DEV" }]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 409", function () { expect(res.status).to.equal(409); });
+        test("error body has code DUPLICATE_NAME, message and details", function () {
+          expect(res.body.code).to.equal("DUPLICATE_NAME");
+          expect(res.body.message).to.be.a("string").and.not.empty;
+          expect(res.body).to.have.property("details");
+        });
+        test("message and details", function () {
+          const name = bru.getVar("varPrefix") + "Ctx";
+          expect(res.body.message).to.equal("A context variable named " + name + " already exists in Sandbox Screen A.");
+          expect(res.body.details).to.deep.equal({ field: "name", type: "context variable", name: name, application: "Sandbox Screen A", container: "screen" });
+        });
+settings:
+  encodeUrl: true

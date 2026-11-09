@@ -1,0 +1,93 @@
+info:
+  name: '34 Update · 200 nothing changes: same ETag (D-71)'
+  type: http
+  seq: 34
+http:
+  method: PUT
+  url: '{{baseUrl}}/screens/{{scrCId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrDevToken}}'
+    - name: If-Match
+      value: '{{scrCEtag}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{scrPrefix}}Gamma",
+        "miroLink": null,
+        "template": {
+          "onStart": "Loads the requests of the user",
+          "workingProcess": "Lists the requests and filters them by status",
+          "architecture": "Gallery plus a detail form",
+          "dataModel": "One collection of requests",
+          "requirements": "FR-10",
+          "knownIssues": "None",
+          "risks": "Low"
+        },
+        "components": [
+          {
+            "id": {{scrCBtnId}},
+            "name": "btnGo",
+            "type": "Button",
+            "onSelect": "Navigate(Alpha)",
+            "description": null,
+            "uses": [
+              {
+                "id": {{scrCUse1Id}},
+                "targetType": "VARIABLE",
+                "targetId": {{scrGlobId}},
+                "description": "reads"
+              }
+            ]
+          },
+          {
+            "id": {{scrCLblId}},
+            "name": "lblName",
+            "type": "Label",
+            "onSelect": null,
+            "description": null,
+            "uses": [
+              {
+                "id": {{scrCUse2Id}},
+                "targetType": "COLLECTION",
+                "targetId": {{scrColId}},
+                "description": null
+              }
+            ]
+          }
+        ],
+        "variableLinks": [
+          {
+            "id": {{scrCVarLinkId}},
+            "variableId": {{scrGlobId}},
+            "accessMode": "READ",
+            "usedIn": "lblName.Text"
+          }
+        ],
+        "collectionLinks": [
+          {
+            "id": {{scrCColLinkId}},
+            "collectionId": {{scrColId}},
+            "accessMode": "READ",
+            "usedIn": "galItems.Items"
+          }
+        ],
+        "navigations": [
+          {
+            "id": {{scrCNavId}},
+            "targetScreenId": {{scrAId}},
+            "description": "Back"
+          }
+        ]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the ETag is the same", function () { expect(res.headers["etag"]).to.equal(bru.getVar("scrCEtag")); });
+        test("the status and the ids are the same", function () { const d = res.body.data; expect(d.documentationStatus).to.equal("DRAFT"); expect(d.components.map(function (c) { return c.id; })).to.have.members([Number(bru.getVar("scrCBtnId")), Number(bru.getVar("scrCLblId"))]); expect(d.navigations[0].id).to.equal(Number(bru.getVar("scrCNavId"))); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,52 @@
+info:
+  name: 16 Create 201 (GLOBAL, developer)
+  type: http
+  seq: 16
+http:
+  method: POST
+  url: '{{baseUrl}}/variables'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{fixturesAppId}},
+        "name": "{{varPrefix}}Global",
+        "dataType": "TEXT",
+        "scope": "GLOBAL",
+        "description": "Created by the collection",
+        "environments": [{ "environment": "DEV", "notes": "Dev note" }]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) {
+          bru.setVar("varGlobalId", res.body.data.id);
+          bru.setVar("varGlobalEtag", res.headers["etag"]);
+        }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("body is the variable with its environments", function () {
+          const d = res.body.data;
+          expect(d).to.include.keys("id", "applicationId", "name", "dataType", "scope", "originScreen", "fullTraceability", "environments", "description", "environmentDetails", "createdAt", "updatedAt");
+          expect(d.applicationId).to.equal(Number(bru.interpolate("{{fixturesAppId}}")));
+        });
+        test("Location points to the new variable", function () { expect(res.headers["location"]).to.equal("/api/v1/variables/" + res.body.data.id); });
+        test("ETag is a weak validator", function () { expect(res.headers["etag"]).to.match(/^W\/"\d+"$/); });
+        test("a GLOBAL variable without origin is not fully traceable", function () {
+          const d = res.body.data;
+          expect(d.name).to.equal(bru.getVar("varPrefix") + "Global");
+          expect(d.scope).to.equal("GLOBAL");
+          expect(d.originScreen).to.equal(null);
+          expect(d.fullTraceability).to.equal(false);
+          expect(d.description).to.equal("Created by the collection");
+          expect(d.environments).to.deep.equal(["DEV"]);
+          expect(d.environmentDetails).to.deep.equal([{ environment: "DEV", notes: "Dev note" }]);
+        });
+settings:
+  encodeUrl: true

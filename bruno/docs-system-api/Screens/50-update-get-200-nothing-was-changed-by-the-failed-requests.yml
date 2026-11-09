@@ -1,0 +1,19 @@
+info:
+  name: '50 Update · get 200 nothing was changed by the failed requests'
+  type: http
+  seq: 50
+http:
+  method: GET
+  url: '{{baseUrl}}/screens/{{scrBId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("Beta is as it was created", function () { const d = res.body.data; expect(d.name).to.equal(bru.getVar("scrPrefix") + "Beta"); expect(d.documentationStatus).to.equal("DRAFT"); expect(d.variableLinks).to.deep.equal([]); expect(d.navigations).to.deep.equal([]); });
+settings:
+  encodeUrl: true

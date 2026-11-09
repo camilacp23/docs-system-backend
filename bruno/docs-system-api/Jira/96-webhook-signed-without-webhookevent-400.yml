@@ -1,0 +1,27 @@
+info:
+  name: '96 Webhook · signed without webhookEvent 400'
+  type: http
+  seq: 96
+http:
+  method: POST
+  url: '{{baseUrl}}/integrations/jira/webhook'
+  headers:
+    - name: Content-Type
+      value: 'application/json'
+  body:
+    type: json
+    data: ''
+  auth: inherit
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        const CryptoJS = require("crypto-js"); const raw = JSON.stringify({ timestamp: 1, issue: { id: "5", key: "TECHEA-5" } }); req.setHeader("X-Hub-Signature", "sha256=" + CryptoJS.HmacSHA256(raw, bru.interpolate("{{jiraWebhookSecret}}")).toString(CryptoJS.enc.Hex)); req.setBody(raw, { raw: true });
+    - type: tests
+      code: |-
+        test("status 400", function () { expect(res.status).to.equal(400); });
+        test("error body has code VALIDATION_ERROR, message and details", function () { expect(res.body.code).to.equal("VALIDATION_ERROR"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("exact message", function () { expect(res.body.message).to.equal("Check the highlighted fields."); });
+        test("details.fields", function () { expect(res.body.details.fields).to.deep.equal([{ field: "webhookEvent", rule: "required", message: "must have required property 'webhookEvent'" }]); });
+settings:
+  encodeUrl: true

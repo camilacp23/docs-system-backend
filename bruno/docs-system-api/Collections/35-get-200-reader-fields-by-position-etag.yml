@@ -1,0 +1,22 @@
+info:
+  name: '35 Get 200 (reader: fields by position, ETag)'
+  type: http
+  seq: 35
+http:
+  method: GET
+  url: '{{baseUrl}}/collections/{{varColAId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{varReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("body is the collection", function () { const d = res.body.data; expect(d).to.include.keys("id", "applicationId", "name", "environments", "documented", "fieldCount", "createdAt", "updatedAt", "creationCondition", "description", "environmentDetails", "fields", "variableAssignments", "derivedFrom"); expect(d).to.not.have.any.keys("passwordHash"); expect(d.id).to.equal(Number(bru.interpolate("{{varColAId}}"))); });
+        test("the ETag is the one of the creation", function () { expect(res.headers["etag"]).to.equal(bru.getVar("varColAEtag")); });
+        test("fields are ordered by position", function () { expect(res.body.data.fields.map(function (f) { return [f.name, f.position]; })).to.deep.equal([["Id", 0], ["Name", 1], ["Status", 2]]); });
+        test("assignments and derivedFrom", function () { expect(res.body.data.variableAssignments).to.have.length(2); expect(res.body.data.derivedFrom.map(function (c) { return c.id; })).to.deep.equal([Number(bru.interpolate("{{varColBId}}"))]); });
+settings:
+  encodeUrl: true

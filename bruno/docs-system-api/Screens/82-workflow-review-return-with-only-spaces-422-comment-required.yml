@@ -1,0 +1,27 @@
+info:
+  name: '82 Workflow · review RETURN with only spaces 422 COMMENT_REQUIRED'
+  type: http
+  seq: 82
+http:
+  method: POST
+  url: '{{baseUrl}}/screens/{{scrCId}}/review'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrAdminToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "decision": "RETURN",
+        "comment": "   "
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 422", function () { expect(res.status).to.equal(422); });
+        test("error body has code COMMENT_REQUIRED, message and details", function () { expect(res.body.code).to.equal("COMMENT_REQUIRED"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("message", function () { expect(res.body.message).to.equal("Write a comment: it is required to return the documentation."); });
+settings:
+  encodeUrl: true

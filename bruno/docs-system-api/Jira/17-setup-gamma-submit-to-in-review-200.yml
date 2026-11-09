@@ -1,0 +1,23 @@
+info:
+  name: '17 Setup · Gamma submit to IN_REVIEW 200'
+  type: http
+  seq: 17
+http:
+  method: PUT
+  url: '{{baseUrl}}/screens/{{jrGammaId}}/status'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{jrDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "status": "IN_REVIEW" }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the status is IN_REVIEW", function () { expect(res.body.data.documentationStatus).to.equal("IN_REVIEW"); });
+settings:
+  encodeUrl: true

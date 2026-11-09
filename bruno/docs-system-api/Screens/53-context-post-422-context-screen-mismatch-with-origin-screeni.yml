@@ -1,0 +1,47 @@
+info:
+  name: '53 Context · POST 422 CONTEXT_SCREEN_MISMATCH with origin (screenId null, D-85)'
+  type: http
+  seq: 53
+http:
+  method: POST
+  url: '{{baseUrl}}/screens'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{scrAppId}},
+        "name": "{{scrPrefix}}Delta",
+        "miroLink": null,
+        "template": {
+          "onStart": null,
+          "workingProcess": null,
+          "architecture": null,
+          "dataModel": null,
+          "requirements": null,
+          "knownIssues": null,
+          "risks": null
+        },
+        "components": [],
+        "variableLinks": [
+          {
+            "variableId": {{scrCtxAId}},
+            "accessMode": "READ_WRITE",
+            "usedIn": "lblD.Text"
+          }
+        ],
+        "collectionLinks": [],
+        "navigations": []
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 422", function () { expect(res.status).to.equal(422); });
+        test("error body has code CONTEXT_SCREEN_MISMATCH, message and details", function () { expect(res.body.code).to.equal("CONTEXT_SCREEN_MISMATCH"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("message and details", function () { expect(res.body.message).to.equal(bru.getVar("scrPrefix") + "CtxA belongs to " + bru.getVar("scrPrefix") + "Alpha. From here you can only write it with Navigate."); expect(res.body.details).to.deep.equal({ variableId: Number(bru.getVar("scrCtxAId")), variable: bru.getVar("scrPrefix") + "CtxA", originScreenId: Number(bru.getVar("scrAId")), screen: bru.getVar("scrPrefix") + "Alpha", screenId: null, targetScreen: bru.getVar("scrPrefix") + "Delta", field: "variableLinks[0].variableId" }); });
+settings:
+  encodeUrl: true

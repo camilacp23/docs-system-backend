@@ -1,0 +1,27 @@
+info:
+  name: '83 Webhook · no signature 401'
+  type: http
+  seq: 83
+http:
+  method: POST
+  url: '{{baseUrl}}/integrations/jira/webhook'
+  headers:
+    - name: Content-Type
+      value: 'application/json'
+  body:
+    type: json
+    data: ''
+  auth: inherit
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        req.setBody(bru.getVar("jrWhRaw"), { raw: true });
+    - type: tests
+      code: |-
+        test("status 401", function () { expect(res.status).to.equal(401); });
+        test("error body has code INVALID_SIGNATURE, message and details", function () { expect(res.body.code).to.equal("INVALID_SIGNATURE"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("exact message", function () { expect(res.body.message).to.equal("Invalid webhook signature."); });
+        test("details", function () { expect(res.body.details).to.deep.equal(null); });
+settings:
+  encodeUrl: true

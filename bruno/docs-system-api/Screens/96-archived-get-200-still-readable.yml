@@ -1,0 +1,19 @@
+info:
+  name: '96 Archived · get 200 still readable'
+  type: http
+  seq: 96
+http:
+  method: GET
+  url: '{{baseUrl}}/screens/{{scrAId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{scrReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the screen is intact", function () { expect(res.body.data.id).to.equal(Number(bru.getVar("scrAId"))); });
+settings:
+  encodeUrl: true

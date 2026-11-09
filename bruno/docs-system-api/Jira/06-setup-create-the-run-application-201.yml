@@ -1,0 +1,26 @@
+info:
+  name: '06 Setup · create the run application 201'
+  type: http
+  seq: 6
+http:
+  method: POST
+  url: '{{baseUrl}}/applications'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{jrAdminToken}}'
+  body:
+    type: json
+    data: |-
+      { "name": "Jira {{jrRun}}", "platform": "Power Apps" }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) { bru.setVar("jrAppId", res.body.data.id); bru.setVar("jrAppName", res.body.data.name); }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("the run application is ready", function () { expect(bru.getVar("jrAppId")).to.be.a("number"); expect(bru.getVar("jrAppName")).to.equal("Jira " + bru.getVar("jrRun")); });
+settings:
+  encodeUrl: true
