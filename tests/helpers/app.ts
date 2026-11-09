@@ -106,7 +106,7 @@ export type TestApp = {
   logs: string[];
   /**
    * The errors the server logged so far, with their `requestId`. A test that gets a 500 finds there why (the same
-   * entry is also printed to stderr as soon as it is written, unless `reportServerErrors` is false).
+   * failure of a request is also printed to stderr as soon as it is written, unless `reportServerErrors` is false).
    */
   errorLogs: () => ServerErrorLog[];
   users: Record<'admin' | 'developer' | 'reader' | 'inactive', { id: number; token: string }>;
@@ -167,8 +167,10 @@ export async function startTestApp(
       if (failure === undefined) return;
       serverErrors.push(failure);
       // The line was redacted by pino; only the diagnostic fields are printed. Written at once so that the cause of a
-      // 500 is in the output of the test that received it.
-      if (report) console.error(`[server error] requestId=${failure.requestId ?? '-'} ${JSON.stringify(failure)}`);
+      // 500 is in the output of the test that received it. Only the failure of a request is printed (the line of the
+      // error handler); the other error lines (Jira, the HTTP logger) are kept in `errorLogs()` but not printed.
+      if (report && failure.msg === 'request failed')
+        console.error(`[server error] requestId=${failure.requestId ?? '-'} ${JSON.stringify(failure)}`);
     },
   });
   const built = buildApp({
