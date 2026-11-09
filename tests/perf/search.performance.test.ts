@@ -1,5 +1,9 @@
 /**
- * Module 6, department scale (NFR-10, D-22): one application of about 2000 elements whose screens carry long templates
+ * Module 6, department scale (NFR-10, D-22). Run it with `npm run test:perf`; it is not part of `npm test` or of the CI,
+ * because it loads about 17 MB of text and slows the other tests down (the light version of this check is
+ * `tests/integration/search.scale.test.ts`).
+ *
+ * One application of about 2000 elements whose screens carry long templates
  * (about 5 KB per field). The test measures four searches end to end (median, minimum and maximum of several reads) and
  * prints a summary of the plan PostgreSQL chooses. It asserts no time threshold (a threshold would make it flaky on a
  * busy machine); it checks the size of the data, the contract and that the answers make sense.
@@ -13,18 +17,22 @@ import { insertApplication } from '../helpers/fixtures.js';
 import { countStatement, pageStatement, type SearchFilters } from '../../src/modules/search/repository.js';
 import { normalizeText } from '../../src/modules/search/text.js';
 import { searchOk, type SearchBody } from '../helpers/search.js';
+import { loadSearchData, type SearchDataSize } from '../helpers/searchData.js';
 
-const SCREENS = 500;
-const VARIABLES = 600;
-const COLLECTIONS = 400;
-const COMPONENTS = 500;
-const FIELDS_PER_COLLECTION = 3;
-const LINKS = 800;
+/** About 2000 elements; every template field is about 4.9 KB (28 characters, 180 times). */
+const SIZE: SearchDataSize = {
+  screens: 500,
+  variables: 600,
+  collections: 400,
+  components: 500,
+  fieldsPerCollection: 3,
+  links: 800,
+  repeat: 180,
+};
+const VARIABLES = SIZE.variables;
+const SCREENS = SIZE.screens;
+const LINKS = SIZE.links;
 const READS = 7;
-
-/** About 5 KB of text, with the common word at the very end so that a scan has to read all of it for 1 of 5 rows. */
-const LONG_TEXT = (salt: string) =>
-  `repeat('lorem ipsum dolor sit amet ', 180) || '${salt}' || CASE WHEN id % 5 = 0 THEN ' filtro de busqueda' ELSE '' END`;
 
 const median = (values: number[]): number => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)]!;
 
@@ -49,80 +57,7 @@ describe('search: about 2000 elements with long templates', () => {
     t = await startTestApp();
     try {
       applicationId = (await insertApplication(t, { name: 'Performance app' })).id;
-      const adminId = t.users.admin.id;
-      await t.owner.query('BEGIN');
-      try {
-        const text = LONG_TEXT('');
-        await t.owner.query(
-          `WITH ins AS (INSERT INTO documented_element (type, application_id)
-                        SELECT 'SCREEN'::element_type, $1 FROM generate_series(1, $2::int) RETURNING id)
-           INSERT INTO screen (id, application_id, name, author_id, documentation_status,
-                               on_start, working_process, architecture, data_model, requirements, known_issues, risks)
-           SELECT id, $1, 'perfScreen' || id, $3,
-                  (ARRAY['UNDOCUMENTED','DRAFT','IN_PROGRESS','IN_REVIEW','APPROVED'])[1 + id % 5]::documentation_status,
-                  ${LONG_TEXT('a')}, ${LONG_TEXT('b')}, ${LONG_TEXT('c')}, ${LONG_TEXT('d')},
-                  ${LONG_TEXT('e')}, ${LONG_TEXT('f')}, ${text}
-             FROM ins`,
-          [applicationId, SCREENS, adminId],
-        );
-        await t.owner.query(
-          `WITH ins AS (INSERT INTO documented_element (type, application_id)
-                        SELECT 'VARIABLE'::element_type, $1 FROM generate_series(1, $2::int) RETURNING id),
-                v AS (INSERT INTO variable (id, application_id, name, data_type, scope, description)
-                      SELECT id, $1, 'gPerf' || id, 'TEXT', 'GLOBAL',
-                             repeat('variable description ', 40) || CASE WHEN id % 4 = 0 THEN 'filtro' ELSE '' END
-                        FROM ins RETURNING id)
-           INSERT INTO element_environment (element_id, element_type, environment)
-           SELECT id, 'VARIABLE'::element_type, 'DEV'::environment FROM v
-           UNION ALL SELECT id, 'VARIABLE'::element_type, 'PROD'::environment FROM v WHERE id % 2 = 0`,
-          [applicationId, VARIABLES],
-        );
-        await t.owner.query(
-          `WITH ins AS (INSERT INTO documented_element (type, application_id)
-                        SELECT 'COLLECTION'::element_type, $1 FROM generate_series(1, $2::int) RETURNING id),
-                c AS (INSERT INTO collection (id, application_id, name, creation_condition, description)
-                      SELECT id, $1, 'colPerf' || id, 'OnStart: ClearCollect(colPerf, Table)',
-                             repeat('collection description ', 40) || CASE WHEN id % 4 = 0 THEN 'filtro' ELSE '' END
-                        FROM ins RETURNING id),
-                f AS (INSERT INTO collection_field (collection_id, name, data_type, position)
-                      SELECT c.id, 'field' || g, 'TEXT', g FROM c CROSS JOIN generate_series(1, $3::int) g)
-           INSERT INTO element_environment (element_id, element_type, environment)
-           SELECT id, 'COLLECTION'::element_type, 'DEV'::environment FROM c`,
-          [applicationId, COLLECTIONS, FIELDS_PER_COLLECTION],
-        );
-        const screens = (
-          await t.owner.query<{ id: number }>(`SELECT id FROM screen WHERE application_id = $1 ORDER BY id`, [
-            applicationId,
-          ])
-        ).rows.map((r) => r.id);
-        await t.owner.query(
-          `WITH ins AS (INSERT INTO documented_element (type, application_id)
-                        SELECT 'COMPONENT'::element_type, $1 FROM generate_series(1, $2::int) RETURNING id)
-           INSERT INTO component (id, application_id, screen_id, name, type, on_select, description)
-           SELECT id, $1, ($3::int[])[1 + id % cardinality($3::int[])], 'cmpPerf' || id, 'Button',
-                  'Filter(colPerf, Active = true) ' || repeat('x', 200),
-                  repeat('component description ', 20) || CASE WHEN id % 4 = 0 THEN 'filtro' ELSE '' END
-             FROM ins`,
-          [applicationId, COMPONENTS, screens],
-        );
-        const variables = (
-          await t.owner.query<{ id: number }>(`SELECT id FROM variable WHERE application_id = $1 ORDER BY id`, [
-            applicationId,
-          ])
-        ).rows.map((r) => r.id);
-        await t.owner.query(
-          `INSERT INTO screen_variable (screen_id, variable_id, access_mode, used_in)
-           SELECT ($1::int[])[1 + n % cardinality($1::int[])], ($2::int[])[1 + n % cardinality($2::int[])],
-                  'READ', 'perf link ' || n
-             FROM generate_series(1, $3::int) n`,
-          [screens, variables, LINKS],
-        );
-        await t.owner.query('COMMIT');
-      } catch (error) {
-        await t.owner.query('ROLLBACK');
-        throw error;
-      }
-      await t.owner.query('ANALYZE');
+      await loadSearchData(t, applicationId, SIZE);
     } catch (error) {
       await t.close();
       throw error;

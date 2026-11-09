@@ -54,3 +54,20 @@ npx @redocly/cli@2.11.1 lint api/openapi.yaml --extends recommended
 npm run db:test:template
 python api/check_contract_vs_db.py api/openapi.yaml "-h localhost -U postgres -d docs_test_template"
 ```
+
+### Prueba de rendimiento de la búsqueda
+
+```bash
+npm run test:perf
+```
+
+Corre solo `tests/perf/search.performance.test.ts`, sobre una base desechable (nunca `docs_system`). Carga una aplicación de unos
+2000 elementos (500 pantallas con siete campos de plantilla de unos 5 KB cada una, 600 variables, 400 colecciones, 500
+componentes y 800 vínculos, unos 17 MB de texto) y mide, con 7 lecturas de extremo a extremo, la mediana, el mínimo y el máximo
+de cuatro búsquedas (texto común, texto sin resultados, solo filtros y una página alta). También imprime un resumen del plan de
+PostgreSQL y compara contar el total en una sentencia aparte con `count(*) OVER ()`. No afirma ningún límite de tiempo: imprime
+las cifras (líneas `PERF search ...`) y comprueba el tamaño de los datos, el contrato y que las respuestas tengan sentido.
+
+Tarda unos 25 segundos. **No corre en `npm test` ni en el CI**: con tanto texto frena a las demás pruebas, y sus cifras dentro de
+la suite en paralelo no son fiables. En `npm test` queda `tests/integration/search.scale.test.ts`, la misma consulta sobre unos
+200 elementos, que verifica el resultado (totales contados con SQL aparte, páginas, orden estable) sin medir tiempos.
