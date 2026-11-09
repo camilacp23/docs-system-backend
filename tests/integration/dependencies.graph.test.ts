@@ -26,10 +26,12 @@ import {
   insertVariable,
   setApplicationStatus,
 } from '../helpers/fixtures.js';
+import { watchPgOverlap } from '../helpers/pgWarnings.js';
 import { asUser } from '../helpers/users.js';
 
 describe('dependencies: GET /dependencies/graph', () => {
   let t: TestApp;
+  const pgOverlap = watchPgOverlap();
   let f: SarFixture;
   const admin = () => asUser(t, t.users.admin.token);
   /** GET the graph of an application with extra query text, checking the contract on every 200. */
@@ -57,6 +59,7 @@ describe('dependencies: GET /dependencies/graph', () => {
     }
   });
   after(async () => {
+    pgOverlap.stop();
     await t.close();
   });
 
@@ -448,5 +451,10 @@ describe('dependencies: GET /dependencies/graph', () => {
       }
       assert.equal(new Set(bodies).size, 1);
     });
+  });
+
+  it('never sends two statements at once on one database connection (no pg deprecation notice)', async () => {
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(pgOverlap.stop(), []);
   });
 });

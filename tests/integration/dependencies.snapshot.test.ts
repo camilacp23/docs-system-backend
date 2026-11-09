@@ -9,12 +9,14 @@ import '../helpers/env.js';
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 import { startTestApp, type TestApp } from '../helpers/app.js';
+import { watchPgOverlap } from '../helpers/pgWarnings.js';
 import { assertNoDanglingEdges, keyOf, seedSar, type SarFixture } from '../helpers/dependencies.js';
 import { createDependenciesRepository } from '../../src/modules/dependencies/repository.js';
 import { createDependenciesService } from '../../src/modules/dependencies/service.js';
 
 describe('dependencies: one snapshot per read', () => {
   let t: TestApp;
+  const pgOverlap = watchPgOverlap();
   let f: SarFixture;
 
   before(async () => {
@@ -27,6 +29,7 @@ describe('dependencies: one snapshot per read', () => {
     }
   });
   after(async () => {
+    pgOverlap.stop();
     await t.close();
   });
 
@@ -78,5 +81,10 @@ describe('dependencies: one snapshot per read', () => {
       depth: 1,
     });
     assert.ok(!later.nodes.some((n) => n.key === keyOf('component', f.btnFiltrar)), 'the next snapshot has the change');
+  });
+
+  it('never sends two statements at once on one database connection (no pg deprecation notice)', async () => {
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(pgOverlap.stop(), []);
   });
 });

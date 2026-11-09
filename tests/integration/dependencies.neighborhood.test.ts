@@ -27,10 +27,12 @@ import {
   insertVariable,
   setApplicationStatus,
 } from '../helpers/fixtures.js';
+import { watchPgOverlap } from '../helpers/pgWarnings.js';
 import { asUser } from '../helpers/users.js';
 
 describe('dependencies: GET /dependencies/{type}/{id}', () => {
   let t: TestApp;
+  const pgOverlap = watchPgOverlap();
   let f: SarFixture;
   let derivesBack = 0;
   let navigatesBack = 0;
@@ -68,6 +70,7 @@ describe('dependencies: GET /dependencies/{type}/{id}', () => {
     }
   });
   after(async () => {
+    pgOverlap.stop();
     await t.close();
   });
 
@@ -392,5 +395,10 @@ describe('dependencies: GET /dependencies/{type}/{id}', () => {
         );
       }
     });
+  });
+
+  it('never sends two statements at once on one database connection (no pg deprecation notice)', async () => {
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(pgOverlap.stop(), []);
   });
 });
