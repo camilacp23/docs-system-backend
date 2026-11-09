@@ -1,0 +1,35 @@
+info:
+  name: '10 Setup · create screen Pantalla (DRAFT, linked to gGlobal and colLinked) 201'
+  type: http
+  seq: 10
+http:
+  method: POST
+  url: '{{baseUrl}}/screens'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{dasDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{dasAppId}},
+        "name": "{{dasPrefix}}Pantalla",
+        "miroLink": null,
+        "template": { "onStart": null, "workingProcess": null, "architecture": "Arquitectura de {{dasPrefix}}", "dataModel": null, "requirements": null, "knownIssues": null, "risks": null },
+        "components": [],
+        "variableLinks": [{ "variableId": {{dasVarId}}, "accessMode": "READ", "usedIn": "{{dasPrefix}}Label.Text" }],
+        "collectionLinks": [{ "collectionId": {{dasColLinkedId}}, "accessMode": "READ", "usedIn": "{{dasPrefix}}OnVisible" }],
+        "navigations": []
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) { bru.setVar("dasScrId", res.body.data.id); }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("the screen is ready and is a draft", function () { expect(bru.getVar("dasScrId")).to.be.a("number"); expect(res.body.data.documentationStatus).to.equal("DRAFT"); });
+settings:
+  encodeUrl: true

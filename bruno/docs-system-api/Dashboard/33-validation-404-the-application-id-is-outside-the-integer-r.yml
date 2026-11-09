@@ -1,0 +1,19 @@
+info:
+  name: '33 Validation · 404 the application id is outside the integer range'
+  type: http
+  seq: 33
+http:
+  method: GET
+  url: '{{baseUrl}}/dashboard/indicators?applicationId=99999999999'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{dasReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 404", function () { expect(res.status).to.equal(404); });
+        test("code, message and details", function () { expect(res.body.code).to.equal("NOT_FOUND"); expect(res.body.message).to.equal("This application doesn't exist. It may have been deleted."); expect(res.body.details.element).to.equal("application"); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,22 @@
+info:
+  name: '22 Indicators · 304 if-none-match matches'
+  type: http
+  seq: 22
+http:
+  method: GET
+  url: '{{baseUrl}}/dashboard/indicators?applicationId={{dasAppId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{dasAdminToken}}'
+    - name: If-None-Match
+      value: '{{dasEtag}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 304", function () { expect(res.status).to.equal(304); });
+        test("no body", function () { expect(res.body === "" || res.body === undefined || res.body === null).to.equal(true); });
+        test("the ETag is repeated", function () { expect(res.headers["etag"]).to.equal(bru.getVar("dasEtag")); });
+settings:
+  encodeUrl: true

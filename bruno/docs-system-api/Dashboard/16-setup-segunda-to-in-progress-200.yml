@@ -1,0 +1,24 @@
+info:
+  name: '16 Setup · Segunda to IN_PROGRESS 200'
+  type: http
+  seq: 16
+http:
+  method: PUT
+  url: '{{baseUrl}}/screens/{{dasScr2Id}}/status'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{dasDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "status": "IN_PROGRESS"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+settings:
+  encodeUrl: true

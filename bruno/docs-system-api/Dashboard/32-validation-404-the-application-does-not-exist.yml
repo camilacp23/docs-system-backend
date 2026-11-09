@@ -1,0 +1,19 @@
+info:
+  name: '32 Validation · 404 the application does not exist'
+  type: http
+  seq: 32
+http:
+  method: GET
+  url: '{{baseUrl}}/dashboard/indicators?applicationId=999999999'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{dasAdminToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 404", function () { expect(res.status).to.equal(404); });
+        test("code, message and details", function () { expect(res.body.code).to.equal("NOT_FOUND"); expect(res.body.message).to.equal("This application doesn't exist. It may have been deleted."); expect(res.body.details.element).to.equal("application"); expect(res.body.details.id).to.equal(999999999); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,29 @@
+info:
+  name: '06 Setup · create the run application 201'
+  type: http
+  seq: 6
+http:
+  method: POST
+  url: '{{baseUrl}}/applications'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{dasAdminToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Dashboard {{dasRun}}",
+        "platform": "Power Apps"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) { bru.setVar("dasAppId", res.body.data.id); }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("the run application is ready", function () { expect(bru.getVar("dasAppId")).to.be.a("number"); });
+settings:
+  encodeUrl: true

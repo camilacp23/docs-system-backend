@@ -1,0 +1,19 @@
+info:
+  name: '27 Archived · 200 an archived application is read like any other'
+  type: http
+  seq: 27
+http:
+  method: GET
+  url: '{{baseUrl}}/dashboard/indicators?applicationId={{dasOtherAppId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{dasReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the same figures as before it was archived", function () { expect(res.body.data.documentation.totalScreens).to.equal(1); expect(res.body.data.variables).to.deep.equal({ total: 1, untraced: 1 }); });
+settings:
+  encodeUrl: true

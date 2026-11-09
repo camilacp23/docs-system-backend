@@ -1,0 +1,18 @@
+info:
+  name: '103 Cleanup · delete colLinked 204'
+  type: http
+  seq: 103
+http:
+  method: DELETE
+  url: '{{baseUrl}}/collections/{{dasColLinkedId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{dasAdminToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 204", function () { expect(res.status).to.equal(204); });
+settings:
+  encodeUrl: true

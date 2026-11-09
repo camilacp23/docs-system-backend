@@ -1,0 +1,16 @@
+info:
+  name: '35 Validation · 401 comes before 400 (no token, no applicationId)'
+  type: http
+  seq: 35
+http:
+  method: GET
+  url: '{{baseUrl}}/dashboard/indicators'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 401", function () { expect(res.status).to.equal(401); });
+        test("UNAUTHENTICATED", function () { expect(res.body.code).to.equal("UNAUTHENTICATED"); });
+settings:
+  encodeUrl: true

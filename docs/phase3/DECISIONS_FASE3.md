@@ -192,6 +192,12 @@ D-74 permite ciclos entre colecciones (`DERIVES_FROM`). Todo lector recursivo fu
 - El API no valida sus respuestas (`validateResponses: false` en `src/http/chain.ts`), así que un esquema de respuesta que no describe lo que el API envía no lo detectó ninguna prueba hasta ahora. Solo `GET`, `POST` y `PUT /screens` se comprueban ya contra el contrato. Conviene pasar `assertConformsToContract` por las demás operaciones ya implementadas (usuarios, aplicaciones, variables, colecciones, comentarios de revisión y Jira) para encontrar otras diferencias.
 - `AuditEntry.entityType` pasó de texto libre a la enumeración `AuditEntityType` (los 15 nombres de tabla que ya aceptaba el filtro). Una tabla auditada nueva exigirá agregar su nombre a la enumeración. El conjunto de valores (y el de `action`) se compara con los CHECK de `audit_log` en `tests/integration/audit.contractEnums.test.ts`, porque `check_contract_vs_db.py` solo compara enumeraciones y longitudes.
 
+### Indicadores (Módulo 7): para la próxima versión del contrato
+
+- **`variables.total` y `collections.total`.** El contrato 0.3.7 no los describe (el esquema solo dice `integer`). La API los entrega como el total de variables y el total de colecciones de la aplicación, de cualquier ámbito (el significado directo del campo, sin número de decisión). En la próxima versión del contrato, describirlos así.
+- **`approvedPercent` con `totalScreens` = 0.** El contrato no lo define. La API devuelve 0; en la práctica no ocurre, porque cada aplicación tiene su pantalla App (OnStart) (lo comprueba una prueba).
+- **`jiraAvailable` con el cortacircuitos semiabierto.** Es `true`, como en el cliente actual (D-89 e: configurado y no abierto).
+
 ### Búsqueda (Módulo 6): para la próxima versión del contrato
 
 - **`q` con espacios y más de 100 caracteres.** El validador mide `q` sin recortar, así que un `q` de 100 caracteres rodeado de espacios responde 400 `maxLength` aunque, recortado, cumpla D-105 a. Se acepta la limitación; para la próxima versión del contrato, medir `q` ya recortado o documentar el límite sobre el texto sin recortar.
