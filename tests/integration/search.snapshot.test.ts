@@ -1,9 +1,10 @@
 /**
- * Module 6, one snapshot per search (FR-18): the total and the page are read in the same REPEATABLE READ transaction,
- * so an element committed or deleted by another connection between the two statements is in neither or in both. The
- * repository takes an optional callback that production never passes; here it commits a write with the owner
- * connection after the total was read and before the page is. Without REPEATABLE READ the page would disagree with the
- * total.
+ * Module 6, one snapshot per search (FR-18). The page carries its total in the same statement, so the total and the
+ * page always come from one scan. Only a page beyond the end has no row to carry the total, and then a second
+ * statement counts; it runs in the same REPEATABLE READ transaction, so its total is the one of the snapshot even if
+ * another connection committed in between. The repository takes an optional callback that production never passes; here
+ * it commits a write with the owner connection between those two statements. Without REPEATABLE READ the total would
+ * count the new element and the old one would disappear.
  */
 import '../helpers/env.js';
 import assert from 'node:assert/strict';
@@ -37,18 +38,18 @@ describe('search: one snapshot per read', () => {
   });
 
   const plain = () => createSearchService(createSearchRepository(t.db));
-  /** A service whose repository runs `change` once, inside the snapshot, between the total and the page. */
+  /** A service whose repository runs `change` once, inside the snapshot, between the page and the count. */
   const racing = (change: () => Promise<unknown>) => {
-    let done = false;
-    return createSearchService(
+    const calls = { n: 0 };
+    const service = createSearchService(
       createSearchRepository(t.db, {
-        afterCount: async () => {
-          if (done) return;
-          done = true;
-          await change();
+        afterPage: async () => {
+          calls.n += 1;
+          if (calls.n === 1) await change();
         },
       }),
     );
+    return { service, calls };
   };
   const read = (service: ReturnType<typeof plain>, skip: number, take: number) =>
     service.search({ applicationId, q: 'snap', skip, take });
@@ -57,47 +58,40 @@ describe('search: one snapshot per read', () => {
     await insertVariable(t, applicationId, { name: `snapNew${counter}` });
   };
 
-  it('an element committed by another connection between the total and the page is in neither', async () => {
-    const before = await read(plain(), 0, 100);
-    assert.equal(before.data.length, before.total);
+  it('a page with rows is one statement: the total comes with it and nothing can come between', async () => {
+    const { service, calls } = racing(add());
+    const during = await read(service, 0, 2);
+    assert.equal(calls.n, 0, 'no second statement was needed');
+    assert.equal(during.data.length, 2);
+    assert.equal(during.total, (await read(plain(), 0, 100)).total, 'the total counts every match, not the page');
+  });
 
-    const during = await read(racing(add()), 0, 100);
+  it('a page beyond the end counts in the same snapshot: an element committed in between is not in the total', async () => {
+    const before = await read(plain(), 0, 100);
+    const { service, calls } = racing(add());
+    const during = await read(service, 50, 20);
+    assert.equal(calls.n, 1, 'the page was empty, so the total was counted by a second statement');
+    assert.deepEqual(during.data, []);
     assert.equal(during.total, before.total, 'the total is from the snapshot');
-    assert.equal(during.data.length, during.total, 'and so is the page');
-    assert.ok(!during.data.some((r) => r.name.startsWith('snapNew')));
 
     const next = await read(plain(), 0, 100);
     assert.equal(next.total, before.total + 1, 'the next read, a new snapshot, sees the committed element');
     assert.equal(next.data.length, next.total);
   });
 
-  it('an element deleted by another connection between the two statements is still in both', async () => {
+  it('an element deleted between the two statements is still in the total', async () => {
     const victim = await insertVariable(t, applicationId, { name: 'snapVictim' });
     const before = await read(plain(), 0, 100);
-    const during = await read(
-      racing(() => t.owner.query(`DELETE FROM documented_element WHERE id = $1`, [victim.id])),
-      0,
-      100,
-    );
-    assert.equal(during.total, before.total);
-    assert.equal(during.data.length, during.total);
-    assert.ok(
-      during.data.some((r) => r.name === 'snapVictim'),
-      'the snapshot still holds it',
-    );
+    const { service } = racing(() => t.owner.query(`DELETE FROM documented_element WHERE id = $1`, [victim.id]));
+    const during = await read(service, 50, 20);
+    assert.equal(during.total, before.total, 'the snapshot still counts it');
     assert.equal((await read(plain(), 0, 100)).total, before.total - 1);
   });
 
-  it('a page in the middle of the list does not shift under the reader', async () => {
-    const total = (await read(plain(), 0, 1)).total;
-    const expected = (await read(plain(), 1, 2)).data.map((r) => r.id);
-    const during = await read(racing(add()), 1, 2);
-    assert.equal(during.total, total);
-    assert.deepEqual(
-      during.data.map((r) => r.id),
-      expected,
-    );
-    assert.equal((await read(plain(), 0, 1)).total, total + 1);
+  it('a search with no match is one statement and has total 0', async () => {
+    const { service, calls } = racing(add());
+    const none = await service.search({ applicationId, q: 'zzqxjk', skip: 0, take: 20 });
+    assert.deepEqual([none.data.length, none.total, calls.n], [0, 0, 0]);
   });
 
   it('never sends two statements at once on one database connection (no pg deprecation notice)', async () => {

@@ -73,6 +73,14 @@ describe('search: GET /search', () => {
       id['under'] = (await insertVariable(t, appId, { name: 'gUnder', description: 'rate a_b applied' })).id;
       id['underX'] = (await insertVariable(t, appId, { name: 'gUnderX', description: 'rate axb applied' })).id;
       id['backslash'] = (await insertVariable(t, appId, { name: 'gBack', description: 'path c\\d here' })).id;
+      id['meta'] = (
+        await insertVariable(t, appId, {
+          name: 'gMeta',
+          description: 'call f(x) with [y] {z} a|b c+d e*f g?h i^j k$l m.n o-p p-q',
+        })
+      ).id;
+      // The same words without the metacharacters: patterns such as f.x or [a-z] would match here if they were patterns.
+      await insertVariable(t, appId, { name: 'gMetaDecoy', description: 'call fx with y z ab cd ef gh ij kl mxn op' });
       id['multiVar'] = (await insertVariable(t, appId, { name: 'tkMultiVar', description: 'tkMulti desc' })).id;
       id['usedVar'] = (await insertVariable(t, appId, { name: 'gUsed' })).id;
       id['assignVar'] = (await insertVariable(t, appId, { name: 'gAssign' })).id;
@@ -371,6 +379,34 @@ describe('search: GET /search', () => {
         (await only('ano')).map((r) => r.id),
         [id['anoBase']],
       );
+    });
+
+    it('takes every regular expression metacharacter as an ordinary character', async () => {
+      for (const q of [
+        'f(x)',
+        '[y]',
+        '{z}',
+        'a|b',
+        'c+d',
+        'e*f',
+        'g?h',
+        'i^j',
+        'k$l',
+        'm.n',
+        'o-p',
+        'o-p p-q',
+        '(x) with [y]',
+      ]) {
+        assert.deepEqual(
+          (await only(q)).map((r) => r.id),
+          [id['meta']],
+          q,
+        );
+      }
+      // As patterns these would match the decoy (and the rest); as text they match nothing.
+      for (const q of ['.*', 'f.x', '[a-z]', 'a.b', 'x+', '(f|g)', '^$', '\\w+']) {
+        assert.deepEqual(await only(q), [], q);
+      }
     });
 
     it('takes % and _ as ordinary characters', async () => {

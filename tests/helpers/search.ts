@@ -24,11 +24,18 @@ export type SearchBody = { data: ResultBody[]; page: number; pageSize: number; t
 /** Typed view of a search response. */
 export const searchBodyOf = (res: { body: unknown }): SearchBody => res.body as SearchBody;
 
+/**
+ * Encodes a query value as UTF-8 and also percent-encodes the characters `! ' ( ) *`, which `encodeURIComponent` leaves
+ * alone but the request validator of the API refuses unencoded ("may not contain reserved characters").
+ */
+const encodeQuery = (value: string): string =>
+  encodeURIComponent(value).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+
 /** The query string of a search; values are encoded as UTF-8. */
 export function searchUrl(params: Record<string, string | number | undefined>): string {
   const query = Object.entries(params)
     .filter((entry): entry is [string, string | number] => entry[1] !== undefined)
-    .map(([key, value]) => `${key}=${encodeURIComponent(String(value))}`)
+    .map(([key, value]) => `${key}=${encodeQuery(String(value))}`)
     .join('&');
   return `/search?${query}`;
 }

@@ -1,12 +1,14 @@
 /**
  * Queries of the advanced search (Module 6: FR-17, FR-18; SDD Table 6). Read only: nothing here writes.
  *
- * One read is one snapshot: the application check, the total and the page run in a `REPEATABLE READ` transaction
- * opened `READ ONLY`, one statement after the other on the connection of the transaction (never in parallel), so the
- * total and the page agree even if another request writes in between.
+ * One read is one snapshot: the application check, the page and, when needed, the total run in a `REPEATABLE READ`
+ * transaction opened `READ ONLY`, one statement after the other on the connection of the transaction (never in
+ * parallel). The page carries the total in the same statement (`count(*) OVER ()`), so both come from the same scan:
+ * about twice as fast as counting and paging separately, which the performance test measures. Only a page beyond the
+ * end has no row to carry the total, and then a second statement counts, in the same snapshot, so it still agrees.
  *
  * The result set is built in SQL, once per statement, from constant fragments; every value (the application, the
- * filters, the normalized query and its LIKE pattern, the page) is a bound parameter:
+ * filters, the regular expression of the normalized query, the page) is a bound parameter:
  *
  * 1. `base`: the elements of the selected types that pass the filters of their type (D-105 b).
  * 2. `hits`: one row per element and field that contains the text, with a `rank` (the priority of `matchedIn`), a
@@ -15,14 +17,16 @@
  * 4. The order is `exact name match first (only with a text)`, the normalized name by code point (`COLLATE "C"`, so it
  *    does not depend on the collation of the database), the type and the id. The page is `LIMIT/OFFSET` on that.
  *
- * No index supports the text search (D-22); at department scale a sequential scan answers in milliseconds, and the
- * performance test measures it.
+ * The text is compared with the regular expression of `matchPattern` (the `~` operator), one class of characters per
+ * character of the query, which equals normalizing both sides but does not rewrite the long texts (translate() over about
+ * 17 MB of templates took 3 to 8 s; the expression takes about 0.16 s). No index supports the text search (D-22); at
+ * department scale a sequential scan answers in milliseconds, and the performance test measures it.
  *
  * @module modules/search/repository
  */
 import { Prisma } from '../../generated/prisma/client.js';
 import type { Database } from '../../db/prisma.js';
-import { containsPattern, normalizedSql } from './text.js';
+import { matchPattern, normalizedSql } from './text.js';
 
 /** The four types of element that can be found. */
 export type ElementType = 'SCREEN' | 'VARIABLE' | 'COLLECTION' | 'COMPONENT';
@@ -47,6 +51,8 @@ export type SearchRow = {
   /** The original text where the query was found (null for `name` and without a text). */
   src: string | null;
   documentationStatus: string | null;
+  /** Elements that match (`count(*) OVER ()`), the same in every row of the page. */
+  total?: bigint;
   screenId: number | null;
   screenName: string | null;
   environments: string[] | null;
@@ -57,8 +63,11 @@ export type SearchPage = { rows: SearchRow[]; total: number } | null;
 
 /** Hooks of the repository; production passes none. */
 export type SearchHooks = {
-  /** Runs inside the snapshot, after the total was read and before the page is (tests only). */
-  afterCount?: () => Promise<void>;
+  /**
+   * Runs inside the snapshot, after the page was read and before the total is counted. That second statement exists
+   * only for a page beyond the end, so the hook runs only then (tests only).
+   */
+  afterPage?: () => Promise<void>;
 };
 
 /** The reads of the search. */
@@ -70,9 +79,6 @@ export type SearchRepository = {
 type Tx = Prisma.TransactionClient;
 
 const sql = Prisma.sql;
-/** The LIKE escape character is the backslash, the one `escapeLike` writes. */
-const ESCAPE = Prisma.raw(`ESCAPE '\\'`);
-
 /** `normalizedSql` of a constant fragment. */
 const normalized = (expression: string): Prisma.Sql => normalizedSql(Prisma.raw(expression));
 
@@ -118,7 +124,7 @@ function baseOf(f: SearchFilters): Prisma.Sql {
  * `usedIn` first the links of a screen (the lowest id) and only then the assignments of `variable_collection`.
  */
 function hitsOf(f: SearchFilters, pattern: string): Prisma.Sql {
-  const like = (expression: string): Prisma.Sql => sql`${normalized(expression)} LIKE ${pattern} ${ESCAPE}`;
+  const like = (expression: string): Prisma.Sql => sql`${Prisma.raw(expression)} ~ ${pattern}`;
   const has = (type: ElementType): boolean => f.types.includes(type);
   const parts: Prisma.Sql[] = [
     sql`SELECT b.type, b.id, 1 AS rank, 0 AS s1, 0 AS s2, NULL::text AS src FROM base b WHERE ${like('b.name')}`,
@@ -177,7 +183,7 @@ function matchedOf(f: SearchFilters): Prisma.Sql {
                          NULL::int AS rank, NULL::text AS src FROM base b)`;
   }
   return sql`WITH ${base},
-    hits AS (${hitsOf(f, containsPattern(f.query))}),
+    hits AS (${hitsOf(f, matchPattern(f.query))}),
     matched AS (
       SELECT b.type, b.type_order, b.id, b.name, ${normalized('b.name')} AS name_key,
              (${normalized('b.name')} = ${f.query}) AS is_exact, h.rank, h.src
@@ -211,12 +217,16 @@ export function countStatement(filters: SearchFilters): Prisma.Sql {
  * @param filters - The search.
  * @param skip - Elements to skip.
  * @param take - Elements in the page.
+ * @param withTotal - Also return, in every row, the number of elements that match (`count(*) OVER ()`); `false` is for
+ *   the performance test, which compares it with counting in a separate statement.
  */
-export function pageStatement(filters: SearchFilters, skip: number, take: number): Prisma.Sql {
+export function pageStatement(filters: SearchFilters, skip: number, take: number, withTotal = true): Prisma.Sql {
   const hasQuery = filters.query !== undefined;
+  const windowTotal = withTotal ? sql`, count(*) OVER () AS total` : Prisma.empty;
+  const pageTotal = withTotal ? sql`, p.total` : Prisma.empty;
   return sql`${matchedOf(filters)},
-    page AS (SELECT * FROM matched ORDER BY ${orderOf('', hasQuery)} LIMIT ${take} OFFSET ${skip})
-    SELECT p.type, p.id, p.name, p.rank, p.src,
+    page AS (SELECT *${windowTotal} FROM matched ORDER BY ${orderOf('', hasQuery)} LIMIT ${take} OFFSET ${skip})
+    SELECT p.type, p.id, p.name, p.rank, p.src${pageTotal},
            ss.documentation_status::text AS "documentationStatus",
            rs.id AS "screenId", rs.name AS "screenName",
            CASE WHEN p.type IN ('VARIABLE', 'COLLECTION') THEN
@@ -245,9 +255,12 @@ export function createSearchRepository(db: Pick<Database, 'base'>, hooks: Search
           const application = await tx.$queryRaw<{ found: number }[]>`
             SELECT 1 AS found FROM application WHERE id = ${filters.applicationId}`;
           if (application.length === 0) return null;
-          const counted = await tx.$queryRaw<{ total: bigint }[]>(countStatement(filters));
-          await hooks.afterCount?.();
           const rows = await tx.$queryRaw<SearchRow[]>(pageStatement(filters, skip, take));
+          if (rows.length > 0) return { rows, total: Number(rows[0]!.total ?? 0n) };
+          // Nothing to carry the total: no element matches, or the page is beyond the end.
+          if (skip === 0) return { rows, total: 0 };
+          await hooks.afterPage?.();
+          const counted = await tx.$queryRaw<{ total: bigint }[]>(countStatement(filters));
           return { rows, total: Number(counted[0]?.total ?? 0n) };
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },

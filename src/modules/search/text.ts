@@ -1,6 +1,7 @@
 /**
- * How the search compares text (FR-17; D-105 a). One definition, two uses: the list of character pairs below builds
- * the TypeScript function `normalizeText` and the `translate()` that PostgreSQL runs, so both sides cannot drift.
+ * How the search compares text (FR-17; D-105 a). One definition, three uses: the list of character pairs below builds
+ * the TypeScript function `normalizeText`, the `translate()` that PostgreSQL runs on the (short) names, and the regular
+ * expression that PostgreSQL runs on the (long) searched texts, so none of them can drift.
  *
  * The map is fixed and one to one, and it does not depend on the locale of the database or of the runtime: `A-Z`
  * become `a-z`, `Ñ` becomes `ñ`, and the vowels with an acute accent or a diaeresis (`á é í ó ú ü`, in both cases)
@@ -11,7 +12,6 @@
  * @module modules/search/text
  */
 import { Prisma } from '../../generated/prisma/client.js';
-import { escapeLike } from '../../http/like.js';
 
 const UPPER = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const LOWER = 'abcdefghijklmnopqrstuvwxyz';
@@ -65,10 +65,40 @@ export function normalizedSql(expression: Prisma.Sql): Prisma.Sql {
   return Prisma.sql`translate(${expression}, ${SQL_FROM}::text, ${SQL_TO}::text)`;
 }
 
+/** Characters written as they are in a pattern: they are not special in a regular expression, inside or outside `[]`. */
+const PLAIN = /^[A-Za-z0-9 ]$/;
+
 /**
- * The LIKE pattern (to use with `ESCAPE '\'`) that finds `normalizedQuery` anywhere in a normalized text. `%`, `_` and
- * `\` in the query are escaped, so they are ordinary characters (D-105 a).
+ * One character of a pattern. A letter, a digit or a space is written as it is; any other character is written as a
+ * hexadecimal escape (`\uXXXX`, or `\UXXXXXXXX` outside the Basic Multilingual Plane), which no regular expression
+ * reads as anything but that character. So `. * + ? ( ) [ ] { } | ^ $ \ -`, line breaks and the rest are literal,
+ * inside a class and outside it.
+ */
+function literal(character: string): string {
+  if (PLAIN.test(character)) return character;
+  const code = character.codePointAt(0)!;
+  return code > 0xffff ? `\\U${code.toString(16).padStart(8, '0')}` : `\\u${code.toString(16).padStart(4, '0')}`;
+}
+
+/** Every character that normalizes to `target`: the target itself and the sources of the pairs that map to it. */
+function classMembers(target: string): string[] {
+  return [target, ...NORMALIZATION_PAIRS.filter(([, to]) => to === target).map(([from]) => from)];
+}
+
+/**
+ * The regular expression (PostgreSQL ARE, for the `~` operator) that matches, anywhere in a text, exactly the texts
+ * whose normalization contains `normalizedQuery`. Each character of the query becomes the class of the characters that
+ * normalize to it (`i` becomes `[iIíÍ]`), generated from the same `NORMALIZATION_PAIRS` as `normalizeText`; a character
+ * that no pair produces is its own literal. This is the comparison "normalize both sides" without normalizing the long
+ * side, which is what makes it fast on large texts. Characters are read by code point.
  *
  * @param normalizedQuery - The trimmed query, already normalized.
  */
-export const containsPattern = (normalizedQuery: string): string => `%${escapeLike(normalizedQuery)}%`;
+export function matchPattern(normalizedQuery: string): string {
+  return [...normalizedQuery]
+    .map((character) => {
+      const members = classMembers(character);
+      return members.length === 1 ? literal(character) : `[${members.map(literal).join('')}]`;
+    })
+    .join('');
+}
