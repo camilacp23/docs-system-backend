@@ -1,0 +1,31 @@
+info:
+  name: '12 Setup · create collection ColA (DEV, feeds Glob) 201'
+  type: http
+  seq: 12
+http:
+  method: POST
+  url: '{{baseUrl}}/collections'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{depDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{depAppId}},
+        "name": "{{depPrefix}}ColA",
+        "environments": [{ "environment": "DEV" }],
+        "variableAssignments": [{ "variableId": {{depGlobId}}, "screenId": {{depAppScreenId}}, "assignmentFunction": "SET", "tableFunction": "First", "usedIn": "OnStart" }]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) { bru.setVar("depColAId", res.body.data.id); bru.setVar("depColAEtag", res.headers["etag"]); }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("the collection is ready", function () { expect(bru.getVar("depColAId")).to.be.a("number"); });
+settings:
+  encodeUrl: true

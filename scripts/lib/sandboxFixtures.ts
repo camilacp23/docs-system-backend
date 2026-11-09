@@ -76,57 +76,69 @@ export async function insertSandboxFixtures(ownerUrl: string, adminEmail: string
   try {
     const current = await owner.query<{ db: string }>('SELECT current_database() AS db');
     if (current.rows[0]?.db !== SANDBOX_DB) throw new Error(`Connected to the wrong database; expected ${SANDBOX_DB}`);
-    const admin = await owner.query<{ id: number }>('SELECT id FROM app_user WHERE email = $1', [adminEmail]);
-    if (!admin.rows[0]) throw new Error('The sandbox administrator does not exist (run the seed first)');
-    const t = { owner, users: { admin: { id: admin.rows[0].id } } };
-
-    const app = await insertApplication(t, { name: FIXTURE_NAMES.application });
-    const screenA = await insertScreen(t, app.id, { name: FIXTURE_NAMES.screenA });
-    const screenB = await insertScreen(t, app.id, { name: FIXTURE_NAMES.screenB });
-    const environments = [{ environment: 'DEV' as const }, { environment: 'PROD' as const }];
-    const shared = await insertVariable(t, app.id, {
-      name: FIXTURE_NAMES.sharedVariable,
-      originScreenId: screenA.id,
-      environments,
-    });
-    const linked = await insertVariable(t, app.id, {
-      name: FIXTURE_NAMES.linkedVariable,
-      originScreenId: screenA.id,
-      environments,
-    });
-    const collection = await insertCollection(t, app.id, { name: FIXTURE_NAMES.collection });
-    const documented = await insertCollection(t, app.id, { name: FIXTURE_NAMES.documentedCollection });
-    await insertScreenCollection(t, {
-      screenId: screenA.id,
-      collectionId: documented.id,
-      accessMode: 'READ',
-      usedIn: 'Label',
-    });
-    for (const variable of [shared, linked]) {
-      await insertScreenVariable(t, {
-        screenId: screenB.id,
-        variableId: variable.id,
-        accessMode: 'READ',
-        usedIn: 'Label',
-      });
-    }
-    await insertVariableCollection(t, {
-      variableId: shared.id,
-      collectionId: collection.id,
-      screenId: screenA.id,
-      usedIn: 'OnVisible',
-      assignmentFunction: 'SET',
-    });
-    return {
-      applicationId: app.id,
-      screenAId: screenA.id,
-      screenBId: screenB.id,
-      sharedVariableId: shared.id,
-      linkedVariableId: linked.id,
-      collectionId: collection.id,
-      documentedCollectionId: documented.id,
-    };
+    return await insertFixtureRows(owner, adminEmail);
   } finally {
     await owner.end();
   }
+}
+
+/**
+ * The rows of "Sandbox Fixtures", with no guard about the database: {@link insertSandboxFixtures} is the entry for the
+ * sandbox and only calls this after checking that it is `docs_sandbox`. Tests call it on a disposable database to get
+ * the very same data.
+ *
+ * @param owner - Connected docs_owner client of the database that receives the rows (the caller closes it).
+ * @param adminEmail - E-mail of the administrator that authors the data.
+ */
+export async function insertFixtureRows(owner: pg.Client, adminEmail: string): Promise<SandboxFixtureIds> {
+  const admin = await owner.query<{ id: number }>('SELECT id FROM app_user WHERE email = $1', [adminEmail]);
+  if (!admin.rows[0]) throw new Error('The sandbox administrator does not exist (run the seed first)');
+  const t = { owner, users: { admin: { id: admin.rows[0].id } } };
+
+  const app = await insertApplication(t, { name: FIXTURE_NAMES.application });
+  const screenA = await insertScreen(t, app.id, { name: FIXTURE_NAMES.screenA });
+  const screenB = await insertScreen(t, app.id, { name: FIXTURE_NAMES.screenB });
+  const environments = [{ environment: 'DEV' as const }, { environment: 'PROD' as const }];
+  const shared = await insertVariable(t, app.id, {
+    name: FIXTURE_NAMES.sharedVariable,
+    originScreenId: screenA.id,
+    environments,
+  });
+  const linked = await insertVariable(t, app.id, {
+    name: FIXTURE_NAMES.linkedVariable,
+    originScreenId: screenA.id,
+    environments,
+  });
+  const collection = await insertCollection(t, app.id, { name: FIXTURE_NAMES.collection });
+  const documented = await insertCollection(t, app.id, { name: FIXTURE_NAMES.documentedCollection });
+  await insertScreenCollection(t, {
+    screenId: screenA.id,
+    collectionId: documented.id,
+    accessMode: 'READ',
+    usedIn: 'Label',
+  });
+  for (const variable of [shared, linked]) {
+    await insertScreenVariable(t, {
+      screenId: screenB.id,
+      variableId: variable.id,
+      accessMode: 'READ',
+      usedIn: 'Label',
+    });
+  }
+  await insertVariableCollection(t, {
+    variableId: shared.id,
+    collectionId: collection.id,
+    screenId: screenA.id,
+    usedIn: 'OnVisible',
+    assignmentFunction: 'SET',
+  });
+  return {
+    applicationId: app.id,
+    screenAId: screenA.id,
+    screenBId: screenB.id,
+    sharedVariableId: shared.id,
+    linkedVariableId: linked.id,
+    collectionId: collection.id,
+    documentedCollectionId: documented.id,
+  };
 }

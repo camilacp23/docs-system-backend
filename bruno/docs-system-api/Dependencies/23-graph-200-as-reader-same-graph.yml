@@ -1,0 +1,19 @@
+info:
+  name: '23 Graph · 200 as Reader (same graph)'
+  type: http
+  seq: 23
+http:
+  method: GET
+  url: '{{baseUrl}}/dependencies/graph?applicationId={{depAppId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{depReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("same body and same ETag", function () { expect(JSON.stringify(res.body)).to.equal(bru.getVar("depGraphBody")); expect(res.headers["etag"]).to.equal(bru.getVar("depGraphEtag")); });
+settings:
+  encodeUrl: true

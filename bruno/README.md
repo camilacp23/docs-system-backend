@@ -8,6 +8,7 @@ The collection `docs-system-api/` (Bruno OpenCollection YAML, created with Bruno
 | `Auth` | 22 | login, refresh with rotation and reuse detection, logout, Origin check, login rate limit |
 | `Users` | 36 | create, list, read, update with `If-Match`, role change, logical deactivation, reserved account, last administrator, session revocation, 413 |
 | `Applications` | 32 | register (App (OnStart) screen, `Location`, `ETag`), duplicate name, list with `q` / `status`, get, `If-Match` 412, full replacement, archive and unarchive, role matrix (Developer and Reader read, cannot write) |
+| `Dependencies` | 55 | dependency graph (FR-15): every node and edge variant and its own fields, the order, `ETag` and 304, `types` / `environment` filters, neighborhood with `depth` 1 to 3 and cycles of `DERIVES_FROM` and `NAVIGATES_TO`, 401 / 404 / 400, Reader and Developer roles; reads Sandbox Fixtures without changing it |
 
 Every request asserts status code, response body (error `code`, `message`, `details`) and the relevant headers
 (`ETag`, `Location`, `Set-Cookie`, `Cache-Control`, `Retry-After`). Requests run in folder order: later ones use the
@@ -66,6 +67,22 @@ cd bruno/docs-system-api
 npx bru run --env sandbox -r          # whole collection
 npx bru run Auth --env sandbox -r     # one folder
 ```
+
+## A graph of about 500 nodes in the sandbox
+
+To see the dependency map at department scale, load an application through the API (so every row is validated and
+audited), with `npm run sandbox:db` and `npm run sandbox:api` running:
+
+```bash
+npm run sandbox:graph                              # 500 nodes, random prefix
+npm run sandbox:graph -- --nodes 300 --prefix demo1  # 50 to 1000 nodes; the prefix is 3 to 12 letters or digits
+```
+
+It creates the application `Graph demo <prefix>` with screens, variables, collections and components, every kind of edge and
+cycles of `DERIVES_FROM` and `NAVIGATES_TO`, then prints the node and edge counts, how long `GET /dependencies/graph` took,
+and two URLs to look at. Each run uses its own application, so it can run twice on the same sandbox. It only talks to
+`http://localhost:3001/api/v1` (there is no option to change it), refuses to write unless it finds the application
+**Sandbox Fixtures**, and reads the administrator credentials from `docs-system-api/.env` without printing them.
 
 ## Prerequisites
 

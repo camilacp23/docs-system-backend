@@ -1,0 +1,38 @@
+info:
+  name: '15 Setup · create screen One (component, links, navigation to Two) 201'
+  type: http
+  seq: 15
+http:
+  method: POST
+  url: '{{baseUrl}}/screens'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{depDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{depAppId}},
+        "name": "{{depPrefix}}One",
+        "miroLink": null,
+        "template": { "onStart": null, "workingProcess": null, "architecture": null, "dataModel": null, "requirements": null, "knownIssues": null, "risks": null },
+        "components": [{ "name": "btnGo", "type": "Button", "onSelect": null, "description": null, "uses": [{ "targetType": "VARIABLE", "targetId": {{depGlobId}}, "description": null }] }],
+        "variableLinks": [{ "variableId": {{depGlobId}}, "accessMode": "READ", "usedIn": "lblName.Text" }],
+        "collectionLinks": [
+          { "collectionId": {{depColAId}}, "accessMode": "READ", "usedIn": "OnVisible" },
+          { "collectionId": {{depColAId}}, "accessMode": "READ_WRITE", "usedIn": "btnSave.OnSelect" }
+        ],
+        "navigations": [{ "targetScreenId": {{depScrTwoId}}, "description": null }]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) { bru.setVar("depScrOneId", res.body.data.id); bru.setVar("depBtnId", res.body.data.components[0].id); }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("the screen is ready", function () { expect(bru.getVar("depScrOneId")).to.be.a("number"); expect(bru.getVar("depBtnId")).to.be.a("number"); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,24 @@
+info:
+  name: '113 Cleanup · only App (OnStart) is left in the graph of the run application'
+  type: http
+  seq: 113
+http:
+  method: GET
+  url: '{{baseUrl}}/dependencies/graph?applicationId={{depAppId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{depReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        const nodes = res.body.data.nodes, edges = res.body.data.edges;
+        const keys = nodes.map(function (n) { return n.key; });
+        const byName = function (n) { return nodes.find(function (x) { return x.name === n; }); };
+        const kinds = function () { const c = {}; edges.forEach(function (e) { c[e.kind] = (c[e.kind] || 0) + 1; }); return c; };
+
+        test("one node and no edge", function () { expect(nodes).to.have.length(1); expect(nodes[0].name).to.equal("App (OnStart)"); expect(edges).to.deep.equal([]); });
+settings:
+  encodeUrl: true

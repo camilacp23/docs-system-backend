@@ -10,7 +10,7 @@
   "scripts": {
     "prepare": "husky",
     "dev": "tsx watch src/server.ts",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node scripts/copy-sql.mjs",
     "start": "node dist/server.js",
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint .",
@@ -28,6 +28,7 @@
     "sandbox:db": "tsx scripts/sandbox-db.ts",
     "sandbox:api": "tsx scripts/sandbox-api.ts",
     "sandbox:jira": "tsx scripts/sandbox-jira.ts",
+    "sandbox:graph": "tsx scripts/sandbox-graph.ts",
     "db:drift": "prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --exit-code",
     "test:audit-e2e": "tsx tests/04_prisma_audit_e2e.test.ts",
     "test:jira-signature": "tsx tests/05_jira_signature.test.ts",

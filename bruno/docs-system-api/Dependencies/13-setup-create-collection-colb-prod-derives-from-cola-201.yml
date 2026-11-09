@@ -1,0 +1,31 @@
+info:
+  name: '13 Setup · create collection ColB (PROD, derives from ColA) 201'
+  type: http
+  seq: 13
+http:
+  method: POST
+  url: '{{baseUrl}}/collections'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{depDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{depAppId}},
+        "name": "{{depPrefix}}ColB",
+        "environments": [{ "environment": "PROD" }],
+        "derivedFrom": [{{depColAId}}]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) { bru.setVar("depColBId", res.body.data.id); }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("the collection is ready", function () { expect(bru.getVar("depColBId")).to.be.a("number"); });
+settings:
+  encodeUrl: true
