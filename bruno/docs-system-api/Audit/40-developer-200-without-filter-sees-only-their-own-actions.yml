@@ -1,0 +1,21 @@
+info:
+  name: '40 Developer · 200 without filter sees only their own actions'
+  type: http
+  seq: 40
+http:
+  method: GET
+  url: '{{baseUrl}}/audit-log?pageSize=100'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{audDevToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("every record is an action of the Developer and none has dbRole", function () { expect(res.body.data.length).to.be.greaterThan(3); res.body.data.forEach(function (e) { expect(e.actor.id).to.equal(bru.getVar("audDevId")); expect(Object.keys(e)).to.not.include("dbRole"); }); });
+        test("it is the same total the Administrator sees for that user", function () { expect(res.body.total).to.equal(bru.getVar("audDevTotal")); });
+        test("the values of their own changes are there", function () { expect(res.body.data.some(function (e) { return e.newValue !== null; })).to.equal(true); });
+settings:
+  encodeUrl: true

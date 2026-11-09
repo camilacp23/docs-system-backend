@@ -1,0 +1,28 @@
+info:
+  name: '22 Administrator · 200 the history of the run application'
+  type: http
+  seq: 22
+http:
+  method: GET
+  url: '{{baseUrl}}/audit-log?applicationId={{audAppId}}&pageSize=100'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{audAdminToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 200) { bru.setVar("audListEtag", res.headers["etag"]); bru.setVar("audListTotal", res.body.total); bru.setVar("audListBody", JSON.stringify(res.body)); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        const entries = res.body.data;
+        const hasUnderscore = function (o) { return o !== null && Object.keys(o).some(function (k) { return k.indexOf("_") >= 0; }); };
+        test("every record is of the run application and carries dbRole", function () { expect(entries.length).to.be.greaterThan(10); expect(res.body.total).to.equal(entries.length); entries.forEach(function (e) { expect(e.applicationId).to.equal(bru.getVar("audAppId")); expect(e.dbRole).to.be.a("string").and.not.empty; }); });
+        test("the four kinds of action are there", function () { const actions = entries.map(function (e) { return e.action; }); ["CREATE", "UPDATE", "DELETE", "EVENT"].forEach(function (a) { expect(actions).to.include(a); }); });
+        test("newest first: createdAt descending, then id descending", function () { for (let i = 1; i < entries.length; i++) { const a = entries[i - 1], b = entries[i]; const t = Date.parse(a.createdAt) - Date.parse(b.createdAt); expect(t > 0 || (t === 0 && (a.id.length > b.id.length || (a.id.length === b.id.length && a.id > b.id))), a.id + " before " + b.id).to.equal(true); } });
+        test("the keys of the values are camelCase and entityType keeps the table name", function () { entries.forEach(function (e) { expect(hasUnderscore(e.oldValue)).to.equal(false); expect(hasUnderscore(e.newValue)).to.equal(false); e.changedFields.forEach(function (f) { expect(f).to.not.include("_"); }); }); expect(entries.map(function (e) { return e.entityType; })).to.include.members(["variable", "collection", "collection_field", "screen", "screen_variable", "comment"]); });
+        test("the actors of the run are named, and the envelope is complete", function () { const names = entries.map(function (e) { return e.actor && e.actor.name; }); expect(names).to.include("Audit auddeveloper"); expect(res.body.page).to.equal(1); expect(res.body.pageSize).to.equal(100); expect(res.headers["etag"]).to.match(/^W\//); });
+settings:
+  encodeUrl: true

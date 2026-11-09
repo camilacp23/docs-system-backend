@@ -1,0 +1,32 @@
+info:
+  name: '09 Setup · create variable Adm (by the Administrator) 201'
+  type: http
+  seq: 9
+http:
+  method: POST
+  url: '{{baseUrl}}/variables'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{audAdminToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{audAppId}},
+        "name": "{{audPrefix}}Adm",
+        "dataType": "TEXT",
+        "scope": "GLOBAL",
+        "environments": [{ "environment": "DEV" }]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) { bru.setVar("audVarAdmId", res.body.data.id); }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("the variable is ready", function () { expect(bru.getVar("audVarAdmId")).to.be.a("number"); });
+settings:
+  encodeUrl: true

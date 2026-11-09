@@ -1,0 +1,20 @@
+info:
+  name: '42 Developer · 403 asks for another user (OWN_ACTIONS)'
+  type: http
+  seq: 42
+http:
+  method: GET
+  url: '{{baseUrl}}/audit-log?actorUserId={{audAdminId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{audDevToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 403", function () { expect(res.status).to.equal(403); });
+        test("error body has code FORBIDDEN, message and details", function () { expect(res.body.code).to.equal("FORBIDDEN"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body).to.have.property("details"); });
+        test("message and details", function () { expect(res.body.message).to.equal("Your role doesn't allow this action."); expect(res.body.details).to.deep.equal({ reason: "OWN_ACTIONS" }); });
+settings:
+  encodeUrl: true

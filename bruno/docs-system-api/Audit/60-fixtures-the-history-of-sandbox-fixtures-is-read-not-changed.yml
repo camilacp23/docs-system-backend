@@ -1,0 +1,20 @@
+info:
+  name: '60 Fixtures · the history of Sandbox Fixtures is read, not changed'
+  type: http
+  seq: 60
+http:
+  method: GET
+  url: '{{baseUrl}}/audit-log?applicationId={{fixturesAppId}}&pageSize=100'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{audAdminToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("every record is of that application and the envelope is complete", function () { expect(res.body.page).to.equal(1); expect(res.body.pageSize).to.equal(100); expect(res.body.total).to.be.a("number"); res.body.data.forEach(function (e) { expect(e.applicationId).to.equal(Number(bru.getEnvVar("fixturesAppId"))); }); });
+        test("no password hash anywhere", function () { expect(JSON.stringify(res.body)).to.not.include("$2"); });
+settings:
+  encodeUrl: true

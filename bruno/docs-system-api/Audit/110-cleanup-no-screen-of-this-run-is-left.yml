@@ -1,0 +1,19 @@
+info:
+  name: '110 Cleanup · no screen of this run is left'
+  type: http
+  seq: 110
+http:
+  method: GET
+  url: '{{baseUrl}}/screens?applicationId={{audAppId}}&q={{audPrefix}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{audReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("total", function () { expect(res.body.total).to.equal(0); });
+settings:
+  encodeUrl: true
