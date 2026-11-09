@@ -9,6 +9,7 @@ import type { Logger } from '../http/logger.js';
 import type { JiraClient } from '../integrations/jira/index.js';
 import type { OperationHandlers } from '../http/operations.js';
 import { applicationsHandlers } from './applications/routes.js';
+import { auditHandlers } from './audit/routes.js';
 import { authHandlers } from './auth/routes.js';
 import { collectionsHandlers } from './collections/routes.js';
 import { dependenciesHandlers } from './dependencies/routes.js';
@@ -45,5 +46,6 @@ export function createModuleHandlers(deps: {
     ...variablesHandlers(deps.db),
     ...collectionsHandlers(deps.db),
     ...dependenciesHandlers(deps.db),
+    ...auditHandlers(deps.db),
   };
 }
