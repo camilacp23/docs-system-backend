@@ -1,0 +1,29 @@
+info:
+  name: '12 Setup · create the other application 201'
+  type: http
+  seq: 12
+http:
+  method: POST
+  url: '{{baseUrl}}/applications'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{dasAdminToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Dashboard other {{dasRun}}",
+        "platform": "Power Apps"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) { bru.setVar("dasOtherAppId", res.body.data.id); bru.setVar("dasOtherEtag", res.headers["etag"]); }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("the other application is ready", function () { expect(bru.getVar("dasOtherAppId")).to.be.a("number"); expect(bru.getVar("dasOtherEtag")).to.be.a("string"); });
+settings:
+  encodeUrl: true

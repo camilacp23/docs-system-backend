@@ -1,0 +1,19 @@
+info:
+  name: '30 Validation · 400 applicationId is required'
+  type: http
+  seq: 30
+http:
+  method: GET
+  url: '{{baseUrl}}/dashboard/indicators'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{dasAdminToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 400", function () { expect(res.status).to.equal(400); });
+        test("code, message and details", function () { expect(res.body.code).to.equal("VALIDATION_ERROR"); expect(res.body.message).to.be.a("string").and.not.empty; expect(res.body.details.fields).to.be.an("array").and.not.empty; expect(res.body.details.fields[0].field).to.equal("applicationId"); });
+settings:
+  encodeUrl: true

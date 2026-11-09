@@ -1,0 +1,30 @@
+info:
+  name: '14 Setup · create a Story and a Subtask in Jira for Pantalla 201'
+  type: http
+  seq: 14
+http:
+  method: POST
+  url: '{{baseUrl}}/screens/{{dasScrId}}/jira-ticket'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{dasDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "newStory": {
+          "summary": "Story {{dasRun}}"
+        },
+        "subtask": {
+          "summary": "To do {{dasRun}}"
+        }
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("the simulated Jira created the Epic, the Story and the Subtask", function () { expect(res.body.data.created).to.deep.equal(["EPIC", "STANDARD", "SUBTASK"]); });
+settings:
+  encodeUrl: true

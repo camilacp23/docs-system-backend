@@ -1,0 +1,35 @@
+info:
+  name: '23 Indicators · 200 developer, same figures and recent activity'
+  type: http
+  seq: 23
+http:
+  method: GET
+  url: '{{baseUrl}}/dashboard/indicators?applicationId={{dasAppId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{dasDevToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        const d = res.body.data;
+        test("documentation: three screens (App (OnStart), a draft, an approved one), the five statuses, 33.3 percent", function () { expect(d.documentation).to.deep.equal({ totalScreens: 3, byStatus: { UNDOCUMENTED: 1, DRAFT: 1, IN_PROGRESS: 0, IN_REVIEW: 0, APPROVED: 1 }, approvedPercent: 33.3 }); });
+        test("variables: two, one without origin screen", function () { expect(d.variables).to.deep.equal({ total: 2, untraced: 1 }); });
+        test("collections: two, one linked to no screen", function () { expect(d.collections).to.deep.equal({ total: 2, undocumented: 1 }); });
+        test("jira: one pending Subtask, the simulated Jira is available, and the copy has a synchronization time", function () { expect(d.jira.pendingSubtasks).to.equal(1); expect(d.jira.jiraAvailable).to.equal(true); expect(d.jira.lastSyncedAt).to.be.a("string"); expect(new Date(d.jira.lastSyncedAt).toISOString()).to.equal(d.jira.lastSyncedAt); });
+        test("recent activity: exactly 10 summaries, newest first, of the team, without values or database role", function () {
+          const a = d.recentActivity;
+          expect(a).to.be.an("array").with.length(10);
+          a.forEach(function (r) { expect(Object.keys(r).sort()).to.deep.equal(["action", "actor", "createdAt", "entityId", "entityLabel", "entityType", "eventName"]); });
+          for (let i = 1; i < a.length; i += 1) { expect(a[i - 1].createdAt >= a[i].createdAt).to.equal(true); }
+          expect(JSON.stringify(a)).to.not.include("oldValue").and.not.include("newValue").and.not.include("dbRole");
+        });
+        test("recent activity: the approval of the screen with its name in UTF-8", function () {
+          const names = d.recentActivity.map(function (r) { return r.eventName + ":" + r.entityLabel; });
+          expect(names).to.include("DOCUMENTATION_APPROVED:" + bru.getVar("dasPrefix") + "Segunda configuración");
+        });
+        test("recent activity: none of the other application", function () { expect(JSON.stringify(d.recentActivity)).to.not.include("other" + bru.getVar("dasRun") + "\"").and.not.include("Dashboard other"); });
+settings:
+  encodeUrl: true

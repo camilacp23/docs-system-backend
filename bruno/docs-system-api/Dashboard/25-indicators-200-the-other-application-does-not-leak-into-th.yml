@@ -1,0 +1,22 @@
+info:
+  name: '25 Indicators · 200 the other application does not leak into this one'
+  type: http
+  seq: 25
+http:
+  method: GET
+  url: '{{baseUrl}}/dashboard/indicators?applicationId={{dasOtherAppId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{dasAdminToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        const d = res.body.data;
+        test("one screen (App (OnStart)), one variable without origin and no collection", function () { expect(d.documentation).to.deep.equal({ totalScreens: 1, byStatus: { UNDOCUMENTED: 1, DRAFT: 0, IN_PROGRESS: 0, IN_REVIEW: 0, APPROVED: 0 }, approvedPercent: 0 }); expect(d.variables).to.deep.equal({ total: 1, untraced: 1 }); expect(d.collections).to.deep.equal({ total: 0, undocumented: 0 }); });
+        test("no Jira ticket of the run application", function () { expect(d.jira.pendingSubtasks).to.equal(0); expect(d.jira.lastSyncedAt).to.equal(null); });
+        test("the activity has nothing of the run application", function () { expect(JSON.stringify(d.recentActivity)).to.not.include(bru.getVar("dasPrefix")); });
+settings:
+  encodeUrl: true
