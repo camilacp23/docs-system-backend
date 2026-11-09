@@ -33,6 +33,30 @@ export function assertSandboxBaseUrl(baseUrl: string): void {
   }
 }
 
+/**
+ * Text of an error answer of the API: status, `code`, `message` and, when there are, every field of `details.fields`
+ * (field, rule, message) or the rest of `details`. None of that is secret; the request, its headers and the token are
+ * never part of it.
+ *
+ * @param what - What the script was doing.
+ * @param status - HTTP status.
+ * @param body - Parsed body of the answer.
+ */
+export function formatApiError(what: string, status: number, body: unknown): string {
+  const e = body as { code?: string; message?: string; details?: unknown } | undefined;
+  const reason = [e?.code, e?.message].filter((part) => part !== undefined && part !== '').join(': ');
+  const lines = [`${what}: the API answered ${status}${reason === '' ? '' : ` ${reason}`}`];
+  const details = e?.details as { fields?: unknown } | null | undefined;
+  if (details && typeof details === 'object') {
+    const { fields, ...rest } = details as { fields?: { field?: unknown; rule?: unknown; message?: unknown }[] };
+    for (const f of Array.isArray(fields) ? fields : []) {
+      lines.push(`  - ${String(f.field)} [${String(f.rule)}]: ${String(f.message)}`);
+    }
+    if (Object.keys(rest).length > 0) lines.push(`  details: ${JSON.stringify(rest)}`);
+  }
+  return lines.join('\n');
+}
+
 /** Options of a run. */
 export type GraphOptions = { nodes: number; prefix: string };
 
@@ -202,6 +226,7 @@ export function readSandboxAdmin(file: string): { email: string; password: strin
 export async function createSandboxApi(
   baseUrl: string,
   admin: { email: string; password: string },
+  fetchImpl: typeof fetch = fetch,
 ): Promise<SandboxApi> {
   assertSandboxBaseUrl(baseUrl);
   const call = async (
@@ -213,7 +238,7 @@ export async function createSandboxApi(
   ) => {
     let res: Response;
     try {
-      res = await fetch(`${baseUrl}${path}`, {
+      res = await fetchImpl(`${baseUrl}${path}`, {
         method,
         headers: {
           ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
@@ -236,7 +261,7 @@ export async function createSandboxApi(
   const token = (login.body as { data?: { accessToken?: string } } | undefined)?.data?.accessToken;
   if (login.status !== 200 || token === undefined) {
     throw new Error(
-      `The administrator of the sandbox could not log in (status ${login.status}). Run \`npm run sandbox:db\`.`,
+      `${formatApiError('The administrator of the sandbox could not log in', login.status, login.body)}\nRun \`npm run sandbox:db\`.`,
     );
   }
   return {
@@ -280,8 +305,7 @@ export async function runSandboxGraph(
     const res = await p;
     requests += 1;
     if (res.status < 200 || res.status >= 300) {
-      const e = res.body as { code?: string; message?: string } | undefined;
-      throw new Error(`${what}: the API answered ${res.status} ${e?.code ?? ''} ${e?.message ?? ''}`.trim());
+      throw new Error(formatApiError(what, res.status, res.body));
     }
     return res as { status: number; body: T; headers: Record<string, string> };
   };
@@ -479,4 +503,59 @@ export async function runSandboxGraph(
     neighborhood: { path: `/api/v1${neighborhoodPath}`, nodes: around.body.data.nodes.length },
     requests,
   };
+}
+
+/** What the command line needs from outside; the script passes only `envFile`, tests pass the rest. */
+export type CliDeps = {
+  /** Git-ignored credentials file written by `npm run sandbox:db`. */
+  envFile: string;
+  log?: (line: string) => void;
+  error?: (line: string) => void;
+  /** `fetch` of the client (tests route it to an in-process server). */
+  fetchImpl?: typeof fetch;
+  /** Source of the default prefix. */
+  randomPrefix?: () => string;
+};
+
+/**
+ * `npm run sandbox:graph` from the arguments to the exit code: reads the arguments and the credentials, logs in, loads
+ * the graph through the API and prints the result. This is the one entry point the script and its tests share.
+ *
+ * @param argv - Arguments after the script name.
+ * @param deps - Credentials file and, for tests, the output, the `fetch` and the prefix source.
+ * @returns 0 when the graph was loaded and matches the plan, 1 otherwise (the reason goes to `deps.error`).
+ */
+export async function runSandboxGraphCli(argv: readonly string[], deps: CliDeps): Promise<number> {
+  const log = deps.log ?? ((line: string) => console.log(line));
+  const error = deps.error ?? ((line: string) => console.error(line));
+  try {
+    const options = parseGraphArgs(argv, deps.randomPrefix);
+    const api = await createSandboxApi(SANDBOX_GRAPH_BASE_URL, readSandboxAdmin(deps.envFile), deps.fetchImpl);
+    const result = await runSandboxGraph(api, options, log);
+
+    const row = (counts: Record<string, number>) =>
+      Object.entries(counts)
+        .map(([key, n]) => `${key}=${n}`)
+        .join(', ');
+    log('');
+    log(`Application: ${result.applicationName} (id ${result.applicationId}), prefix ${options.prefix}`);
+    log(`Nodes: ${row(result.actual.nodes)}`);
+    log(`Edges: ${row(result.actual.edges)}`);
+    log(`The graph matches the plan: ${result.matches ? 'yes' : 'NO'}`);
+    log(`GET /dependencies/graph took ${result.graphReadMs.toFixed(1)} ms (${result.requests} requests in all)`);
+    log('');
+    log('To look at it:');
+    log(`  GET ${SANDBOX_GRAPH_BASE_URL}/dependencies/graph?applicationId=${result.applicationId}`);
+    log(
+      `  GET ${SANDBOX_GRAPH_BASE_URL.replace('/api/v1', '')}${result.neighborhood.path}  (${result.neighborhood.nodes} nodes)`,
+    );
+    if (!result.matches) {
+      error(`Expected nodes ${row(result.expected.nodes)} and edges ${row(result.expected.edges)}`);
+      return 1;
+    }
+    return 0;
+  } catch (e) {
+    error(e instanceof Error ? e.message : String(e));
+    return 1;
+  }
 }

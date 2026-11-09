@@ -11,6 +11,7 @@ import {
   assertSandboxBaseUrl,
   createSandboxApi,
   expectedGraph,
+  formatApiError,
   feedsOf,
   isContext,
   isUntraced,
@@ -195,5 +196,36 @@ describe('sandbox:graph credentials', () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('sandbox:graph error report', () => {
+  it('prints code, message and every field with its rule, and nothing else of the request', () => {
+    const text = formatApiError('Creating variable 0', 400, {
+      code: 'VALIDATION_ERROR',
+      message: 'Check the highlighted fields.',
+      details: {
+        fields: [
+          { field: 'name', rule: 'pattern', message: 'must match pattern' },
+          { field: 'environments[0].environment', rule: 'enum', message: 'must be DEV or PROD' },
+        ],
+      },
+    });
+    assert.equal(
+      text,
+      [
+        'Creating variable 0: the API answered 400 VALIDATION_ERROR: Check the highlighted fields.',
+        '  - name [pattern]: must match pattern',
+        '  - environments[0].environment [enum]: must be DEV or PROD',
+      ].join('\n'),
+    );
+  });
+
+  it('prints the other details of an error (for example the missing element) and copes with no body', () => {
+    assert.match(
+      formatApiError('Reading', 404, { code: 'NOT_FOUND', message: 'Gone', details: { element: 'screen', id: 7 } }),
+      /404 NOT_FOUND: Gone\n {2}details: \{"element":"screen","id":7\}$/,
+    );
+    assert.equal(formatApiError('Reading', 502, undefined), 'Reading: the API answered 502');
   });
 });
