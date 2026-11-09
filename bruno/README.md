@@ -68,6 +68,22 @@ npx bru run --env sandbox -r          # whole collection
 npx bru run Auth --env sandbox -r     # one folder
 ```
 
+## A graph of about 500 nodes in the sandbox
+
+To see the dependency map at department scale, load an application through the API (so every row is validated and
+audited), with `npm run sandbox:db` and `npm run sandbox:api` running:
+
+```bash
+npm run sandbox:graph                              # 500 nodes, random prefix
+npm run sandbox:graph -- --nodes 300 --prefix demo1  # 50 to 1000 nodes; the prefix is 3 to 12 letters or digits
+```
+
+It creates the application `Graph demo <prefix>` with screens, variables, collections and components, every kind of edge and
+cycles of `DERIVES_FROM` and `NAVIGATES_TO`, then prints the node and edge counts, how long `GET /dependencies/graph` took,
+and two URLs to look at. Each run uses its own application, so it can run twice on the same sandbox. It only talks to
+`http://localhost:3001/api/v1` (there is no option to change it), refuses to write unless it finds the application
+**Sandbox Fixtures**, and reads the administrator credentials from `docs-system-api/.env` without printing them.
+
 ## Prerequisites
 
 PostgreSQL with the roles of `bootstrap/01_roles_and_database.sql` and a `.env` as described in `.env.example`
