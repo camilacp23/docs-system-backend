@@ -107,6 +107,18 @@ describe('sandbox:graph arguments', () => {
     assert.deepEqual(parseGraphArgs([], fixed), { nodes: 500, prefix: 'abc123' });
     assert.deepEqual(parseGraphArgs(['--nodes', '200', '--prefix', 'demo1'], fixed), { nodes: 200, prefix: 'demo1' });
   });
+  it('the default random prefix always makes valid variable and collection names (they start with a letter)', () => {
+    const contractName = /^[A-Za-z_][A-Za-z0-9_]*$/; // pattern of VariableWrite.name and CollectionWrite.name
+    for (let i = 0; i < 2000; i += 1) {
+      const { prefix } = parseGraphArgs([]);
+      assert.match(`${prefix}Var0`, contractName, prefix);
+      assert.match(`${prefix}Col0`, contractName, prefix);
+    }
+  });
+  it('rejects a prefix that starts with a digit, such as 2cc16a, before it writes anything', () => {
+    assert.throws(() => parseGraphArgs(['--prefix', '2cc16a']), /--prefix must start with a letter/);
+    assert.throws(() => parseGraphArgs([], () => '2cc16a'), /--prefix must start with a letter/);
+  });
   it('rejects a size outside the range, a bad prefix and every other option (also a URL or a database)', () => {
     for (const bad of [
       ['--nodes', '49'],

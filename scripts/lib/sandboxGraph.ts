@@ -69,7 +69,7 @@ export type GraphOptions = { nodes: number; prefix: string };
  */
 export function parseGraphArgs(
   argv: readonly string[],
-  randomPrefix: () => string = () => randomBytes(3).toString('hex'),
+  randomPrefix: () => string = () => `g${randomBytes(3).toString('hex')}`,
 ): GraphOptions {
   let nodes = DEFAULT_NODES;
   let prefix: string | undefined;
@@ -92,7 +92,11 @@ export function parseGraphArgs(
     throw new Error(`--nodes must be a whole number from ${MIN_NODES} to ${MAX_NODES}`);
   }
   const chosen = prefix ?? randomPrefix();
-  if (!/^[A-Za-z0-9]{3,12}$/.test(chosen)) throw new Error('--prefix must be 3 to 12 letters or digits');
+  if (!/^[A-Za-z][A-Za-z0-9]{2,11}$/.test(chosen)) {
+    throw new Error(
+      '--prefix must start with a letter and have 3 to 12 letters or digits (it is part of variable and collection names)',
+    );
+  }
   return { nodes, prefix: chosen };
 }
 
