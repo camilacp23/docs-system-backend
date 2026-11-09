@@ -4,7 +4,11 @@
 # Bruno CLI and ALWAYS stops both processes (by PID) and drops docs_sandbox on the way out (trap), even when an assertion fails or the script is interrupted.
 # Runs in Git Bash (Windows) and Linux. Never touches docs_system and never prints a password.
 #
-# Usage:   npm run test:api
+# Usage:   npm run test:api                 (the whole collection)
+#          npm run test:api -- Audit        (only the given folders or requests, paths relative to the collection)
+#          API_FIRST_PASS="Audit/1-*.yml" npm run test:api -- Audit
+#            runs those requests first and ignores their result, to leave a run unfinished (setup done, no cleanup),
+#            and then the requested ones on the same database: a run that was interrupted must not break the next one.
 # Exit code: 0 only if every request and assertion of the collection passed (2 = could not run).
 set -uo pipefail
 
@@ -124,13 +128,28 @@ if ! answers; then
   exit 2
 fi
 
+# bru in the background and awaited with `wait`, so Ctrl+C (or SIGTERM) reaches the trap at once instead of after bru ends.
+runBru() {
+  (cd bruno/docs-system-api && exec node ../../node_modules/@usebruno/cli/bin/bru.js run "$@" --env sandbox -r) &
+  BRU_PID=$!
+  wait "$BRU_PID"
+  CODE=$?
+  BRU_PID=""
+}
+
+if [ -n "${API_FIRST_PASS:-}" ]; then
+  echo "Running an unfinished pass first: $API_FIRST_PASS (its result is ignored) ..."
+  # shellcheck disable=SC2086
+  (cd bruno/docs-system-api && ls $API_FIRST_PASS >/dev/null) || { echo "API_FIRST_PASS matches no request" >&2; exit 2; }
+  # shellcheck disable=SC2086
+  (cd bruno/docs-system-api && set -- $API_FIRST_PASS && exec node ../../node_modules/@usebruno/cli/bin/bru.js run "$@" --env sandbox -r) &
+  BRU_PID=$!
+  wait "$BRU_PID"
+  BRU_PID=""
+fi
+
 echo "Running the Bruno collection ..."
-# In the background and awaited with `wait`, so Ctrl+C (or SIGTERM) reaches the trap at once instead of after bru ends.
-(cd bruno/docs-system-api && exec node ../../node_modules/@usebruno/cli/bin/bru.js run --env sandbox -r) &
-BRU_PID=$!
-wait "$BRU_PID"
-CODE=$?
-BRU_PID=""
+runBru "$@"
 
 if [ "$CODE" -eq 0 ]; then echo "test:api: all requests and assertions passed"; else echo "test:api: FAILED (bru exit $CODE)" >&2; fi
 exit "$CODE"

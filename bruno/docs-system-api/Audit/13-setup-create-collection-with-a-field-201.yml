@@ -1,0 +1,31 @@
+info:
+  name: '13 Setup · create collection with a field 201'
+  type: http
+  seq: 13
+http:
+  method: POST
+  url: '{{baseUrl}}/collections'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{audDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{audAppId}},
+        "name": "{{audPrefix}}Col",
+        "environments": [{ "environment": "DEV" }],
+        "fields": [{ "name": "colTitle", "dataType": "TEXT", "description": "first", "position": 1 }]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) { bru.setVar("audColId", res.body.data.id); bru.setVar("audFieldId", res.body.data.fields[0].id); }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("the collection and its field are ready", function () { expect(bru.getVar("audColId")).to.be.a("number"); expect(bru.getVar("audFieldId")).to.be.a("number"); });
+settings:
+  encodeUrl: true

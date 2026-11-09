@@ -9,6 +9,7 @@ The collection `docs-system-api/` (Bruno OpenCollection YAML, created with Bruno
 | `Users` | 36 | create, list, read, update with `If-Match`, role change, logical deactivation, reserved account, last administrator, session revocation, 413 |
 | `Applications` | 32 | register (App (OnStart) screen, `Location`, `ETag`), duplicate name, list with `q` / `status`, get, `If-Match` 412, full replacement, archive and unarchive, role matrix (Developer and Reader read, cannot write) |
 | `Dependencies` | 55 | dependency graph (FR-15): every node and edge variant and its own fields, the order, `ETag` and 304, `types` / `environment` filters, neighborhood with `depth` 1 to 3 and cycles of `DERIVES_FROM` and `NAVIGATES_TO`, 401 / 404 / 400, Reader and Developer roles; reads Sandbox Fixtures without changing it |
+| `Audit` | 54 | audit history (FR-20, FR-21): the history of a run application and of single elements (create, update, delete, the review event, a field of a collection, a password change without its value), `ETag` and 304, filters, inclusive `from` / `to` to the millisecond, pagination, the empty page for an unknown application, the Developer's own actions and the `OWN_ACTIONS` 403, the 400 rules (400 before 403), 401 / 403 Reader; the records of deleted elements remain after the cleanup; reads Sandbox Fixtures without changing it |
 
 Every request asserts status code, response body (error `code`, `message`, `details`) and the relevant headers
 (`ETag`, `Location`, `Set-Cookie`, `Cache-Control`, `Retry-After`). Requests run in folder order: later ones use the
@@ -59,6 +60,22 @@ It recreates `docs_sandbox`, starts the Jira simulator on port 3002 and the API 
 (`@usebruno/cli`, same version as the app) and, **always** (also when a check fails or the script is interrupted),
 stops the API and the simulator and drops `docs_sandbox`. The exit code is 0 only when every request and assertion passed. It refuses to
 start if port 3001 or 3002 is already in use, for example by `npm run sandbox:api` or `npm run sandbox:jira`.
+
+To run only one folder (or some requests) in the isolated database, give their paths after `--`:
+
+```bash
+npm run test:api -- Audit
+```
+
+Audit records are never deleted (NFR-20), so a repeated run adds to the same history. The folder creates its own users and
+application with random names on every run, and every assertion is limited to those users, that application or its
+elements, never to totals of the whole log; the cleanup deletes the elements it created (the lists end with `total` = 0)
+and the records of the run stay by design. To check that a run that stopped half way does not break the next one,
+`API_FIRST_PASS` runs some requests first (their result is ignored) and then the requested ones on the same database:
+
+```bash
+API_FIRST_PASS="Audit/01-setup-administrator-login-200.yml Audit/02-setup-create-developer-201.yml" npm run test:api -- Audit
+```
 
 To run only the CLI against an API you started yourself:
 

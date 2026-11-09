@@ -1,0 +1,24 @@
+info:
+  name: '16 Setup · screen to IN_REVIEW 200'
+  type: http
+  seq: 16
+http:
+  method: PUT
+  url: '{{baseUrl}}/screens/{{audScrId}}/status'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{audDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "status": "IN_REVIEW"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+settings:
+  encodeUrl: true

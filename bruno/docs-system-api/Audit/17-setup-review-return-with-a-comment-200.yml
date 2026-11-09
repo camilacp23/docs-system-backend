@@ -1,0 +1,26 @@
+info:
+  name: '17 Setup · review RETURN with a comment 200'
+  type: http
+  seq: 17
+http:
+  method: POST
+  url: '{{baseUrl}}/screens/{{audScrId}}/review'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{audAdminToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "decision": "RETURN",
+        "comment": "Please add detail."
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the screen is back in progress", function () { expect(res.body.data.documentationStatus).to.equal("IN_PROGRESS"); });
+settings:
+  encodeUrl: true

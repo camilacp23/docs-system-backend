@@ -1,0 +1,19 @@
+info:
+  name: '35 Administrator · 200 an application id out of range gives an empty page'
+  type: http
+  seq: 35
+http:
+  method: GET
+  url: '{{baseUrl}}/audit-log?applicationId=99999999999'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{audAdminToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("empty page, not a 404", function () { expect(res.body.data).to.deep.equal([]); expect(res.body.total).to.equal(0); });
+settings:
+  encodeUrl: true

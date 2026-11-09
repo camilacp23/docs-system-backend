@@ -1,0 +1,19 @@
+info:
+  name: '34 Administrator · 200 an application that does not exist gives an empty page'
+  type: http
+  seq: 34
+http:
+  method: GET
+  url: '{{baseUrl}}/audit-log?applicationId=2147483647'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{audAdminToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("empty page, not a 404", function () { expect(res.body).to.deep.equal({ data: [], page: 1, pageSize: 20, total: 0 }); });
+settings:
+  encodeUrl: true
