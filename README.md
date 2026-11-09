@@ -47,9 +47,10 @@ Las pruebas de la Fase 2 (`npm run test:*` y los SQL de `tests/`) se ejecutan so
 desechables, nunca sobre `docs_system`: ver la sección 5 de
 [docs/guides/00_LEEME_fase2.md](docs/guides/00_LEEME_fase2.md) (rutas nuevas: `OPENAPI=api/openapi.yaml`).
 
-Verificación del contrato:
+Verificación del contrato (la comparación con la base se hace contra la base desechable `docs_test_template`, nunca contra `docs_system`):
 
 ```bash
 npx @redocly/cli@2.11.1 lint api/openapi.yaml --extends recommended
-python api/check_contract_vs_db.py api/openapi.yaml "-h localhost -U postgres -d docs_system"
+npm run db:test:template
+python api/check_contract_vs_db.py api/openapi.yaml "-h localhost -U postgres -d docs_test_template"
 ```
