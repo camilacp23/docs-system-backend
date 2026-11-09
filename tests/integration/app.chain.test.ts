@@ -28,7 +28,7 @@ describe('application chain', () => {
   const tmp = mkdtempSync(join(tmpdir(), 'docs-contract-'));
 
   before(async () => {
-    t = await startTestApp({ handlers });
+    t = await startTestApp({ handlers, reportServerErrors: false }); // it causes 500s on purpose
   });
   after(async () => {
     rmSync(tmp, { recursive: true, force: true });
