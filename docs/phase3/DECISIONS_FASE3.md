@@ -187,8 +187,7 @@ D-74 permite ciclos entre colecciones (`DERIVES_FROM`). Todo lector recursivo fu
 ### Detectado fuera del alcance de 0.3.7 (no corregido)
 
 - El API no valida sus respuestas (`validateResponses: false` en `src/http/chain.ts`), así que un esquema de respuesta que no describe lo que el API envía no lo detectó ninguna prueba hasta ahora. Solo `GET`, `POST` y `PUT /screens` se comprueban ya contra el contrato. Conviene pasar `assertConformsToContract` por las demás operaciones ya implementadas (usuarios, aplicaciones, variables, colecciones, comentarios de revisión y Jira) para encontrar otras diferencias.
-- `README.md` de la raíz todavía indica `-d docs_system` para el script de verificación del contrato (sección "Verificación del contrato"); el comando correcto está en `api/README.md` y en `CLAUDE.md` §6.
-- `AuditEntry.entityType` pasó de texto libre a la enumeración `AuditEntityType` (los 15 nombres de tabla que ya aceptaba el filtro). Una tabla auditada nueva exigirá agregar su nombre a la enumeración.
+- `AuditEntry.entityType` pasó de texto libre a la enumeración `AuditEntityType` (los 15 nombres de tabla que ya aceptaba el filtro). Una tabla auditada nueva exigirá agregar su nombre a la enumeración. El conjunto de valores (y el de `action`) se compara con los CHECK de `audit_log` en `tests/integration/audit.contractEnums.test.ts`, porque `check_contract_vs_db.py` solo compara enumeraciones y longitudes.
 
 ### Pendiente antes de desplegar varias instancias
 
