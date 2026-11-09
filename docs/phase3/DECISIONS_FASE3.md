@@ -172,6 +172,24 @@ D-74 permite ciclos entre colecciones (`DERIVES_FROM`). Todo lector recursivo fu
 
 - **Resuelto en 0.3.6.** ETag de la pantalla y regla de If-Match (D-101). Describir en la convención de `info.description`, en `components.headers.ETag`, en el parámetro `IfMatch` y en `getScreen`, `updateScreen` y `changeScreenStatus`: el formato `W/"<updatedAt ms>-<pendingSubtasks>-<commentCount>"`, que `If-None-Match` compara todo, que `If-Match` compara solo `updatedAt` (sin 412 por los contadores), que el formato anterior se acepta y que otro formato da 412 con `details.currentETag` completo.
 
+### Módulos 5 a 8 y tipado de pantallas (resuelto en 0.3.7)
+
+- **Resuelto en 0.3.7.** `Screen.components[].uses`. El elemento de lectura combinaba `ComponentWrite` con los campos de lectura y exigía `targetId` y `target` a la vez, así que ninguna respuesta real podía cumplirlo. Ahora hay esquemas de lectura propios (`Component`, `ComponentUse`, con `target`); la escritura no cambia. Lo comprueba `tests/integration/screens.contract.test.ts`.
+- **Resuelto en 0.3.7.** Tarjeta "Used by screens" de colecciones (pendiente de D-79): se alimenta del vecindario `GET /dependencies/collections/{id}?depth=1` (D-103).
+- **Resuelto en 0.3.7.** Descripción del grafo y el vecindario (D-104), la búsqueda (D-105), los indicadores (D-106) y la auditoría (D-107): filtros, 404, orden, campos por variante (`oneOf` con `discriminator`), `matchedIn`, `recentActivity`, claves en camelCase y el 403 `OWN_ACTIONS`.
+- **Para la implementación de los Módulos 5 a 8.** Estas operaciones siguen respondiendo `NOT_IMPLEMENTED`. Al construirlas: `graph.sql` emite null y nombres de columna en snake_case, así que hay que omitir los campos que no aplican y traducir a camelCase; el recorrido del vecindario debe ser seguro ante ciclos (D-74); la búsqueda normaliza ambos lados con un mapa fijo 1 a 1 (D-105); el módulo de auditoría traduce las claves de primer nivel (D-107). Cada módulo comprueba sus respuestas reales con `assertConformsToContract` (`tests/helpers/contractResponse.ts`).
+
+### Pendientes para el SDD (versión 1.4)
+
+- Incorporar D-103 a D-107 en la Tabla 70 y reflejarlos en §7.2.6, §10.1 y la Tabla 63.
+- La Tabla 51 debe marcar `applicationId` como obligatorio en `GET /search`; hoy no lo marca, pero el contrato y §7.1 lo exigen.
+
+### Detectado fuera del alcance de 0.3.7 (no corregido)
+
+- El API no valida sus respuestas (`validateResponses: false` en `src/http/chain.ts`), así que un esquema de respuesta que no describe lo que el API envía no lo detectó ninguna prueba hasta ahora. Solo `GET`, `POST` y `PUT /screens` se comprueban ya contra el contrato. Conviene pasar `assertConformsToContract` por las demás operaciones ya implementadas (usuarios, aplicaciones, variables, colecciones, comentarios de revisión y Jira) para encontrar otras diferencias.
+- `README.md` de la raíz todavía indica `-d docs_system` para el script de verificación del contrato (sección "Verificación del contrato"); el comando correcto está en `api/README.md` y en `CLAUDE.md` §6.
+- `AuditEntry.entityType` pasó de texto libre a la enumeración `AuditEntityType` (los 15 nombres de tabla que ya aceptaba el filtro). Una tabla auditada nueva exigirá agregar su nombre a la enumeración.
+
 ### Pendiente antes de desplegar varias instancias
 
 El API asume un solo proceso: los límites de solicitudes en memoria (D-60) y la exclusión por pantalla de la creación del Epic (D-93). Antes de desplegar varias instancias se necesita un almacén compartido para los contadores del límite y un mecanismo compartido para la exclusión del Epic.
