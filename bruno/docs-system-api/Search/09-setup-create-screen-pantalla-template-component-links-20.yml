@@ -1,0 +1,35 @@
+info:
+  name: '09 Setup · create screen Pantalla (template, component, links) 201'
+  type: http
+  seq: 9
+http:
+  method: POST
+  url: '{{baseUrl}}/screens'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{seaDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{seaAppId}},
+        "name": "{{seaPrefix}}Pantalla",
+        "miroLink": null,
+        "template": { "onStart": null, "workingProcess": null, "architecture": "Arquitectura de configuración {{seaPrefix}}", "dataModel": null, "requirements": null, "knownIssues": null, "risks": null },
+        "components": [{ "name": "{{seaPrefix}}Btn", "type": "{{seaPrefix}}Control", "onSelect": "Navigate to {{seaPrefix}}Pantalla slowly", "description": null, "uses": [] }],
+        "variableLinks": [{ "variableId": {{seaVarId}}, "accessMode": "READ", "usedIn": "{{seaPrefix}}Label.Text" }],
+        "collectionLinks": [{ "collectionId": {{seaColId}}, "accessMode": "READ", "usedIn": "{{seaPrefix}}OnVisible" }],
+        "navigations": []
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) { bru.setVar("seaScrId", res.body.data.id); bru.setVar("seaBtnId", res.body.data.components[0].id); }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("the screen and its component are ready", function () { expect(bru.getVar("seaScrId")).to.be.a("number"); expect(bru.getVar("seaBtnId")).to.be.a("number"); });
+settings:
+  encodeUrl: true

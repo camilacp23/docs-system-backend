@@ -1,0 +1,19 @@
+info:
+  name: '44 Filters · 200 a filter that applies to none of the selected types still counts and restricts nothing'
+  type: http
+  seq: 44
+http:
+  method: GET
+  url: '{{baseUrl}}/search?applicationId={{seaAppId}}&types=COMPONENT&scope=CONTEXT'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{seaAdminToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the component", function () { expect(res.body.total).to.equal(1); expect(res.body.data[0].type).to.equal("COMPONENT"); expect(res.body.data[0].id).to.equal(bru.getVar("seaBtnId")); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,21 @@
+info:
+  name: '36 Search · 200 pagination: page 2 of 2 per page'
+  type: http
+  seq: 36
+http:
+  method: GET
+  url: '{{baseUrl}}/search?applicationId={{seaAppId}}&q={{seaPrefix}}&pageSize=2&page=2'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{seaAdminToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        const keys = function (r) { return r.body.data.map(function (x) { return x.type + ":" + x.id; }); };
+        test("two results on page 2, total 4", function () { expect(res.body.total).to.equal(4); expect(res.body.page).to.equal(2); expect(res.body.pageSize).to.equal(2); expect(res.body.data).to.have.length(2); });
+        test("they are the third and fourth in order", function () { expect(keys(res)).to.deep.equal(["VARIABLE:" + bru.getVar("seaVarId"), "SCREEN:" + bru.getVar("seaScrId")]); });
+settings:
+  encodeUrl: true
