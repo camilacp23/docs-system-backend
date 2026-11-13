@@ -400,7 +400,7 @@ describe('GET /screens/{id}/jira-tickets when Jira cannot be used', () => {
       await insertSubtasks(t, screen.id, ['TO_DO', 'DONE']);
       const api = asUser(t, t.users.developer.token);
       // Not checked against the contract on purpose: without JIRA_BASE_URL the ticket `url` is relative (`/browse/<key>`)
-      // and the contract says `format: uri`; what it must be then is undefined (see DECISIONS_FASE3.md, pending).
+      // and the contract says `format: uri`; what it must be then is undefined (D-111 in DECISIONS_FASE3.md: pending, contract 0.3.8).
       const plain = treeOf(await api.get(`/screens/${screen.id}/jira-tickets`));
       assert.equal(plain.stories[0]!.subtasks.length, 2);
       assert.deepEqual([plain.sync.jiraAvailable, plain.sync.stale], [false, false]);
