@@ -1,0 +1,124 @@
+{
+  "status": 200,
+  "etag": "<etag>",
+  "body": {
+    "data": {
+      "id": "#1",
+      "applicationId": "#2",
+      "name": "colGolden",
+      "environments": ["DEV", "PROD"],
+      "documented": true,
+      "fieldCount": 4,
+      "createdAt": "<date>",
+      "updatedAt": "<date>",
+      "creationCondition": "ClearCollect",
+      "description": "Golden collection, changed",
+      "environmentDetails": [
+        {
+          "environment": "DEV",
+          "notes": "Mock data"
+        },
+        {
+          "environment": "PROD",
+          "notes": "Real data"
+        }
+      ],
+      "fields": [
+        {
+          "id": "#2",
+          "name": "Id",
+          "dataType": "NUMBER",
+          "description": null,
+          "position": 0
+        },
+        {
+          "id": "#3",
+          "name": "Estado",
+          "dataType": "TEXT",
+          "description": "Status",
+          "position": 1
+        },
+        {
+          "id": "#4",
+          "name": "Activo",
+          "dataType": "BOOLEAN",
+          "description": null,
+          "position": 1
+        },
+        {
+          "id": "#5",
+          "name": "Alta",
+          "dataType": "DATE",
+          "description": null,
+          "position": 9
+        }
+      ],
+      "variableAssignments": [
+        {
+          "id": "#2",
+          "variable": {
+            "id": "#6",
+            "name": "gColl0"
+          },
+          "collection": {
+            "id": "#1",
+            "name": "colGolden"
+          },
+          "screen": {
+            "id": "#7",
+            "name": "Golden screen B"
+          },
+          "assignmentFunction": "SET",
+          "tableFunction": "CountRows",
+          "usedIn": "OnVisible"
+        },
+        {
+          "id": "#3",
+          "variable": {
+            "id": "#8",
+            "name": "gColl1"
+          },
+          "collection": {
+            "id": "#1",
+            "name": "colGolden"
+          },
+          "screen": {
+            "id": "#9",
+            "name": "Golden screen A"
+          },
+          "assignmentFunction": "SET",
+          "tableFunction": null,
+          "usedIn": "OnStart"
+        },
+        {
+          "id": "#5",
+          "variable": {
+            "id": "#10",
+            "name": "gColl3"
+          },
+          "collection": {
+            "id": "#1",
+            "name": "colGolden"
+          },
+          "screen": {
+            "id": "#9",
+            "name": "Golden screen A"
+          },
+          "assignmentFunction": "UPDATE_CONTEXT",
+          "tableFunction": null,
+          "usedIn": "btnSave.OnSelect"
+        }
+      ],
+      "derivedFrom": [
+        {
+          "id": "#11",
+          "name": "colBaseA"
+        },
+        {
+          "id": "#12",
+          "name": "colBaseB"
+        }
+      ]
+    }
+  }
+}

@@ -167,10 +167,35 @@ export async function listVariables(
   return [rows.map(toSummary), total];
 }
 
-/** Reads one variable with its environments. */
+/** The variable and its origin screen (one relation, so Prisma sends its statements one after the other). */
+const HEAD_SELECT = {
+  id: true,
+  applicationId: true,
+  name: true,
+  dataType: true,
+  scope: true,
+  description: true,
+  createdAt: true,
+  updatedAt: true,
+  originScreen: { select: { id: true, name: true } },
+} as const;
+
+/**
+ * Reads one variable with its environments.
+ *
+ * `VARIABLE_SELECT` has two relations (origin screen and environments), and Prisma sends the statements of two
+ * relations at once on the connection; inside a transaction that is one connection, where `pg` queues them
+ * (deprecated, a failure in pg 9). So the environments are read apart, after the variable, with the same `ORDER BY`.
+ */
 export async function findVariableById(client: VariablesClient, id: number): Promise<VariableView | null> {
-  const row = await client.variable.findUnique({ where: { id }, select: VARIABLE_SELECT });
-  return row ? toView(row) : null;
+  const head = await client.variable.findUnique({ where: { id }, select: HEAD_SELECT });
+  if (!head) return null;
+  const environments = await client.elementEnvironment.findMany({
+    where: { elementId: id, elementType: 'VARIABLE' },
+    select: { environment: true, notes: true },
+    orderBy: { environment: 'asc' },
+  });
+  return toView({ ...head, element: { environments } });
 }
 
 /** Reads where a variable is created and used: screen links (without the origin row), assignments and components. */

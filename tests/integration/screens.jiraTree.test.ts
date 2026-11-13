@@ -9,6 +9,7 @@ import '../helpers/env.js';
 import assert from 'node:assert/strict';
 import { after, before, beforeEach, describe, it } from 'node:test';
 import { bearer, bodyOf, startTestApp, type TestApp } from '../helpers/app.js';
+import { assertConformsToContract } from '../helpers/contractResponse.js';
 import { insertApplication, insertScreen, insertSubtasks, setApplicationStatus } from '../helpers/fixtures.js';
 import { startJiraApp, type JiraApp } from '../helpers/jiraApp.js';
 import { asUser } from '../helpers/users.js';
@@ -130,6 +131,7 @@ describe('GET /screens/{id}/jira-tickets (FR-12)', () => {
       const screen = await insertScreen(t, application.id);
       const res = await get(screen.id);
       assert.equal(res.status, 200);
+      await assertConformsToContract(res);
       assert.deepEqual(treeOf(res), {
         epic: null,
         stories: [],
@@ -149,6 +151,7 @@ describe('GET /screens/{id}/jira-tickets (FR-12)', () => {
       const before = await searches();
       const res = await get(a.screen.id);
       assert.equal(res.status, 200);
+      await assertConformsToContract(res);
       const tree = treeOf(res);
       assert.equal(tree.epic?.id, a.epic.id);
       assert.equal(tree.epic?.url, `${t.sim.baseUrl}/browse/${a.epic.jiraIssueKey}`);
@@ -396,6 +399,8 @@ describe('GET /screens/{id}/jira-tickets when Jira cannot be used', () => {
       const screen = await insertScreen(t, application.id);
       await insertSubtasks(t, screen.id, ['TO_DO', 'DONE']);
       const api = asUser(t, t.users.developer.token);
+      // Not checked against the contract on purpose: without JIRA_BASE_URL the ticket `url` is relative (`/browse/<key>`)
+      // and the contract says `format: uri`; what it must be then is undefined (D-111 in DECISIONS_FASE3.md: pending, contract 0.3.8).
       const plain = treeOf(await api.get(`/screens/${screen.id}/jira-tickets`));
       assert.equal(plain.stories[0]!.subtasks.length, 2);
       assert.deepEqual([plain.sync.jiraAvailable, plain.sync.stale], [false, false]);

@@ -27,6 +27,8 @@ export type CollectionsClient = Pick<
   | 'collection'
   | 'collectionField'
   | 'variableCollection'
+  | 'variable'
+  | 'screen'
   | 'dependency'
   | 'documentedElement'
   | 'elementEnvironment'
@@ -118,38 +120,23 @@ const SUMMARY_SELECT = {
   _count: { select: { fields: true, screenLinks: true } },
 } satisfies Prisma.CollectionSelect;
 
-const DETAIL_SELECT = {
-  ...SUMMARY_SELECT,
+/**
+ * The collection itself: its columns and the two counts (no relation is selected, so the statement is one). The
+ * environments, fields, assignments and derivations are read apart (see `findCollectionById`).
+ */
+const HEAD_SELECT = {
+  id: true,
+  applicationId: true,
+  name: true,
+  createdAt: true,
+  updatedAt: true,
   creationCondition: true,
   description: true,
-  element: {
-    select: {
-      environments: { select: { environment: true, notes: true }, orderBy: { environment: 'asc' } },
-      outgoing: {
-        where: { relationType: 'DERIVES_FROM' },
-        select: { target: { select: { collection: { select: { id: true, name: true } } } } },
-      },
-    },
-  },
-  fields: {
-    select: { id: true, name: true, dataType: true, description: true, position: true },
-    orderBy: [{ position: 'asc' }, { id: 'asc' }],
-  },
-  variableLinks: {
-    select: {
-      id: true,
-      assignmentFunction: true,
-      tableFunction: true,
-      usedIn: true,
-      variable: { select: { id: true, name: true } },
-      screen: { select: { id: true, name: true } },
-    },
-    orderBy: [{ variable: { name: 'asc' } }, { screen: { name: 'asc' } }, { usedIn: 'asc' }, { id: 'asc' }],
-  },
+  _count: { select: { fields: true, screenLinks: true } },
 } satisfies Prisma.CollectionSelect;
 
 type SummaryRow = Prisma.CollectionGetPayload<{ select: typeof SUMMARY_SELECT }>;
-type DetailRow = Prisma.CollectionGetPayload<{ select: typeof DETAIL_SELECT }>;
+type HeadRow = Prisma.CollectionGetPayload<{ select: typeof HEAD_SELECT }>;
 
 const toSummary = (row: SummaryRow): CollectionSummaryView => ({
   id: row.id,
@@ -162,24 +149,46 @@ const toSummary = (row: SummaryRow): CollectionSummaryView => ({
   updatedAt: row.updatedAt,
 });
 
-const toView = (row: DetailRow): CollectionView => ({
-  ...toSummary(row),
+/** What the detail needs besides the head row, already ordered as the API returns it. */
+type DetailParts = {
+  environments: EnvironmentDetail[];
+  fields: FieldView[];
+  assignments: {
+    id: number;
+    assignmentFunction: AssignmentFunction;
+    tableFunction: string | null;
+    usedIn: string;
+    variableId: number;
+    screenId: number;
+  }[];
+  variables: Map<number, Ref>;
+  screens: Map<number, Ref>;
+  derivedFrom: Ref[];
+};
+
+const toView = (row: HeadRow, parts: DetailParts): CollectionView => ({
+  id: row.id,
+  applicationId: row.applicationId,
+  name: row.name,
+  environments: parts.environments.map((e) => e.environment),
+  documented: row._count.screenLinks > 0,
+  fieldCount: row._count.fields,
+  createdAt: row.createdAt,
+  updatedAt: row.updatedAt,
   creationCondition: row.creationCondition,
   description: row.description,
-  environmentDetails: row.element.environments,
-  fields: row.fields,
-  variableAssignments: row.variableLinks.map((a) => ({
+  environmentDetails: parts.environments,
+  fields: parts.fields,
+  variableAssignments: parts.assignments.map((a) => ({
     id: a.id,
-    variable: a.variable,
+    variable: parts.variables.get(a.variableId)!,
     collection: { id: row.id, name: row.name },
-    screen: a.screen,
+    screen: parts.screens.get(a.screenId)!,
     assignmentFunction: a.assignmentFunction,
     tableFunction: a.tableFunction,
     usedIn: a.usedIn,
   })),
-  derivedFrom: row.element.outgoing
-    .flatMap((d) => (d.target.collection ? [d.target.collection] : []))
-    .sort((a, b) => a.name.localeCompare(b.name) || a.id - b.id),
+  derivedFrom: parts.derivedFrom.sort((a, b) => a.name.localeCompare(b.name) || a.id - b.id),
 });
 
 /** A page of collections of one application and the total that matches the filters. */
@@ -209,10 +218,61 @@ export async function listCollections(
   return [rows.map(toSummary), total];
 }
 
-/** Reads one collection with environments, fields, assignments and derivations. */
+/**
+ * Reads one collection with environments, fields, assignments and derivations.
+ *
+ * One nested `select` would make Prisma send the statements of every relation at once on the connection, and inside a
+ * transaction that is one connection: `pg` queues them (deprecated, a failure in pg 9) and the transaction stays open
+ * longer. So each part is a flat read awaited before the next, with the same `ORDER BY` the nested form had.
+ */
 export async function findCollectionById(client: CollectionsClient, id: number): Promise<CollectionView | null> {
-  const row = await client.collection.findUnique({ where: { id }, select: DETAIL_SELECT });
-  return row ? toView(row) : null;
+  const row = await client.collection.findUnique({ where: { id }, select: HEAD_SELECT });
+  if (!row) return null;
+
+  const environments = await client.elementEnvironment.findMany({
+    where: { elementId: id, elementType: 'COLLECTION' },
+    select: { environment: true, notes: true },
+    orderBy: { environment: 'asc' },
+  });
+  const fields = await client.collectionField.findMany({
+    where: { collectionId: id },
+    select: { id: true, name: true, dataType: true, description: true, position: true },
+    orderBy: [{ position: 'asc' }, { id: 'asc' }],
+  });
+  const assignments = await client.variableCollection.findMany({
+    where: { collectionId: id },
+    select: { id: true, assignmentFunction: true, tableFunction: true, usedIn: true, variableId: true, screenId: true },
+    orderBy: [{ variable: { name: 'asc' } }, { screen: { name: 'asc' } }, { usedIn: 'asc' }, { id: 'asc' }],
+  });
+  const variableIds = [...new Set(assignments.map((a) => a.variableId))];
+  const variables =
+    variableIds.length === 0
+      ? []
+      : await client.variable.findMany({ where: { id: { in: variableIds } }, select: { id: true, name: true } });
+  const screenIds = [...new Set(assignments.map((a) => a.screenId))];
+  const screens =
+    screenIds.length === 0
+      ? []
+      : await client.screen.findMany({ where: { id: { in: screenIds } }, select: { id: true, name: true } });
+
+  const derivations = await client.dependency.findMany({
+    where: { sourceId: id, relationType: 'DERIVES_FROM' },
+    select: { targetId: true },
+  });
+  const derivedIds = [...new Set(derivations.map((d) => d.targetId))];
+  const derivedFrom =
+    derivedIds.length === 0
+      ? []
+      : await client.collection.findMany({ where: { id: { in: derivedIds } }, select: { id: true, name: true } });
+
+  return toView(row, {
+    environments,
+    fields,
+    assignments,
+    variables: new Map(variables.map((v) => [v.id, v])),
+    screens: new Map(screens.map((x) => [x.id, x])),
+    derivedFrom,
+  });
 }
 
 /** Reads the columns other rules need from a collection, or `null` when it does not exist. */

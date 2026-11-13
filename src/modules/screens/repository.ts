@@ -200,7 +200,11 @@ export type DependencyData = {
 
 const REF_SELECT = { select: { id: true, name: true } } as const;
 
-const DETAIL_SELECT = {
+/**
+ * The screen itself: its columns, its author and the two counts (one level of relations, so Prisma sends its
+ * statements one after the other). The components, links and navigations are read apart (see `findScreenById`).
+ */
+const SCREEN_SELECT = {
   id: true,
   applicationId: true,
   name: true,
@@ -223,104 +227,151 @@ const DETAIL_SELECT = {
       jiraTickets: { where: { hierarchyLevel: 'SUBTASK', statusCategory: { not: 'DONE' } } },
     },
   },
-  components: {
-    select: {
-      id: true,
-      name: true,
-      type: true,
-      onSelect: true,
-      description: true,
-      element: {
-        select: {
-          outgoing: {
-            where: { relationType: 'USES' },
-            select: {
-              id: true,
-              targetType: true,
-              description: true,
-              target: { select: { variable: REF_SELECT, collection: REF_SELECT } },
-            },
-            orderBy: { id: 'asc' },
-          },
-        },
-      },
-    },
-    orderBy: [{ name: 'asc' }, { id: 'asc' }],
-  },
-  variableLinks: {
-    select: { id: true, accessMode: true, usedIn: true, variable: REF_SELECT },
-    orderBy: [{ variable: { name: 'asc' } }, { usedIn: 'asc' }, { id: 'asc' }],
-  },
-  collectionLinks: {
-    select: { id: true, accessMode: true, usedIn: true, collection: REF_SELECT },
-    orderBy: [{ collection: { name: 'asc' } }, { usedIn: 'asc' }, { id: 'asc' }],
-  },
-  element: {
-    select: {
-      outgoing: {
-        where: { relationType: 'NAVIGATES_TO' },
-        select: { id: true, description: true, target: { select: { screen: REF_SELECT } } },
-        orderBy: { id: 'asc' },
-      },
-    },
-  },
 } satisfies Prisma.ScreenSelect;
 
-type DetailRow = Prisma.ScreenGetPayload<{ select: typeof DETAIL_SELECT }>;
+type ScreenRow = Prisma.ScreenGetPayload<{ select: typeof SCREEN_SELECT }>;
 
-const toDetail = (row: DetailRow): ScreenView => ({
-  id: row.id,
-  applicationId: row.applicationId,
-  name: row.name,
-  isAppContext: row.isAppContext,
-  documentationStatus: row.documentationStatus,
-  author: row.author,
-  pendingSubtasks: row._count.jiraTickets,
-  commentCount: row._count.comments,
-  createdAt: row.createdAt,
-  updatedAt: row.updatedAt,
-  miroLink: row.miroLink,
-  template: {
-    onStart: row.onStart,
-    workingProcess: row.workingProcess,
-    architecture: row.architecture,
-    dataModel: row.dataModel,
-    requirements: row.requirements,
-    knownIssues: row.knownIssues,
-    risks: row.risks,
-  },
-  components: row.components.map((c) => ({
-    id: c.id,
-    name: c.name,
-    type: c.type,
-    onSelect: c.onSelect,
-    description: c.description,
-    uses: c.element.outgoing
-      .flatMap((u) => {
-        const target = u.target.variable ?? u.target.collection;
-        return target && (u.targetType === 'VARIABLE' || u.targetType === 'COLLECTION')
-          ? [{ id: u.id, targetType: u.targetType, target, description: u.description }]
-          : [];
+/** What the detail needs besides the screen row: the rows of its items, already ordered as the API returns them. */
+type DetailParts = {
+  components: { id: number; name: string; type: string; onSelect: string | null; description: string | null }[];
+  uses: { id: number; sourceId: number; targetId: number; targetType: string; description: string | null }[];
+  variables: Map<number, Ref>;
+  collections: Map<number, Ref>;
+  variableLinks: { id: number; accessMode: AccessMode; usedIn: string; variable: Ref }[];
+  collectionLinks: CollectionLinkView[];
+  navigations: { id: number; targetId: number; description: string | null }[];
+  screens: Map<number, Ref>;
+};
+
+const toDetail = (row: ScreenRow, parts: DetailParts): ScreenView => {
+  const usesOf = new Map<number, UseView[]>();
+  for (const u of parts.uses) {
+    const target = parts.variables.get(u.targetId) ?? parts.collections.get(u.targetId);
+    if (target && (u.targetType === 'VARIABLE' || u.targetType === 'COLLECTION')) {
+      const list = usesOf.get(u.sourceId) ?? [];
+      list.push({ id: u.id, targetType: u.targetType, target, description: u.description });
+      usesOf.set(u.sourceId, list);
+    }
+  }
+  return {
+    id: row.id,
+    applicationId: row.applicationId,
+    name: row.name,
+    isAppContext: row.isAppContext,
+    documentationStatus: row.documentationStatus,
+    author: row.author,
+    pendingSubtasks: row._count.jiraTickets,
+    commentCount: row._count.comments,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    miroLink: row.miroLink,
+    template: {
+      onStart: row.onStart,
+      workingProcess: row.workingProcess,
+      architecture: row.architecture,
+      dataModel: row.dataModel,
+      requirements: row.requirements,
+      knownIssues: row.knownIssues,
+      risks: row.risks,
+    },
+    components: parts.components.map((c) => ({
+      id: c.id,
+      name: c.name,
+      type: c.type,
+      onSelect: c.onSelect,
+      description: c.description,
+      uses: (usesOf.get(c.id) ?? []).sort((a, b) => a.target.name.localeCompare(b.target.name) || a.id - b.id),
+    })),
+    variableLinks: parts.variableLinks.map((l) => ({
+      id: l.id,
+      variable: l.variable,
+      accessMode: l.accessMode,
+      usedIn: l.usedIn,
+      isOrigin: l.usedIn === 'origin',
+    })),
+    collectionLinks: parts.collectionLinks,
+    navigations: parts.navigations
+      .flatMap((n) => {
+        const targetScreen = parts.screens.get(n.targetId);
+        return targetScreen ? [{ id: n.id, targetScreen, description: n.description }] : [];
       })
-      .sort((a, b) => a.target.name.localeCompare(b.target.name) || a.id - b.id),
-  })),
-  variableLinks: row.variableLinks.map((l) => ({
-    id: l.id,
-    variable: l.variable,
-    accessMode: l.accessMode,
-    usedIn: l.usedIn,
-    isOrigin: l.usedIn === 'origin',
-  })),
-  collectionLinks: row.collectionLinks,
-  navigations: row.element.outgoing
-    .flatMap((n) => (n.target.screen ? [{ id: n.id, targetScreen: n.target.screen, description: n.description }] : []))
-    .sort((a, b) => a.targetScreen.name.localeCompare(b.targetScreen.name) || a.id - b.id),
-});
+      .sort((a, b) => a.targetScreen.name.localeCompare(b.targetScreen.name) || a.id - b.id),
+  };
+};
 
-/** Reads one screen with its template, components (and their uses), links and navigations. */
-export async function findScreenById(client: Pick<ScreensClient, 'screen'>, id: number): Promise<ScreenView | null> {
-  const row = await client.screen.findUnique({ where: { id }, select: DETAIL_SELECT });
-  return row ? toDetail(row) : null;
+const byId = <T extends { id: number }>(rows: T[]): Map<number, T> => new Map(rows.map((r) => [r.id, r]));
+
+/**
+ * Reads one screen with its template, components (and their uses), links and navigations.
+ *
+ * One nested `select` would make Prisma send the statements of every relation at once on the connection, and inside a
+ * transaction that is one connection: `pg` queues them (deprecated, a failure in pg 9) and the transaction stays open
+ * longer. So each part is a flat read awaited before the next, in the same order and with the same `ORDER BY` as the
+ * nested form had.
+ */
+export async function findScreenById(
+  client: Pick<ScreensClient, 'screen' | 'component' | 'screenVariable' | 'screenCollection' | 'dependency'> &
+    Pick<PrismaClient, 'variable' | 'collection'>,
+  id: number,
+): Promise<ScreenView | null> {
+  const row = await client.screen.findUnique({ where: { id }, select: SCREEN_SELECT });
+  if (!row) return null;
+
+  const components = await client.component.findMany({
+    where: { screenId: id },
+    select: { id: true, name: true, type: true, onSelect: true, description: true },
+    orderBy: [{ name: 'asc' }, { id: 'asc' }],
+  });
+  const uses =
+    components.length === 0
+      ? []
+      : await client.dependency.findMany({
+          where: { sourceId: { in: components.map((c) => c.id) }, relationType: 'USES' },
+          select: { id: true, sourceId: true, targetId: true, targetType: true, description: true },
+          orderBy: { id: 'asc' },
+        });
+  const useTargets = [...new Set(uses.map((u) => u.targetId))];
+  const variables =
+    useTargets.length === 0
+      ? []
+      : await client.variable.findMany({ where: { id: { in: useTargets } }, select: { id: true, name: true } });
+  const collections =
+    useTargets.length === 0
+      ? []
+      : await client.collection.findMany({ where: { id: { in: useTargets } }, select: { id: true, name: true } });
+
+  const variableLinks = await client.screenVariable.findMany({
+    where: { screenId: id },
+    select: { id: true, accessMode: true, usedIn: true, variable: REF_SELECT },
+    orderBy: [{ variable: { name: 'asc' } }, { usedIn: 'asc' }, { id: 'asc' }],
+  });
+  const collectionLinks = await client.screenCollection.findMany({
+    where: { screenId: id },
+    select: { id: true, accessMode: true, usedIn: true, collection: REF_SELECT },
+    orderBy: [{ collection: { name: 'asc' } }, { usedIn: 'asc' }, { id: 'asc' }],
+  });
+
+  const navigations = await client.dependency.findMany({
+    where: { sourceId: id, relationType: 'NAVIGATES_TO' },
+    select: { id: true, targetId: true, description: true },
+    orderBy: { id: 'asc' },
+  });
+  const targets = [...new Set(navigations.map((n) => n.targetId))];
+  const screens =
+    targets.length === 0
+      ? []
+      : await client.screen.findMany({ where: { id: { in: targets } }, select: { id: true, name: true } });
+
+  return toDetail(row, {
+    components,
+    uses,
+    variables: byId(variables),
+    collections: byId(collections),
+    variableLinks,
+    collectionLinks,
+    navigations,
+    screens: byId(screens),
+  });
 }
 
 /** What a write needs to know about a locked screen. */
