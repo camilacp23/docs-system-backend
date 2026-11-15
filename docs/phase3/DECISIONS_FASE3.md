@@ -83,6 +83,7 @@ D-60 a D-80 se aprobaron el 18 de octubre de 2026 y están incorporadas en el SD
 | Tema | Decisión |
 |---|---|
 | Node | ≥ 22.22.0 (lo exigen react-router 8.4.0 y Vite 8.3.2). Sigue siendo Node 22 (SDD Tabla 7). |
+| Node fijado (`.nvmrc`) | **22.23.3** (antes 22.22.0), la versión de la máquina de desarrollo; el CI la toma de `.nvmrc` (`node-version-file`). `engines` sigue en `>=22.22.0`. Motivo (15 de noviembre de 2026): con Node 22.22.0 en el CI, el hilo de generación de reportes corrió sin el cargador de TypeScript (`tsx`) aunque se le pasaba `--import`, y falló con `ERR_MODULE_NOT_FOUND` en su primer import relativo (`src/jobs/reports/moduleError.js`); con 22.23.3 pasa. Una prueba (`tests/unit/reports.threadLoader.test.ts`) arranca un hilo con las mismas opciones que el generador e importa un `.ts` por una ruta `.js`; si falla, dice que el cargador no está activo en los hilos con esa versión de Node. El CI imprime `node --version` y `npm --version` antes de las pruebas. Si 22.23.3 no bastara, la opción siguiente es que el hilo cargue siempre código compilado de `dist/` (no implementada). |
 | Lenguaje | TypeScript en backend (como la base) y frontend (`.tsx`, Figura 4). |
 | Rutas frontend | Las planas de D-57 (la Figura 4 con `/apps/:appId` queda obsoleta). |
 | Calidad | ESLint (typescript-eslint, `no-floating-promises` = R-1/D-20), Prettier, husky + lint-staged + commitlint (Conventional Commits). |

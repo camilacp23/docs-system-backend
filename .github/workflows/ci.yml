@@ -58,6 +58,12 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
+      - name: Show the tool versions
+        # Evidence for a failure that depends on the Node version (the thread tests print theirs too).
+        run: |
+          node --version
+          npm --version
+
       - name: Set up Python (contract check)
         uses: actions/setup-python@v7
         with:
