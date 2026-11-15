@@ -16,6 +16,9 @@ import { Prisma } from '../../generated/prisma/client.js';
 import type { Database } from '../../db/prisma.js';
 import type { IndicatorRow } from './representation.js';
 
+/** The client the statement runs on: the transaction of the caller (the dashboard's own snapshot, or another module's). */
+export type IndicatorsClient = Pick<Prisma.TransactionClient, '$queryRaw'>;
+
 /** What a snapshot lets the service do: read the indicators, and hand its client to another service's read. */
 export type DashboardSnapshot = {
   /** The counts of an application, or `null` when it does not exist. */
@@ -34,6 +37,11 @@ export type DashboardHooks = {
 export type DashboardRepository = {
   /** Runs `work` in one snapshot: `REPEATABLE READ`, `READ ONLY`. */
   inSnapshot<T>(work: (snapshot: DashboardSnapshot) => Promise<T>): Promise<T>;
+  /**
+   * The counts of an application read on `client`, the transaction of the caller (the same statement the dashboard
+   * runs in its own snapshot), or `null` when the application does not exist. The caller owns the snapshot.
+   */
+  readIndicators(client: IndicatorsClient, applicationId: number): Promise<IndicatorRow | null>;
 };
 
 /** The columns the statement returns (counts are cast to `int`, so Prisma gives numbers). */
@@ -105,6 +113,12 @@ function toIndicatorRow(row: Row): IndicatorRow {
   };
 }
 
+/** The ONE place that runs the statement and turns its row into counts. */
+async function readIndicators(client: IndicatorsClient, applicationId: number): Promise<IndicatorRow | null> {
+  const rows = await client.$queryRaw<Row[]>(indicatorsStatement(applicationId));
+  return rows[0] === undefined ? null : toIndicatorRow(rows[0]);
+}
+
 /**
  * Creates the repository.
  *
@@ -113,6 +127,7 @@ function toIndicatorRow(row: Row): IndicatorRow {
  */
 export function createDashboardRepository(db: Pick<Database, 'base'>, hooks: DashboardHooks = {}): DashboardRepository {
   return {
+    readIndicators,
     inSnapshot: (work) =>
       db.base.$transaction(
         async (tx) => {
@@ -120,9 +135,9 @@ export function createDashboardRepository(db: Pick<Database, 'base'>, hooks: Das
           return work({
             client: tx,
             indicators: async (applicationId) => {
-              const rows = await tx.$queryRaw<Row[]>(indicatorsStatement(applicationId));
+              const row = await readIndicators(tx, applicationId);
               await hooks.afterIndicators?.();
-              return rows[0] === undefined ? null : toIndicatorRow(rows[0]);
+              return row;
             },
           });
         },

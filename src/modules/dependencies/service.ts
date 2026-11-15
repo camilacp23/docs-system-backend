@@ -10,7 +10,7 @@
 import { assertIdInRange } from '../../http/ids.js';
 import { E } from '../../security/errors.js';
 import { filterGraph, neighborhood, nodeKey, toGraph, type Graph, type NodeType } from './graph.js';
-import type { DependenciesRepository } from './repository.js';
+import type { DependenciesRepository, GraphClient } from './repository.js';
 
 /** Filters of `GET /dependencies/graph`, already parsed by the controller. */
 export type GraphInput = {
@@ -25,6 +25,13 @@ export type NeighborhoodInput = { type: NodeType; id: number; depth: number };
 /** The dependencies service. */
 export type DependenciesService = {
   graph(input: GraphInput): Promise<Graph>;
+  /**
+   * The whole graph of an application (no filters), read on `client`, the transaction of another module's snapshot
+   * (the report's Dependencies part, D-116). Same statement, same variants and same order as `graph`.
+   *
+   * @throws {ApiError} 404 when the application does not exist.
+   */
+  graphOn(client: GraphClient, applicationId: number): Promise<Graph>;
   neighborhood(input: NeighborhoodInput): Promise<Graph>;
 };
 
@@ -35,6 +42,13 @@ export type DependenciesService = {
  */
 export function createDependenciesService(repository: DependenciesRepository): DependenciesService {
   return {
+    async graphOn(client, applicationId) {
+      assertIdInRange(applicationId, 'application');
+      const snapshot = await repository.readApplicationGraphOn(client, applicationId);
+      if (snapshot === null) throw E.notFound('application', applicationId);
+      return filterGraph(toGraph(snapshot.graph), { types: undefined, inEnvironment: undefined });
+    },
+
     async graph(input) {
       assertIdInRange(input.applicationId, 'application');
       const snapshot = await repository.readApplicationGraph(input.applicationId, input.environment);
