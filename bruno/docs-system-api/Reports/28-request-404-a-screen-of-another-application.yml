@@ -1,0 +1,24 @@
+info:
+  name: '28 Request · 404 a screen of another application'
+  type: http
+  seq: 28
+http:
+  method: POST
+  url: '{{baseUrl}}/reports/pdf'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{repDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "applicationId": {{repAppId}}, "title": "x", "scope": { "elementTypes": ["SCREEN"], "screenIds": [{{repOtherScrId}}] }, "publish": false }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 404", function () { expect(res.status).to.equal(404); });
+        test("code and message", function () { expect(res.body.code).to.equal("NOT_FOUND"); expect(res.body.message).to.equal("This screen doesn't exist. It may have been deleted."); });
+        test("the position and the id, without saying whose it is", function () { expect(res.body.details).to.deep.equal({ element: "screen", id: bru.getVar("repOtherScrId"), field: "scope.screenIds[0]" }); expect(JSON.stringify(res.body)).to.not.contain("Reports other"); });
+settings:
+  encodeUrl: true

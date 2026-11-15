@@ -21,6 +21,7 @@ import { corsPolicy, requestValidator, securityHeaders } from './http/chain.js';
 import { createErrorHandler, routeNotFound } from './http/errorHandler.js';
 import { jiraWebhookGate } from './http/jiraWebhookGate.js';
 import { createLogger, type Logger } from './http/logger.js';
+import { createApplicationReportWorker, type ReportWorker } from './jobs/reports/index.js';
 import { createJiraClient, type JiraClient } from './integrations/jira/index.js';
 import { authRateLimit } from './http/rateLimit.js';
 import { registerOperations, type OperationHandlers } from './http/operations.js';
@@ -51,6 +52,8 @@ export type BuildAppOptions = {
   jira?: JiraClient;
   /** Issues per page of the Jira refresh search (tests pass a small one). Default: the maximum. */
   refreshPageSize?: number;
+  /** Report worker (tests pass one with their own generators). Default: the application's, not started. */
+  reportWorker?: ReportWorker;
 };
 
 export type BuiltApp = {
@@ -61,6 +64,8 @@ export type BuiltApp = {
   logger: Logger;
   /** Isolated Jira client (NFR-14); the Jira operations use it from the next tasks on. */
   jira: JiraClient;
+  /** The report worker of this process; the server starts it, tests call `runOnce`. */
+  reportWorker: ReportWorker;
 };
 
 /**
@@ -75,6 +80,8 @@ export function buildApp(options: BuildAppOptions): BuiltApp {
   const logger = options.logger ?? createLogger(config);
   const jira =
     options.jira ?? createJiraClient(config.jira, { logger }, { production: config.nodeEnv === 'production' });
+  const reportWorker =
+    options.reportWorker ?? createApplicationReportWorker({ db, logger, jira, config: config.reports });
   const policies = loadPolicies(options.openapiPath ?? DEFAULT_OPENAPI_PATH);
 
   configureSecurity({
@@ -115,6 +122,7 @@ export function buildApp(options: BuildAppOptions): BuiltApp {
         defaultProjectKey: config.jira.projectKey,
         logger,
         integrationUserEmail: config.integrationUserEmail,
+        onReportQueued: () => reportWorker.wake(),
         ...(options.refreshPageSize === undefined ? {} : { refreshPageSize: options.refreshPageSize }),
       }),
     validator: requestValidator(options.openapiPath ?? DEFAULT_OPENAPI_PATH),
@@ -123,5 +131,5 @@ export function buildApp(options: BuildAppOptions): BuiltApp {
 
   app.use(routeNotFound);
   app.use(createErrorHandler({ db, logger }));
-  return { app, policies, notImplemented, logger, jira };
+  return { app, policies, notImplemented, logger, jira, reportWorker };
 }

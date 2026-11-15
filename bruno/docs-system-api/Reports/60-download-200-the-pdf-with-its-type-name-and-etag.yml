@@ -1,0 +1,21 @@
+info:
+  name: '60 Download · 200 the PDF with its type, name and ETag'
+  type: http
+  seq: 60
+http:
+  method: GET
+  url: '{{baseUrl}}/reports/{{repPdfId}}/file'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{repDevToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("Content-Type and the name of the file", function () { expect(res.headers["content-type"]).to.equal("application/pdf"); expect(res.headers["content-disposition"]).to.equal('attachment; filename="' + bru.getVar("repPdfFileName") + '"'); });
+        test("the ETag of the report", function () { expect(res.headers["etag"]).to.equal(bru.getVar("repPdfEtag")); });
+        test("it is a PDF: the signature %PDF-", function () { const b = typeof res.body === "string" ? res.body : String.fromCharCode.apply(null, Array.from(res.body).slice(0, 5)); expect(b.slice(0, 5)).to.equal("%PDF-"); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,21 @@
+info:
+  name: '20 Request · 401 no token'
+  type: http
+  seq: 20
+http:
+  method: POST
+  url: '{{baseUrl}}/reports/pdf'
+  body:
+    type: json
+    data: |-
+      { "applicationId": {{repAppId}}, "title": "x", "scope": { "elementTypes": ["VARIABLE"] }, "publish": false }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 401", function () { expect(res.status).to.equal(401); });
+        test("code and message", function () { expect(res.body.code).to.equal("UNAUTHENTICATED"); expect(res.body.message).to.equal("Your session is not valid. Sign in again."); });
+        test("no details", function () { expect(res.body.details === null || res.body.details === undefined).to.equal(true); });
+settings:
+  encodeUrl: true

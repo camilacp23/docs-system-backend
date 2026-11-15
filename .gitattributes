@@ -10,3 +10,4 @@ prisma/migrations/** -text
 *.jpeg binary
 *.docx binary
 *.pdf binary
+*.ttf binary

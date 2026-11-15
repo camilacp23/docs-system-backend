@@ -1,7 +1,8 @@
 # docs-system-api (Bruno collection)
 
 Requests and assertions for every implemented operation, grouped by module: `Auth`, `Users`, `Applications`,
-`Screens`, `Variables`, `Collections`, `Jira` and `Dependencies` (584 requests and 1478 assertions in all). It runs against the isolated database
+`Screens`, `Variables`, `Collections`, `Jira`, `Dependencies`, `Audit`, `Search`, `Dashboard` and `Reports` (815 executions and 1988
+assertions in all; the polling requests of `Reports` run more than once). It runs against the isolated database
 `docs_sandbox`, never against `docs_system`.
 
 ```bash
@@ -169,3 +170,46 @@ To check an interrupted run, run the folder with `npx bru run Jira --env sandbox
 the CLI by its PID after some request (for example after the one that arms a fault), restart the simulator if you like and
 run the folder again: it passes, because the first requests clear the simulator and each run works on its own
 application and prefix.
+
+## Reports folder
+
+71 requests (`seq` 12, after `Dashboard`; 76 executions in a run because the three polling requests repeat). Like the
+other folders it logs in the administrator, creates a Developer and a Reader with random e-mails and an application of its
+own (`Reports <suffix>`, plus a second one for the cross-application cases), and names what it creates with a random prefix
+that starts with a letter. Every error request checks `code`, `message` and `details`; every JSON answer is checked to be
+UTF-8 and the titles carry accents and a `ñ` that must come back unchanged.
+
+The worker of the API generates the reports in the background, so the folder **polls**: the three `Poll` requests ask for
+the report and, while it is `PENDING`, wait 250 ms and jump back to themselves (`bru.runner.setNextRequest`), at most 60
+looks, so a run waits for a report as long as it takes and no longer than 15 s; they assert only on the look that ends the
+loop (the test names say how many looks it took). A report that ends `FAILED`, or one that is still `PENDING` after the last
+look, fails the run.
+
+| Requests | Covers |
+| -------- | ------ |
+| 01-12    | Setup: users, both applications, a screen in each, a variable, and the report count of Sandbox Fixtures and of the run application before anything is generated |
+| 20-29    | The request, in the order of its errors: 401, 403 Reader (`requiredRoles`), 400 from the validator, 400 for repeated values with their position, `required`, `notApplicable`, 400 before 404, 404 application, 404 for a screen of another application (the same shape as one that does not exist, without saying whose it is) and 404 with the position |
+| 30-34    | 202 for a PDF (Developer, UTF-8 title, `Location`, the `ETag` of its `updatedAt`, no `Retry-After`) and for an Excel (Administrator, publish when ready), the parameters stored normalized (defaults written out), and the polling to `READY` (file name rule, size, `publishedAt` equal to `completedAt` for the published one) |
+| 40-52    | Reads: detail, 304, the Reader's 404 for a report that is not published (and the same body as one that does not exist), the list (newest first, no `parameters`, `ETag` hash and 304, Reader sees only published, `published=false` is an empty page for a Reader), 404 and 400 |
+| 60-66    | Download: the PDF and the Excel with their `Content-Type`, `Content-Disposition`, `ETag` and file signature (`%PDF-`, `PK`), 304, the Reader's 404, 404, 400 and 401 |
+| 70-77    | Publication: 412 with `currentETag`, 403, 400, 404, publish with the right `If-Match`, the same value writes nothing (same `ETag` and `updatedAt`), the Reader sees it, unpublish sets `publishedAt` to null |
+| 80-87    | Archived application (D-47): a report can be requested, generated, downloaded, published and unpublished while the application is archived; then it is active again |
+| 100-107  | Cleanup: deletes the variable and the screens, checks the run application has exactly its three reports, archives both applications and checks that Sandbox Fixtures is untouched |
+
+### Cleanup: reports cannot be deleted
+
+There is no `DELETE` of a report, and an application cannot be deleted either (`report.application_id` is `RESTRICT`), so what a
+run generates stays. The folder therefore makes every assertion on the application it created itself, which it archives at
+the end, and never reads another run's reports; Sandbox Fixtures only gets read (its report total is compared before and
+after). `npm run test:api` recreates and drops `docs_sandbox` on every run, so nothing accumulates there; on a sandbox you keep
+(`npm run sandbox:db`) each run adds an archived application and its three reports, which no later run reads.
+
+An interrupted run is simulated with the script itself, `API_FIRST_PASS`, which runs part of the folder first and ignores its
+result, and then the whole folder on the same database:
+
+```bash
+API_FIRST_PASS="Reports/0?-*.yml Reports/1?-*.yml Reports/2?-*.yml Reports/3[0-4]-*.yml" npm run test:api -- Reports
+```
+
+The first pass stops after the polls (setup done, three reports generated and published, the application still active, no
+cleanup), and the second pass, with its own application and prefix, passes.

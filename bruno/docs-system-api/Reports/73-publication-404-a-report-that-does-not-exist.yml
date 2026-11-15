@@ -1,0 +1,24 @@
+info:
+  name: '73 Publication · 404 a report that does not exist'
+  type: http
+  seq: 73
+http:
+  method: PUT
+  url: '{{baseUrl}}/reports/999999999/publication'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{repDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "isPublished": true }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 404", function () { expect(res.status).to.equal(404); });
+        test("code and message", function () { expect(res.body.code).to.equal("NOT_FOUND"); expect(res.body.message).to.equal("This report doesn't exist. It may have been deleted."); });
+        test("details", function () { expect(res.body.details).to.deep.equal({ element: "report", id: 999999999 }); });
+settings:
+  encodeUrl: true

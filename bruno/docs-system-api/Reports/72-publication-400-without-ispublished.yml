@@ -1,0 +1,24 @@
+info:
+  name: '72 Publication · 400 without isPublished'
+  type: http
+  seq: 72
+http:
+  method: PUT
+  url: '{{baseUrl}}/reports/{{repPdfId}}/publication'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{repDevToken}}'
+  body:
+    type: json
+    data: |-
+      {}
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 400", function () { expect(res.status).to.equal(400); });
+        test("code and message", function () { expect(res.body.code).to.equal("VALIDATION_ERROR"); expect(res.body.message).to.equal("Check the highlighted fields."); });
+        test("isPublished is the field", function () { expect(res.body.details.fields[0].field).to.equal("isPublished"); });
+settings:
+  encodeUrl: true

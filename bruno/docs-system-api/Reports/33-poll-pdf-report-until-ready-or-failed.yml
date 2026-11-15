@@ -1,0 +1,46 @@
+info:
+  name: '33 Poll · PDF report until READY or FAILED'
+  type: http
+  seq: 33
+http:
+  method: GET
+  url: '{{baseUrl}}/reports/{{repPdfId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{repDevToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        // Polling: at most 60 looks, a short pause between them, never one long wait.
+        const MAX = 60;
+        const n = (bru.getVar("repPollPdf") || 0) + 1;
+        bru.setVar("repPollPdf", n);
+        const state = res.body && res.body.data ? res.body.data.status : undefined;
+        if (res.status === 200 && state === "PENDING" && n < MAX) {
+          await bru.sleep(250);
+          bru.runner.setNextRequest("33 Poll · PDF report until READY or FAILED");
+        }
+    - type: tests
+      code: |-
+        const MAX = 60;
+        const n = bru.getVar("repPollPdf");
+        const state = res.body && res.body.data ? res.body.data.status : undefined;
+        // While it is PENDING and there are looks left nothing is asserted: the next look decides.
+        if (res.status !== 200 || state !== "PENDING" || n >= MAX) {
+          test("status 200", function () { expect(res.status).to.equal(200); });
+          test("it finished before " + MAX + " looks, and it is READY (took " + n + " looks)", function () { expect(res.body.data.status).to.equal("READY"); });
+          const d = res.body.data;
+          test("READY: the file data are set and it is not published", function () {
+            expect(d.fileName).to.match(/^documentacion-nandu-[a-z0-9]+-\d{4}-\d{2}-\d{2}\.pdf$/);
+            expect(d.fileSize).to.be.greaterThan(1000);
+            expect(d.completedAt).to.be.a("string");
+            expect([d.isPublished, d.publishedAt, d.errorMessage]).to.deep.equal([false, null, null]);
+            expect(d.fileName).to.equal("documentacion-nandu-" + bru.getVar("repRun") + "-" + d.completedAt.slice(0, 10) + ".pdf");
+          });
+          bru.setVar("repPdfEtag", res.headers["etag"]);
+          bru.setVar("repPdfFileName", d.fileName);
+        }
+settings:
+  encodeUrl: true

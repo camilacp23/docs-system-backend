@@ -1,0 +1,17 @@
+info:
+  name: '66 Download · 401 no token'
+  type: http
+  seq: 66
+http:
+  method: GET
+  url: '{{baseUrl}}/reports/{{repPdfId}}/file'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 401", function () { expect(res.status).to.equal(401); });
+        test("code and message", function () { expect(res.body.code).to.equal("UNAUTHENTICATED"); expect(res.body.message).to.equal("Your session is not valid. Sign in again."); });
+        test("no details", function () { expect(res.body.details === null || res.body.details === undefined).to.equal(true); });
+settings:
+  encodeUrl: true

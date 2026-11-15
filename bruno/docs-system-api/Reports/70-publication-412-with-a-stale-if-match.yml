@@ -1,0 +1,26 @@
+info:
+  name: '70 Publication · 412 with a stale If-Match'
+  type: http
+  seq: 70
+http:
+  method: PUT
+  url: '{{baseUrl}}/reports/{{repPdfId}}/publication'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{repDevToken}}'
+    - name: If-Match
+      value: 'W/"1"'
+  body:
+    type: json
+    data: |-
+      { "isPublished": true }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 412", function () { expect(res.status).to.equal(412); });
+        test("code and message", function () { expect(res.body.code).to.equal("PRECONDITION_FAILED"); expect(res.body.message).to.equal("Someone else saved changes to this report after you opened it. Reload to see their version."); });
+        test("the current ETag", function () { expect(res.body.details).to.deep.equal({ element: "report", currentETag: bru.getVar("repPdfEtag") }); });
+settings:
+  encodeUrl: true
