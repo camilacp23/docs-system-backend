@@ -1,0 +1,19 @@
+info:
+  name: '101 Cleanup · the comments of the deleted screen are gone: 404'
+  type: http
+  seq: 101
+http:
+  method: GET
+  url: '{{baseUrl}}/screens/{{comScrId}}/comments'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{comRdToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 404", function () { expect(res.status).to.equal(404); });
+        test("code", function () { expect(res.body.code).to.equal("NOT_FOUND"); });
+settings:
+  encodeUrl: true

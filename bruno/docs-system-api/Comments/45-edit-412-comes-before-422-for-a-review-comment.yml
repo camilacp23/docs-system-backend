@@ -1,0 +1,24 @@
+info:
+  name: '45 Edit · 412 comes before 422 for a review comment'
+  type: http
+  seq: 45
+http:
+  method: PUT
+  url: '{{baseUrl}}/comments/{{comRevId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{comAdminToken}}'
+    - name: If-Match
+      value: 'W/"1"'
+  body:
+    type: json
+    data: |-
+      { "text": "Rewritten" }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 412", function () { expect(res.status).to.equal(412); });
+settings:
+  encodeUrl: true

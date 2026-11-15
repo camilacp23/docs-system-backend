@@ -1,0 +1,30 @@
+info:
+  name: '47 Edit · 200 the author edits with If-Match: updatedAt set and a new tag'
+  type: http
+  seq: 47
+http:
+  method: PUT
+  url: '{{baseUrl}}/comments/{{comDevCmtId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{comDevToken}}'
+    - name: If-Match
+      value: '{{comDevEtag}}'
+  body:
+    type: json
+    data: |-
+      { "text": "  Edited ñandú\n  keeps its spaces  " }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 200) { bru.setVar("comDevEtag2", res.headers["etag"]); bru.setVar("comDevUpdatedAt", res.body.data.updatedAt); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the new text as written and updatedAt after createdAt", function () { const d = res.body.data; expect(d.text).to.equal("  Edited ñandú\n  keeps its spaces  "); expect(new Date(d.updatedAt).getTime()).to.be.greaterThan(new Date(d.createdAt).getTime()); expect(d.createdAt).to.equal(bru.getVar("comDevCreatedAt")); });
+        test("the ETag is the one of updatedAt, and it changed", function () { expect(res.headers["etag"]).to.equal('W/"' + new Date(res.body.data.updatedAt).getTime() + '"'); expect(res.headers["etag"]).to.not.equal(bru.getVar("comDevEtag")); });
+        test("there is no Location", function () { expect(res.headers["location"]).to.equal(undefined); });
+settings:
+  encodeUrl: true

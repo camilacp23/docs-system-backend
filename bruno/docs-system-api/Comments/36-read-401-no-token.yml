@@ -1,0 +1,15 @@
+info:
+  name: '36 Read · 401 no token'
+  type: http
+  seq: 36
+http:
+  method: GET
+  url: '{{baseUrl}}/screens/{{comScrId}}/comments'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 401", function () { expect(res.status).to.equal(401); });
+settings:
+  encodeUrl: true

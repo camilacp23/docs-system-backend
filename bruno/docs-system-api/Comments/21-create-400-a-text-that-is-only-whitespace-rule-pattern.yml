@@ -1,0 +1,23 @@
+info:
+  name: '21 Create · 400 a text that is only whitespace (rule pattern)'
+  type: http
+  seq: 21
+http:
+  method: POST
+  url: '{{baseUrl}}/screens/{{comScrId}}/comments'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{comDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "text": " \n\t  " }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 400", function () { expect(res.status).to.equal(400); });
+        test("code and the field with its rule", function () { expect(res.body.code).to.equal("VALIDATION_ERROR"); expect(res.body.details.fields[0].field).to.equal("text"); expect(res.body.details.fields[0].rule).to.equal("pattern"); });
+settings:
+  encodeUrl: true

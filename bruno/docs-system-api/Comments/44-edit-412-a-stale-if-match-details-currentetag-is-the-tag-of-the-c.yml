@@ -1,0 +1,25 @@
+info:
+  name: '44 Edit · 412 a stale If-Match: details.currentETag is the tag of the comment'
+  type: http
+  seq: 44
+http:
+  method: PUT
+  url: '{{baseUrl}}/comments/{{comDevCmtId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{comDevToken}}'
+    - name: If-Match
+      value: 'W/"1"'
+  body:
+    type: json
+    data: |-
+      { "text": "Late edit" }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 412", function () { expect(res.status).to.equal(412); });
+        test("code, message and the current tag", function () { expect(res.body.code).to.equal("PRECONDITION_FAILED"); expect(res.body.message).to.equal("Someone else saved changes to this comment after you opened it. Reload to see their version."); expect(res.body.details).to.deep.equal({ element: "comment", currentETag: bru.getVar("comDevEtag") }); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,25 @@
+info:
+  name: '49 Edit · 412 the If-Match is checked even when the text does not change'
+  type: http
+  seq: 49
+http:
+  method: PUT
+  url: '{{baseUrl}}/comments/{{comDevCmtId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{comDevToken}}'
+    - name: If-Match
+      value: '{{comDevEtag}}'
+  body:
+    type: json
+    data: |-
+      { "text": "  Edited ñandú\n  keeps its spaces  " }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 412", function () { expect(res.status).to.equal(412); });
+        test("the current tag is the one after the edit", function () { expect(res.body.details.currentETag).to.equal(bru.getVar("comDevEtag2")); });
+settings:
+  encodeUrl: true

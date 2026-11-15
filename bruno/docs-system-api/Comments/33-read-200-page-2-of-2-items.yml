@@ -1,0 +1,19 @@
+info:
+  name: '33 Read · 200 page 2 of 2 items'
+  type: http
+  seq: 33
+http:
+  method: GET
+  url: '{{baseUrl}}/screens/{{comScrId}}/comments?page=2&pageSize=2'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{comDevToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the last two, with the same total", function () { expect(res.body.data.length).to.equal(2); expect(res.body.total).to.equal(4); expect(res.body.page).to.equal(2); expect(res.body.pageSize).to.equal(2); expect(res.body.data[1].reviewDecision).to.equal("RETURN"); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,23 @@
+info:
+  name: '61 Archived · 422 APPLICATION_ARCHIVED: nobody comments on an archived application'
+  type: http
+  seq: 61
+http:
+  method: POST
+  url: '{{baseUrl}}/screens/{{comOtherScrId}}/comments'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{comAdminToken}}'
+  body:
+    type: json
+    data: |-
+      { "text": "Too late" }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 422", function () { expect(res.status).to.equal(422); });
+        test("code, message and the application", function () { expect(res.body.code).to.equal("APPLICATION_ARCHIVED"); expect(res.body.message).to.equal("This application is archived, so its documentation can't be changed."); expect(res.body.details).to.deep.equal({ applicationId: bru.getVar("comOtherAppId") }); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,20 @@
+info:
+  name: '20 Create · 401 no token'
+  type: http
+  seq: 20
+http:
+  method: POST
+  url: '{{baseUrl}}/screens/{{comScrId}}/comments'
+  body:
+    type: json
+    data: |-
+      { "text": "x" }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 401", function () { expect(res.status).to.equal(401); });
+        test("code", function () { expect(res.body.code).to.equal("UNAUTHENTICATED"); });
+settings:
+  encodeUrl: true
