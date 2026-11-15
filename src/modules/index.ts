@@ -14,6 +14,7 @@ import { authHandlers } from './auth/routes.js';
 import { collectionsHandlers } from './collections/routes.js';
 import { dashboardHandlers } from './dashboard/routes.js';
 import { dependenciesHandlers } from './dependencies/routes.js';
+import { reportsHandlers } from './reports/routes.js';
 import { screensHandlers } from './screens/routes.js';
 import { searchHandlers } from './search/routes.js';
 import { usersHandlers } from './users/routes.js';
@@ -32,6 +33,8 @@ export function createModuleHandlers(deps: {
   logger: Logger;
   integrationUserEmail: string;
   refreshPageSize?: number;
+  /** Called after a report was saved, to wake the report worker of this process. */
+  onReportQueued?: () => void;
 }): OperationHandlers {
   return {
     ...authHandlers(deps.db),
@@ -51,5 +54,6 @@ export function createModuleHandlers(deps: {
     ...auditHandlers(deps.db),
     ...searchHandlers(deps.db),
     ...dashboardHandlers(deps.db, { jira: deps.jira }),
+    ...reportsHandlers(deps.db, deps.onReportQueued === undefined ? {} : { onQueued: deps.onReportQueued }),
   };
 }
