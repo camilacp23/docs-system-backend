@@ -1,0 +1,20 @@
+info:
+  name: '32 Generate · the detail has the normalized parameters'
+  type: http
+  seq: 32
+http:
+  method: GET
+  url: '{{baseUrl}}/reports/{{repPdfId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{repDevToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("parameters are the selection with its defaults written out", function () { const p = res.body.data.parameters; expect(p.format).to.equal("PDF"); expect(p.publish).to.equal(false); expect(p.scope.elementTypes).to.deep.equal(["SCREEN", "VARIABLE"]); expect(p.scope.includeStatusSummary).to.equal(true); expect(p.scope.includeDependencies).to.equal(true); expect(p.scope.screenIds).to.deep.equal([bru.getVar("repScrId")]); });
+        test("whatever its state, it is one of the three", function () { expect(["PENDING", "READY", "FAILED"]).to.include(res.body.data.status); });
+settings:
+  encodeUrl: true

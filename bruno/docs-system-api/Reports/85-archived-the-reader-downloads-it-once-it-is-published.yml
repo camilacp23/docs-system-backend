@@ -1,0 +1,19 @@
+info:
+  name: '85 Archived · the Reader downloads it once it is published'
+  type: http
+  seq: 85
+http:
+  method: GET
+  url: '{{baseUrl}}/reports/{{repArchivedId}}/file'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{repReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the type of the format", function () { expect(res.headers["content-type"]).to.equal("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"); });
+settings:
+  encodeUrl: true

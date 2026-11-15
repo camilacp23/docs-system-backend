@@ -1,0 +1,28 @@
+info:
+  name: '74 Publication · 200 publish the PDF with the right If-Match'
+  type: http
+  seq: 74
+http:
+  method: PUT
+  url: '{{baseUrl}}/reports/{{repPdfId}}/publication'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{repDevToken}}'
+    - name: If-Match
+      value: '{{repPdfEtag}}'
+  body:
+    type: json
+    data: |-
+      { "isPublished": true }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 200) { bru.setVar("repPdfEtag2", res.headers["etag"]); bru.setVar("repPdfUpdatedAt2", res.body.data.updatedAt); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("published, with its date, and a new ETag", function () { const d = res.body.data; expect(d.isPublished).to.equal(true); expect(d.publishedAt).to.be.a("string"); expect(res.headers["etag"]).to.not.equal(bru.getVar("repPdfEtag")); expect(res.headers["etag"]).to.equal('W/"' + new Date(d.updatedAt).getTime() + '"'); expect(d).to.not.have.property("parameters"); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,31 @@
+info:
+  name: '31 Generate · 202 Excel as Administrator, published when ready'
+  type: http
+  seq: 31
+http:
+  method: POST
+  url: '{{baseUrl}}/reports/excel'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{repAdminToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{repAppId}},
+        "title": "Variables y pantallas {{repRun}}",
+        "scope": { "elementTypes": ["VARIABLE", "SCREEN"], "includeDependencies": false },
+        "publish": true
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 202) { bru.setVar("repXlsxId", res.body.data.id); }
+    - type: tests
+      code: |-
+        test("status 202", function () { expect(res.status).to.equal(202); });
+        test("PENDING and not published yet, whatever the request said", function () { const d = res.body.data; expect(d.status).to.equal("PENDING"); expect(d.format).to.equal("XLSX"); expect(d.isPublished).to.equal(false); expect(d.publishedAt).to.equal(null); expect(res.headers["location"]).to.equal("/api/v1/reports/" + d.id); });
+settings:
+  encodeUrl: true

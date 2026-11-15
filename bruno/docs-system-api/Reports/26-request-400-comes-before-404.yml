@@ -1,0 +1,24 @@
+info:
+  name: '26 Request · 400 comes before 404'
+  type: http
+  seq: 26
+http:
+  method: POST
+  url: '{{baseUrl}}/reports/pdf'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{repDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "applicationId": 999999999, "title": "x", "scope": { "elementTypes": [] }, "publish": false }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 400", function () { expect(res.status).to.equal(400); });
+        test("code and message", function () { expect(res.body.code).to.equal("VALIDATION_ERROR"); expect(res.body.message).to.equal("Check the highlighted fields."); });
+        test("it is the scope, not the application", function () { expect(res.body.details.fields[0].field).to.equal("scope.elementTypes"); });
+settings:
+  encodeUrl: true

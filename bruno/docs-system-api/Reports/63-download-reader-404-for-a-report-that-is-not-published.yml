@@ -1,0 +1,20 @@
+info:
+  name: '63 Download · Reader 404 for a report that is not published'
+  type: http
+  seq: 63
+http:
+  method: GET
+  url: '{{baseUrl}}/reports/{{repPdfId}}/file'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{repReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 404", function () { expect(res.status).to.equal(404); });
+        test("code and message", function () { expect(res.body.code).to.equal("NOT_FOUND"); expect(res.body.message).to.equal("This report doesn't exist. It may have been deleted."); });
+        test("the same body as one that does not exist", function () { expect(res.body.message).to.equal(bru.getVar("repHiddenMessage")); expect(res.body.details).to.deep.equal({ element: "report", id: bru.getVar("repPdfId") }); });
+settings:
+  encodeUrl: true

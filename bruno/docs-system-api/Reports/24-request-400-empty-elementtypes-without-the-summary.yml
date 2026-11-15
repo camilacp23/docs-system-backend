@@ -1,0 +1,24 @@
+info:
+  name: '24 Request · 400 empty elementTypes without the summary'
+  type: http
+  seq: 24
+http:
+  method: POST
+  url: '{{baseUrl}}/reports/excel'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{repDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "applicationId": {{repAppId}}, "title": "x", "scope": { "elementTypes": [] }, "publish": false }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 400", function () { expect(res.status).to.equal(400); });
+        test("code and message", function () { expect(res.body.code).to.equal("VALIDATION_ERROR"); expect(res.body.message).to.equal("Check the highlighted fields."); });
+        test("required on scope.elementTypes", function () { expect(res.body.details.fields).to.deep.equal([{ field: "scope.elementTypes", rule: "required", message: "This value is required." }]); });
+settings:
+  encodeUrl: true
