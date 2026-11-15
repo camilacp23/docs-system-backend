@@ -133,3 +133,64 @@ describe('loadConfig', () => {
     );
   });
 });
+
+describe('loadConfig: the report worker (D-44, D-119)', () => {
+  it('applies the thresholds of the decision as defaults', () => {
+    assert.deepEqual(loadConfig(valid()).reports, {
+      workerEnabled: true,
+      pollMs: 5_000,
+      maxSeconds: 60,
+      maxBytes: 33_554_432,
+      maxMemoryMb: 512,
+      maxRows: 50_000,
+      shutdownGraceMs: 8_000,
+    });
+  });
+
+  it('reads every variable of .env.example', () => {
+    const c = loadConfig({
+      ...valid(),
+      REPORT_WORKER_ENABLED: 'false',
+      REPORT_WORKER_POLL_MS: '250',
+      REPORT_MAX_SECONDS: '90',
+      REPORT_MAX_BYTES: '2097152',
+      REPORT_MAX_MEMORY_MB: '256',
+      REPORT_MAX_ROWS: '1000',
+      REPORT_SHUTDOWN_GRACE_MS: '0',
+    });
+    assert.deepEqual(c.reports, {
+      workerEnabled: false,
+      pollMs: 250,
+      maxSeconds: 90,
+      maxBytes: 2_097_152,
+      maxMemoryMb: 256,
+      maxRows: 1_000,
+      shutdownGraceMs: 0,
+    });
+  });
+
+  it('validates them at start-up, naming the variable and never its value', () => {
+    for (const [name, bad] of [
+      ['REPORT_WORKER_ENABLED', 'yes'],
+      ['REPORT_WORKER_POLL_MS', '10'],
+      ['REPORT_MAX_SECONDS', '2'],
+      ['REPORT_MAX_SECONDS', '9000'],
+      ['REPORT_MAX_BYTES', '1000'],
+      ['REPORT_MAX_BYTES', '999999999999'],
+      ['REPORT_MAX_MEMORY_MB', '8'],
+      ['REPORT_MAX_MEMORY_MB', '999999'],
+      ['REPORT_MAX_ROWS', '5'],
+      ['REPORT_SHUTDOWN_GRACE_MS', '10000'],
+      ['REPORT_SHUTDOWN_GRACE_MS', 'soon'],
+    ] as const) {
+      const text = problemsOf({ ...valid(), [name]: bad }).join();
+      assert.match(text, new RegExp(name), `${name}=${bad}`);
+      assert.ok(!text.includes(bad) || bad.length < 3, 'a problem never repeats the value');
+    }
+  });
+
+  it('the grace of the shutdown is shorter than the forced exit of the server (10 s)', () => {
+    assert.ok(loadConfig(valid()).reports.shutdownGraceMs < 10_000);
+    assert.ok(problemsOf({ ...valid(), REPORT_SHUTDOWN_GRACE_MS: '10000' }).length > 0);
+  });
+});

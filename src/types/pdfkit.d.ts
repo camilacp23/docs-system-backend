@@ -13,9 +13,24 @@ declare module 'pdfkit' {
 
   /** A PDF document written to memory: listen to `data` and `end`, or use the `Buffer`s it emits. */
   class PDFDocument {
-    constructor(options?: { autoFirstPage?: boolean; size?: string; margin?: number; info?: Record<string, string> });
+    constructor(options?: {
+      autoFirstPage?: boolean;
+      size?: string;
+      margin?: number;
+      info?: Record<string, string | Date>;
+    });
     readonly _font: { readonly font: EmbeddedFont };
+    readonly page: { readonly width: number; readonly margins: { readonly left: number; readonly right: number } };
+    registerFont(name: string, source: string): this;
     font(source: string): this;
+    fontSize(size: number): this;
+    text(text: string, options?: { width?: number; lineGap?: number; paragraphGap?: number }): this;
+    moveDown(lines?: number): this;
+    addPage(): this;
+    on(event: 'data', listener: (chunk: Buffer) => void): this;
+    on(event: 'end', listener: () => void): this;
+    on(event: 'error', listener: (error: Error) => void): this;
+    end(): void;
   }
 
   export default PDFDocument;

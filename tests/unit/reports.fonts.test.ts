@@ -26,6 +26,22 @@ describe('PDF fonts', () => {
     });
   }
 
+  it('the internal property of pdfkit that the generator relies on still has its shape (pdfkit is pinned: re-check on update)', () => {
+    // `src/types/pdfkit.d.ts` declares `_font.font.hasGlyphForCodePoint` and `fullName`: pdfkit does not publish them as API.
+    const font: unknown = new PDFDocument({ autoFirstPage: false }).font(fontPath('regular'))._font?.font;
+    const shape = font as { hasGlyphForCodePoint?: unknown; fullName?: unknown } | undefined;
+    assert.ok(
+      typeof shape?.hasGlyphForCodePoint === 'function' && typeof shape.fullName === 'string',
+      'pdfkit changed its internal `_font.font` (hasGlyphForCodePoint, fullName): update src/jobs/reports/pdf.ts and src/types/pdfkit.d.ts',
+    );
+    assert.equal(shape.fullName, 'IBM Plex Sans');
+    assert.equal(
+      (shape as { hasGlyphForCodePoint(code: number): boolean }).hasGlyphForCodePoint(0x4e2d),
+      false,
+      'no glyph for CJK',
+    );
+  });
+
   it('the license text is next to the fonts', () => {
     const license = readFileSync(new URL('../../src/jobs/reports/fonts/LICENSE.txt', import.meta.url), 'utf8');
     assert.match(license, /SIL OPEN FONT LICENSE Version 1\.1/);

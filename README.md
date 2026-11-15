@@ -71,3 +71,20 @@ las cifras (líneas `PERF search ...`) y comprueba el tamaño de los datos, el c
 Tarda unos 25 segundos. **No corre en `npm test` ni en el CI**: con tanto texto frena a las demás pruebas, y sus cifras dentro de
 la suite en paralelo no son fiables. En `npm test` queda `tests/integration/search.scale.test.ts`, la misma consulta sobre unos
 200 elementos, que verifica el resultado (totales contados con SQL aparte, páginas, orden estable) sin medir tiempos.
+
+### Prueba de carga de los reportes
+
+```bash
+npm run test:perf:reports
+```
+
+Corre solo `tests/perf/reports.performance.test.ts` sobre una base desechable (nunca `docs_system`): carga una aplicación del tamaño
+de un departamento (500 pantallas, 3000 componentes, 1000 variables, 300 colecciones con 10 campos y 1000 navegaciones), genera con
+el worker real el reporte más grande (todas las partes y las dependencias) en PDF y en Excel, y también mide el costo de crear el
+hilo de generación con un reporte diminuto. Imprime líneas `[perf]` con el tiempo, el tamaño del archivo, la memoria del proceso y
+del hilo, y el retraso del event loop del hilo principal (p50, p99 y máximo). Se controla con variables de entorno de esta prueba
+(no son las del servidor): `REPORT_PERF_TEXT` (`realistic` o `random`), `REPORT_PERF_FACTOR` (multiplica el tamaño), `REPORT_PERF_CHARS`
+(caracteres de cada campo de la plantilla; 5000 por omisión), `REPORT_PERF_FORMAT` (`PDF` o `XLSX`) y los límites del worker
+(`REPORT_MAX_SECONDS`, `REPORT_MAX_BYTES`, `REPORT_MAX_MEMORY_MB`, `REPORT_MAX_ROWS`), que la aplicación lee como en producción.
+Por omisión usa texto realista (vocabulario que se repite); `random` genera palabras todas distintas, el peor caso para la caché de
+diseño de pdfkit. **No corre en `npm test`.** Tarda de uno a tres minutos a escala completa; `npm run test:perf` también la incluye.

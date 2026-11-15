@@ -27,6 +27,24 @@ export type JiraConfig = {
   webhookSecret?: string;
 };
 
+/** The report worker and its limits (D-44, D-118, D-119). Every value comes from an environment variable. */
+export type ReportsConfig = {
+  /** `REPORT_WORKER_ENABLED`: start the worker with the server. */
+  workerEnabled: boolean;
+  /** `REPORT_WORKER_POLL_MS`: how often an idle worker looks for a PENDING report. */
+  pollMs: number;
+  /** `REPORT_MAX_SECONDS`: longest generation; a slower one is FAILED ("took too long"). */
+  maxSeconds: number;
+  /** `REPORT_MAX_BYTES`: largest file; a bigger one is FAILED ("too large"). */
+  maxBytes: number;
+  /** `REPORT_MAX_MEMORY_MB`: heap of the thread that generates the file; more is FAILED ("too large"). */
+  maxMemoryMb: number;
+  /** `REPORT_MAX_ROWS`: most rows in all the parts of a report together; more is FAILED ("too large"). */
+  maxRows: number;
+  /** `REPORT_SHUTDOWN_GRACE_MS`: time given to the report being generated when the server stops. */
+  shutdownGraceMs: number;
+};
+
 export type AppConfig = {
   nodeEnv: NodeEnv;
   port: number;
@@ -51,6 +69,7 @@ export type AppConfig = {
   integrationUserEmail: string;
   seed: { adminName?: string; adminEmail?: string };
   jira: JiraConfig;
+  reports: ReportsConfig;
 };
 
 /** Raised by `loadConfig`; `problems` has one line per invalid variable (never a value). */
@@ -101,6 +120,15 @@ class Reader {
       return opts.fallback;
     }
     return Number(v);
+  }
+
+  bool(name: string, fallback: boolean): boolean {
+    const v = this.raw(name);
+    if (v === undefined) return fallback;
+    if (v === 'true') return true;
+    if (v === 'false') return false;
+    this.fail(name, 'must be true or false');
+    return fallback;
   }
 
   oneOf<T extends string>(name: string, allowed: readonly T[], fallback: T): T {
@@ -229,6 +257,20 @@ function parseJira(r: Reader, nodeEnv: NodeEnv): JiraConfig {
   return jira;
 }
 
+/** Defaults and ranges of the report worker (D-119; the thresholds are those of decision D-129). */
+function parseReports(r: Reader): ReportsConfig {
+  return {
+    workerEnabled: r.bool('REPORT_WORKER_ENABLED', true),
+    pollMs: r.int('REPORT_WORKER_POLL_MS', { min: 100, max: 60_000, fallback: 5_000 }),
+    maxSeconds: r.int('REPORT_MAX_SECONDS', { min: 5, max: 900, fallback: 60 }),
+    maxBytes: r.int('REPORT_MAX_BYTES', { min: 1_048_576, max: 209_715_200, fallback: 33_554_432 }),
+    maxMemoryMb: r.int('REPORT_MAX_MEMORY_MB', { min: 64, max: 4_096, fallback: 512 }),
+    maxRows: r.int('REPORT_MAX_ROWS', { min: 100, max: 1_000_000, fallback: 50_000 }),
+    // Shorter than the forced exit of server.ts (10 s), so a report is released before the process is cut.
+    shutdownGraceMs: r.int('REPORT_SHUTDOWN_GRACE_MS', { min: 0, max: 9_000, fallback: 8_000 }),
+  };
+}
+
 /**
  * Reads and validates the environment.
  *
@@ -274,6 +316,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   if (seedEmail !== undefined) seed.adminEmail = seedEmail;
 
   const jira = parseJira(r, nodeEnv);
+  const reports = parseReports(r);
 
   if (r.problems.length > 0) throw new ConfigError(r.problems);
 
@@ -293,6 +336,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     integrationUserEmail: integrationUserEmail ?? '',
     seed,
     jira,
+    reports,
   };
   if (databaseUrl !== undefined) config.databaseUrl = databaseUrl;
   if (shadowDatabaseUrl !== undefined) config.shadowDatabaseUrl = shadowDatabaseUrl;

@@ -36,7 +36,7 @@ async function main(): Promise<void> {
   try {
     await db.base.$queryRaw`SELECT 1`; // fail fast if the database is unreachable
     await assertReservedAccount(db, config.integrationUserEmail); // actor of the webhook writes (TODO_FASE3 #3)
-    const { app, policies, notImplemented, jira } = buildApp({ config, db, logger });
+    const { app, policies, notImplemented, jira, reportWorker } = buildApp({ config, db, logger });
     const missingJira = missingJiraSettings(config.jira);
     if (missingJira.length > 0) {
       // D-89 / NFR-14: the API starts without Jira. Only the NAMES of the missing variables are logged.
@@ -49,6 +49,9 @@ async function main(): Promise<void> {
       { total: policies.size, notImplemented: notImplemented.length, operations: notImplemented },
       `${notImplemented.length} of ${policies.size} operations are not implemented yet (they answer 404 NOT_IMPLEMENTED)`,
     );
+
+    if (config.reports.workerEnabled) reportWorker.start();
+    else logger.warn('the report worker is disabled (REPORT_WORKER_ENABLED=false): reports stay PENDING');
 
     const server = app.listen(config.port, () => {
       logger.info({ port: config.port, env: config.nodeEnv }, 'API listening');
@@ -64,9 +67,13 @@ async function main(): Promise<void> {
         process.exit(1);
       }, SHUTDOWN_TIMEOUT_MS);
       timer.unref();
+      // The report being generated gets its grace (shorter than SHUTDOWN_TIMEOUT_MS) and, if it does not finish, stays PENDING.
+      const workerStopped = reportWorker.stop().catch((e: unknown) => {
+        logger.error({ err: e instanceof Error ? e.message : 'unknown' }, 'report worker stop');
+      });
       server.close((err) => {
-        db.base
-          .$disconnect()
+        workerStopped
+          .then(() => db.base.$disconnect())
           .catch((e: unknown) => logger.error({ err: e instanceof Error ? e.message : 'unknown' }, 'prisma disconnect'))
           .finally(() => process.exit(err ? 1 : 0));
       });
