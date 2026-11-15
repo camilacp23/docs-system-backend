@@ -135,6 +135,8 @@ jobs:
         run: npm run build
 
       - name: Unit and integration tests
+        # About 5 minutes on a developer machine; a test that hangs must not use the whole job.
+        timeout-minutes: 15
         run: npm test
 
       - name: Phase 2 regression (153 checks)
