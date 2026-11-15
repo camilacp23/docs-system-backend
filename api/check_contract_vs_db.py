@@ -19,7 +19,8 @@ ENUMS = {'UserRole': 'user_role', 'UserStatus': 'user_status', 'ApplicationStatu
 LENGTHS = [('UserCreate', 'name', 'app_user.name'), ('UserCreate', 'email', 'app_user.email'), ('ApplicationWrite', 'name', 'application.name'),
            ('ApplicationWrite', 'platform', 'application.platform'), ('VariableWrite', 'name', 'variable.name'), ('CollectionWrite', 'name', 'collection.name'),
            ('CollectionFieldWrite', 'name', 'collection_field.name'), ('VariableAssignmentWrite', 'tableFunction', 'variable_collection.table_function'),
-           ('UsedIn', None, 'variable_collection.used_in')]
+           ('UsedIn', None, 'variable_collection.used_in'), ('ReportRequest', 'title', 'report.title'),
+           ('ReportCore', 'title', 'report.title'), ('ReportCore', 'fileName', 'report.file_name')]
 ok = True
 for api, db in ENUMS.items():
     same = S[api]['enum'] == db_enums[db]; ok &= same
