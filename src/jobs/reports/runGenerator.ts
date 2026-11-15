@@ -21,6 +21,7 @@ import {
   ReportTooLargeError,
   ReportTooSlowError,
 } from '../../modules/reports/failures.js';
+import { missingModuleOf } from './moduleError.js';
 import type { ThreadInput, ThreadOutput } from './generatorThread.js';
 import type { GeneratedFile } from './types.js';
 
@@ -30,44 +31,37 @@ const RUNS_FROM_SOURCE = fileURLToPath(import.meta.url).endsWith('.ts');
 /** The thread file of this build. */
 export const GENERATOR_THREAD = new URL(`./generatorThread${RUNS_FROM_SOURCE ? '.ts' : '.js'}`, import.meta.url);
 
-/** The only preload a thread started from `src/` needs: the one that lets it load `.ts` files. */
-const TYPESCRIPT_LOADER = /^tsx(?:\/.*)?$/;
-
 /**
- * Flags the thread starts with. From `dist/` it inherits NOTHING: a flag such as `--inspect` or `--max-old-space-size`
- * of the API process must not reach the thread (an inspector port would be opened twice). From `src/` (development and
- * tests) it inherits ONLY the loader that lets it read `.ts` files (`--import tsx`): the other preloads of the process
- * belong to the process, not to the thread. In `npm test` one of them is the pg watcher, which imports `node:test` and
- * starts a second test runner inside the thread, reporting on the stdout of the real one.
+ * Flags the thread starts with. NOTHING is inherited from the process (an inspector port or a heap flag of the API must
+ * not reach the thread, nor must the preloads of `npm test`, one of which starts a second test runner). From `dist/` the
+ * thread needs no flag. From `src/` it needs the loader that reads `.ts` files and resolves `./pdf.js` to `pdf.ts`; it is
+ * passed EXPLICITLY, by the URL it resolves to here, and not inherited: a process that got `tsx` through `NODE_OPTIONS`
+ * or in another form would start a thread that cannot load the generators (`ERR_MODULE_NOT_FOUND`).
  *
- * @param parent - `process.execArgv` of the main thread.
  * @param fromSource - True when the code runs from `src/` through `tsx`.
  */
-export function threadExecArgv(parent: readonly string[], fromSource: boolean): string[] {
-  if (!fromSource) return [];
-  const kept: string[] = [];
-  for (let i = 0; i < parent.length; i += 1) {
-    const flag = parent[i]!;
-    if (flag === '--import' || flag === '--require') {
-      const specifier = parent[i + 1];
-      i += 1;
-      if (specifier !== undefined && TYPESCRIPT_LOADER.test(specifier)) kept.push(flag, specifier);
-    } else if (flag.startsWith('--import=') && TYPESCRIPT_LOADER.test(flag.slice('--import='.length))) {
-      kept.push(flag);
-    }
-  }
-  return kept;
+export function threadExecArgv(fromSource: boolean): string[] {
+  return fromSource ? ['--import', import.meta.resolve('tsx')] : [];
 }
 
 /**
- * The environment of the thread: the one of the process without the variable with which `node --test` tells a child
- * that it belongs to a test run (a thread that inherited it would behave as a second child of the runner).
+ * The environment of the thread: no credentials, no configuration. The thread gets `NODE_ENV` (libraries choose their
+ * production or development behavior by it) and nothing else from `dist/`: pdfkit and exceljs read no other variable.
+ * From `src/` it also gets what the `tsx` loader needs to run on the machine of the developer: `PATH` and `SystemRoot`
+ * (it starts its `esbuild` process), and `TEMP`, `TMP` and `TMPDIR` (its cache of compiled files). `DATABASE_URL`,
+ * `APP_DATABASE_URL`, `JWT_KEYS`, `JIRA_API_TOKEN` and `JIRA_WEBHOOK_SECRET` are never among them.
  *
  * @param parent - `process.env` of the main thread.
+ * @param fromSource - True when the code runs from `src/` through `tsx`.
  */
-export function threadEnv(parent: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  const { NODE_TEST_CONTEXT: _runner, ...rest } = parent;
-  return rest;
+export function threadEnv(parent: NodeJS.ProcessEnv, fromSource: boolean): NodeJS.ProcessEnv {
+  const names = fromSource ? ['NODE_ENV', 'PATH', 'SystemRoot', 'TEMP', 'TMP', 'TMPDIR'] : ['NODE_ENV'];
+  const env: NodeJS.ProcessEnv = {};
+  for (const name of names) {
+    const value = parent[name];
+    if (value !== undefined) env[name] = value;
+  }
+  return env;
 }
 
 /** The class of a thrown value. */
@@ -118,8 +112,8 @@ export function runInThread(run: ThreadRun): Promise<GeneratedFile> {
       thread = new Worker(run.entry ?? GENERATOR_THREAD, {
         workerData: input,
         resourceLimits: { maxOldGenerationSizeMb: run.maxMemoryMb },
-        execArgv: run.execArgv ?? threadExecArgv(process.execArgv, RUNS_FROM_SOURCE),
-        env: threadEnv(process.env),
+        execArgv: run.execArgv ?? threadExecArgv(RUNS_FROM_SOURCE),
+        env: threadEnv(process.env, RUNS_FROM_SOURCE),
         // Nothing of the thread is printed by the API process.
         stdout: false,
         stderr: false,
@@ -173,7 +167,7 @@ export function runInThread(run: ThreadRun): Promise<GeneratedFile> {
       } else if (message.kind === 'TOO_LARGE') {
         fail(new ReportTooLargeError('bytes'));
       } else {
-        fail(new ReportThreadError(message.errorClass, message.code));
+        fail(new ReportThreadError(message.errorClass, message.code, message.specifier));
       }
     });
     thread.once('error', (error: Error & { code?: string }) => {
@@ -181,7 +175,7 @@ export function runInThread(run: ThreadRun): Promise<GeneratedFile> {
         why(() =>
           error.code === 'ERR_WORKER_OUT_OF_MEMORY'
             ? new ReportTooLargeError('memory')
-            : new ReportThreadError(error.name, errorCodeOf(error)),
+            : new ReportThreadError(error.name, errorCodeOf(error), missingModuleOf(error, process.cwd())),
         ),
       );
     });

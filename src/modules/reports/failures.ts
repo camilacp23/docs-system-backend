@@ -56,11 +56,14 @@ export class ReportAbandonedError extends Error {
 export class ReportThreadError extends Error {
   /**
    * @param errorClass - The class of the error of the thread (or `exit code N`).
+   * @param specifier - The module Node could not find (`ERR_MODULE_NOT_FOUND`, `ERR_PACKAGE_PATH_NOT_EXPORTED`): a package
+   *   name or a path relative to the repository.
    * @param code - The `code` of that error when it has one (`ERR_…`, `ENOENT`…), a fixed identifier and never content.
    */
   constructor(
     readonly errorClass: string,
     readonly code?: string,
+    readonly specifier?: string,
   ) {
     super('the report generator thread failed');
     this.name = 'ReportThreadError';

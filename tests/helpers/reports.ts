@@ -126,7 +126,16 @@ export async function auditOfReport(t: Pick<TestApp, 'owner'>, reportId: number,
  * @returns A line per failure, or an empty string when the worker logged none.
  */
 export function explainWorkerFailures(lines: readonly string[]): string {
-  const FIELDS = ['failure', 'errorClass', 'threadErrorClass', 'threadCode', 'prismaCode', 'sqlstate', 'limit'];
+  const FIELDS = [
+    'failure',
+    'errorClass',
+    'threadErrorClass',
+    'threadCode',
+    'threadModule',
+    'prismaCode',
+    'sqlstate',
+    'limit',
+  ];
   const out: string[] = [];
   for (const line of lines) {
     let entry: Record<string, unknown>;

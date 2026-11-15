@@ -169,7 +169,12 @@ export function createReportWorker(options: ReportWorkerOptions): ReportWorker {
       // What the thread (or its creation) failed with: the class and the code of its error, never its text.
       return {
         failure: 'OTHER',
-        fields: { errorClass: error.name, threadErrorClass: error.errorClass, threadCode: error.code ?? null },
+        fields: {
+          errorClass: error.name,
+          threadErrorClass: error.errorClass,
+          threadCode: error.code ?? null,
+          threadModule: error.specifier ?? null,
+        },
       };
     }
     const facts = extractDbFacts(error);

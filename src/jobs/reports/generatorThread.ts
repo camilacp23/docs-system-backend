@@ -11,6 +11,7 @@
  */
 import { parentPort, workerData } from 'node:worker_threads';
 import type { ReportContent } from '../../modules/reports/content.js';
+import { missingModuleOf } from './moduleError.js';
 import type { GeneratedFile } from './types.js';
 
 /** What the main thread sends in `workerData`. */
@@ -19,7 +20,7 @@ export type ThreadInput = { format: 'PDF' | 'XLSX'; content: ReportContent; maxB
 /** What the thread answers: the file, or why there is none. */
 export type ThreadOutput =
   | { type: 'done'; buffer: ArrayBuffer; mimeType: string; replacedCharacters: number; heapPeakMb: number }
-  | { type: 'failed'; kind: 'TOO_LARGE' | 'OTHER'; errorClass: string; code?: string };
+  | { type: 'failed'; kind: 'TOO_LARGE' | 'OTHER'; errorClass: string; code?: string; specifier?: string };
 
 const input = workerData as ThreadInput;
 let heapPeak = 0;
@@ -66,5 +67,8 @@ try {
     // The `code` of an error is a fixed identifier (`ERR_…`, `ENOENT`), never a value of the documentation.
     ...(typeof code === 'string' && /^[A-Z0-9_]{1,64}$/.test(code) ? { code } : {}),
   };
+  // The only text of an error that leaves the thread: the module Node could not find (never an absolute path).
+  const specifier = missingModuleOf(error, process.cwd());
+  if (specifier !== undefined) output.specifier = specifier;
   parentPort!.postMessage(output);
 }

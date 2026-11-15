@@ -17,6 +17,7 @@ import {
   ReportTooLargeError,
   ReportTooSlowError,
 } from '../../src/modules/reports/failures.js';
+import { missingModuleOf } from '../../src/jobs/reports/moduleError.js';
 import { runInThread, threadEnv, threadExecArgv, type ThreadRun } from '../../src/jobs/reports/runGenerator.js';
 
 /** A thread test that has not finished by then is hung, not slow. Per test, never global. */
@@ -133,30 +134,119 @@ describe('generator thread', () => {
   );
 
   describe('the flags of the thread', () => {
-    it('from dist/ it inherits none, whatever the process has', () => {
-      const parent = ['--inspect=127.0.0.1:9229', '--max-old-space-size=4096', '--import', 'tsx'];
-      assert.deepEqual(threadExecArgv(parent, false), []);
+    it('from dist/ it needs and gets no flag; from src/ only the loader of .ts files, by its URL', () => {
+      assert.deepEqual(threadExecArgv(false), []);
+      const fromSource = threadExecArgv(true);
+      assert.equal(fromSource.length, 2);
+      assert.equal(fromSource[0], '--import');
+      assert.match(fromSource[1]!, /^file:.*tsx/i);
     });
 
-    it('from src/ it inherits only the loader of .ts files, not the preloads of the process (the pg watcher of npm test)', () => {
-      const ofNpmTest = [
-        '--import',
-        'tsx',
-        '--import',
-        './tests/setup/failOnPgOverlap.ts',
-        '--max-old-space-size=4096',
-        '--experimental-test-coverage',
-      ];
-      assert.deepEqual(threadExecArgv(ofNpmTest, true), ['--import', 'tsx']);
-      assert.deepEqual(threadExecArgv(['--import=tsx', '--require', './x.cjs'], true), ['--import=tsx']);
-      assert.deepEqual(threadExecArgv([], true), []);
+    it(
+      'the loader is passed, not inherited: the real generator loads whatever flags the process was started with',
+      { timeout: TEST_TIMEOUT_MS },
+      async () => {
+        // process.execArgv is not read at all: a process that got tsx through NODE_OPTIONS has none, and its thread
+        // used to start without the loader and fail with ERR_MODULE_NOT_FOUND on ./pdf.js.
+        const file = await run({ format: 'XLSX' });
+        assert.deepEqual([...file.buffer.subarray(0, 2)], [0x50, 0x4b]);
+      },
+    );
+  });
+
+  describe('the environment of the thread', () => {
+    const SECRETS = ['DATABASE_URL', 'APP_DATABASE_URL', 'JWT_KEYS', 'JIRA_API_TOKEN', 'JIRA_WEBHOOK_SECRET'];
+
+    it('has none of the credentials of the process, only what it needs', { timeout: TEST_TIMEOUT_MS }, async () => {
+      const saved = SECRETS.map((name) => [name, process.env[name]] as const);
+      for (const name of SECRETS) process.env[name] = 'secret-of-the-test';
+      try {
+        const result = await run({ entry: thread('envThread') });
+        const names = JSON.parse(result.buffer.toString('utf8')) as string[];
+        for (const name of SECRETS) assert.ok(!names.includes(name), name);
+        assert.ok(
+          names.every((name) =>
+            ['NODE_ENV', 'PATH', 'SystemRoot', 'TEMP', 'TMP', 'TMPDIR'].includes(name.replace(/^Path$/i, 'PATH')),
+          ),
+          names.join(),
+        );
+      } finally {
+        for (const [name, value] of saved) {
+          if (value === undefined) delete process.env[name];
+          else process.env[name] = value;
+        }
+      }
     });
 
-    it('the thread does not get the variable with which node --test marks its children; the rest is kept', () => {
-      const env = threadEnv({ NODE_TEST_CONTEXT: 'child-v8', PATH: '/bin', TZ: 'UTC' });
-      assert.deepEqual(env, { PATH: '/bin', TZ: 'UTC' });
+    it('from dist/ only NODE_ENV', () => {
+      const parent = { NODE_ENV: 'production', PATH: '/bin', DATABASE_URL: 'x', NODE_TEST_CONTEXT: 'child-v8' };
+      assert.deepEqual(threadEnv(parent, false), { NODE_ENV: 'production' });
+      assert.deepEqual(threadEnv(parent, true), { NODE_ENV: 'production', PATH: '/bin' });
+      assert.deepEqual(threadEnv({}, false), {});
+    });
+  });
+
+  describe('which module a thread could not load', () => {
+    it(
+      'a missing file is reported by its path relative to the repository, never an absolute one',
+      { timeout: TEST_TIMEOUT_MS },
+      async () => {
+        await assert.rejects(run({ entry: thread('missingFileThread') }), (error) => {
+          assert.ok(error instanceof ReportThreadError);
+          assert.equal(error.code, 'ERR_MODULE_NOT_FOUND');
+          assert.equal(error.specifier, 'src/jobs/reports/no-such-generator.js');
+          return true;
+        });
+      },
+    );
+
+    it('a missing package is reported by its name', { timeout: TEST_TIMEOUT_MS }, async () => {
+      await assert.rejects(run({ entry: thread('missingPackageThread') }), (error) => {
+        assert.ok(error instanceof ReportThreadError);
+        assert.equal(error.specifier, 'no-such-package-for-the-test');
+        return true;
+      });
     });
 
+    it('missingModuleOf: only the two codes, only names and relative paths', () => {
+      const root = process.cwd();
+      const err = (code: string, message: string) => Object.assign(new Error(message), { code });
+      assert.equal(
+        missingModuleOf(err('ERR_MODULE_NOT_FOUND', "Cannot find package 'fontkit' imported from /srv/app/x.js"), root),
+        'fontkit',
+      );
+      assert.equal(
+        missingModuleOf(err('ERR_MODULE_NOT_FOUND', "Cannot find package '@scope/pkg' imported from /srv/x.js"), root),
+        '@scope/pkg',
+      );
+      assert.equal(
+        missingModuleOf(
+          err(
+            'ERR_PACKAGE_PATH_NOT_EXPORTED',
+            'Package subpath \'./js/x\' is not defined by "exports" in /srv/app/node_modules/pdfkit/package.json imported from /srv/app/a.js',
+          ),
+          root,
+        ),
+        'pdfkit/js/x',
+      );
+      assert.equal(
+        missingModuleOf(
+          err('ERR_MODULE_NOT_FOUND', "Cannot find module '/elsewhere/secret-place/x.js' imported from /y.js"),
+          root,
+        ),
+        'x.js',
+      );
+      assert.equal(missingModuleOf(err('ENOENT', "Cannot find module 'x'"), root), undefined, 'another code: no text');
+      assert.equal(missingModuleOf(new Error("Cannot find module 'x'"), root), undefined);
+      assert.equal(
+        missingModuleOf(err('ERR_MODULE_NOT_FOUND', "Cannot find module 'a b; DROP'"), root),
+        undefined,
+        'not a plain name',
+      );
+    });
+  });
+
+  describe('the flags of the thread (explicit flags)', () => {
     it('a thread started with explicit flags runs with exactly those', { timeout: TEST_TIMEOUT_MS }, async () => {
       const result = await run({ entry: thread('argvThread'), execArgv: ['--import', 'tsx'] });
       assert.deepEqual(JSON.parse(result.buffer.toString('utf8')), ['--import', 'tsx']);
