@@ -34,7 +34,21 @@ const WRITE_OPERATIONS = new Set([
   'deleteMany',
 ]);
 
-type BaseTx = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>;
+export type BaseTx = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>;
+
+/**
+ * Sets the acting user of the audit trigger for the CURRENT transaction (`set_config('app.user_id', <id>, true)`;
+ * transaction-local, so it cannot leak through the pool). Run it first, before any write of the transaction.
+ * `auditedTransaction` uses it for the user of the request; the report worker uses it for `report.generated_by`.
+ *
+ * @param tx - The (non-extended) transaction client.
+ * @param userId - Id of the acting user; must be a positive integer.
+ * @throws {TypeError} When `userId` is not a positive safe integer (nothing is sent to the database).
+ */
+export async function actAs(tx: Pick<BaseTx, '$executeRaw'>, userId: number): Promise<void> {
+  if (!Number.isSafeInteger(userId) || userId < 1) throw new TypeError('actAs requires a positive integer user id');
+  await tx.$executeRaw`SELECT set_config('app.user_id', ${String(userId)}, true)`;
+}
 
 export function createPrisma(connectionString: string) {
   const base = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
@@ -65,7 +79,7 @@ export function createPrisma(connectionString: string) {
     const ctx = auditContext.getStore();
     if (!ctx) throw new Error('auditedTransaction requires an audit context (authenticated request)');
     return base.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT set_config('app.user_id', ${String(ctx.userId)}, true)`;
+      await actAs(tx, ctx.userId);
       return fn(tx);
     });
   }
