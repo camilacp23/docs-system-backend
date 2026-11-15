@@ -3580,7 +3580,7 @@ components:
         summary: { type: string }
         status: { type: string }
         statusCategory: { $ref: '#/components/schemas/JiraStatusCategory' }
-        url: { type: string, format: uri, description: 'Link to the issue in Jira Cloud: the base URL of Jira followed by /browse/<key>' }
+        url: { type: [string, 'null'], format: uri, description: 'Link to the issue in Jira Cloud: the base URL of Jira followed by /browse/<key>. null when Jira has no base URL configured (the tree is then served from the local copy; a created ticket always has a link)' }
         lastSyncedAt: { type: string, format: date-time }
     JiraTicketCreatedEnvelope:
       type: object

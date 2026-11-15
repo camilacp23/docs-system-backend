@@ -22,7 +22,7 @@ type Ticket = {
   summary: string;
   status: string;
   statusCategory: string;
-  url: string;
+  url: string | null;
   lastSyncedAt: string;
 };
 type Tree = {
@@ -399,9 +399,14 @@ describe('GET /screens/{id}/jira-tickets when Jira cannot be used', () => {
       const screen = await insertScreen(t, application.id);
       await insertSubtasks(t, screen.id, ['TO_DO', 'DONE']);
       const api = asUser(t, t.users.developer.token);
-      // Not checked against the contract on purpose: without JIRA_BASE_URL the ticket `url` is relative (`/browse/<key>`)
-      // and the contract says `format: uri`; what it must be then is undefined (D-111 in DECISIONS_FASE3.md: pending, contract 0.3.8).
-      const plain = treeOf(await api.get(`/screens/${screen.id}/jira-tickets`));
+      // Without JIRA_BASE_URL there is no absolute link to build: `url` is null and the answer still conforms (D-111).
+      const plainRes = await api.get(`/screens/${screen.id}/jira-tickets`);
+      await assertConformsToContract(plainRes);
+      const plain = treeOf(plainRes);
+      assert.deepEqual(
+        plain.stories[0]!.subtasks.map((s) => s.url),
+        [null, null],
+      );
       assert.equal(plain.stories[0]!.subtasks.length, 2);
       assert.deepEqual([plain.sync.jiraAvailable, plain.sync.stale], [false, false]);
       const refreshed = await api.get(`/screens/${screen.id}/jira-tickets?refresh=true`);
