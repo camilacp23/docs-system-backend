@@ -17,7 +17,10 @@ import {
   ReportTooLargeError,
   ReportTooSlowError,
 } from '../../src/modules/reports/failures.js';
-import { runInThread, threadExecArgv, type ThreadRun } from '../../src/jobs/reports/runGenerator.js';
+import { runInThread, threadEnv, threadExecArgv, type ThreadRun } from '../../src/jobs/reports/runGenerator.js';
+
+/** A thread test that has not finished by then is hung, not slow. Per test, never global. */
+const TEST_TIMEOUT_MS = 30_000;
 
 const here = dirname(fileURLToPath(import.meta.url));
 const thread = (name: string): URL => new URL(`../helpers/threads/${name}.ts`, import.meta.url);
@@ -52,33 +55,45 @@ const run = (over: Partial<ThreadRun> = {}): Promise<Awaited<ReturnType<typeof r
   });
 
 describe('generator thread', () => {
-  it('writes a real PDF and a real Excel in the thread and transfers the bytes', async () => {
-    const pdf = await run({ format: 'PDF' });
-    assert.equal(pdf.buffer.subarray(0, 5).toString('latin1'), '%PDF-');
-    assert.equal(pdf.mimeType, 'application/pdf');
-    assert.ok(pdf.heapPeakMb !== undefined && pdf.heapPeakMb > 0);
-    const xlsx = await run({ format: 'XLSX' });
-    assert.deepEqual([...xlsx.buffer.subarray(0, 4)], [0x50, 0x4b, 0x03, 0x04]);
-  });
+  it(
+    'writes a real PDF and a real Excel in the thread and transfers the bytes',
+    { timeout: TEST_TIMEOUT_MS },
+    async () => {
+      const pdf = await run({ format: 'PDF' });
+      assert.equal(pdf.buffer.subarray(0, 5).toString('latin1'), '%PDF-');
+      assert.equal(pdf.mimeType, 'application/pdf');
+      assert.ok(pdf.heapPeakMb !== undefined && pdf.heapPeakMb > 0);
+      const xlsx = await run({ format: 'XLSX' });
+      assert.deepEqual([...xlsx.buffer.subarray(0, 4)], [0x50, 0x4b, 0x03, 0x04]);
+    },
+  );
 
-  it('a thread that runs out of memory dies alone: the report is "too large" and the process goes on', async () => {
-    await assert.rejects(run({ entry: thread('oomThread'), maxMemoryMb: 64 }), (error) => {
-      assert.ok(error instanceof ReportTooLargeError);
-      assert.equal(error.limit, 'memory');
-      return true;
-    });
-    assert.ok((await run()).buffer.length > 0, 'the next report is generated normally');
-  });
+  it(
+    'a thread that runs out of memory dies alone: the report is "too large" and the process goes on',
+    { timeout: TEST_TIMEOUT_MS },
+    async () => {
+      await assert.rejects(run({ entry: thread('oomThread'), maxMemoryMb: 64 }), (error) => {
+        assert.ok(error instanceof ReportTooLargeError);
+        assert.equal(error.limit, 'memory');
+        return true;
+      });
+      assert.ok((await run()).buffer.length > 0, 'the next report is generated normally');
+    },
+  );
 
-  it('a thread in a synchronous block is terminated at the deadline: "took too long"', async () => {
-    await assert.rejects(run({ entry: thread('spinThread'), deadlineMs: Date.now() + 300 }), ReportTooSlowError);
-  });
+  it(
+    'a thread in a synchronous block is terminated at the deadline: "took too long"',
+    { timeout: TEST_TIMEOUT_MS },
+    async () => {
+      await assert.rejects(run({ entry: thread('spinThread'), deadlineMs: Date.now() + 300 }), ReportTooSlowError);
+    },
+  );
 
-  it('a deadline that has already passed terminates the thread at once', async () => {
+  it('a deadline that has already passed terminates the thread at once', { timeout: TEST_TIMEOUT_MS }, async () => {
     await assert.rejects(run({ deadlineMs: Date.now() - 1 }), ReportTooSlowError);
   });
 
-  it('the shutdown signal terminates the thread and gives the report up', async () => {
+  it('the shutdown signal terminates the thread and gives the report up', { timeout: TEST_TIMEOUT_MS }, async () => {
     const controller = new AbortController();
     const pending = run({ entry: thread('spinThread'), signal: controller.signal });
     controller.abort();
@@ -86,11 +101,15 @@ describe('generator thread', () => {
     await assert.rejects(run({ signal: controller.signal }), ReportAbandonedError, 'already aborted: no thread');
   });
 
-  it('a PDF bigger than maxBytes is "too large" (the thread says so while it writes)', async () => {
-    await assert.rejects(run({ maxBytes: 10 }), (error) => error instanceof ReportTooLargeError);
-  });
+  it(
+    'a PDF bigger than maxBytes is "too large" (the thread says so while it writes)',
+    { timeout: TEST_TIMEOUT_MS },
+    async () => {
+      await assert.rejects(run({ maxBytes: 10 }), (error) => error instanceof ReportTooLargeError);
+    },
+  );
 
-  it('the text of an error of the thread never reaches the API process', async () => {
+  it('the text of an error of the thread never reaches the API process', { timeout: TEST_TIMEOUT_MS }, async () => {
     await assert.rejects(run({ entry: thread('throwThread') }), (error) => {
       assert.ok(error instanceof ReportThreadError);
       const everything = JSON.stringify({ message: error.message, name: error.name, errorClass: error.errorClass });
@@ -101,15 +120,44 @@ describe('generator thread', () => {
     });
   });
 
+  it(
+    'a thread that cannot be created is a ReportThreadError with the code of the cause, not a raw exception',
+    { timeout: TEST_TIMEOUT_MS },
+    async () => {
+      await assert.rejects(run({ entry: thread('argvThread'), execArgv: ['--no-such-flag-of-node'] }), (error) => {
+        assert.ok(error instanceof ReportThreadError);
+        assert.equal(error.code, 'ERR_WORKER_INVALID_EXEC_ARGV');
+        return true;
+      });
+    },
+  );
+
   describe('the flags of the thread', () => {
-    it('from dist/ it inherits none, whatever the process has; from src/ it inherits them', () => {
+    it('from dist/ it inherits none, whatever the process has', () => {
       const parent = ['--inspect=127.0.0.1:9229', '--max-old-space-size=4096', '--import', 'tsx'];
       assert.deepEqual(threadExecArgv(parent, false), []);
-      assert.deepEqual(threadExecArgv(parent, true), parent);
-      assert.notEqual(threadExecArgv(parent, true), parent, 'a copy');
     });
 
-    it('a thread started with explicit flags runs with exactly those', async () => {
+    it('from src/ it inherits only the loader of .ts files, not the preloads of the process (the pg watcher of npm test)', () => {
+      const ofNpmTest = [
+        '--import',
+        'tsx',
+        '--import',
+        './tests/setup/failOnPgOverlap.ts',
+        '--max-old-space-size=4096',
+        '--experimental-test-coverage',
+      ];
+      assert.deepEqual(threadExecArgv(ofNpmTest, true), ['--import', 'tsx']);
+      assert.deepEqual(threadExecArgv(['--import=tsx', '--require', './x.cjs'], true), ['--import=tsx']);
+      assert.deepEqual(threadExecArgv([], true), []);
+    });
+
+    it('the thread does not get the variable with which node --test marks its children; the rest is kept', () => {
+      const env = threadEnv({ NODE_TEST_CONTEXT: 'child-v8', PATH: '/bin', TZ: 'UTC' });
+      assert.deepEqual(env, { PATH: '/bin', TZ: 'UTC' });
+    });
+
+    it('a thread started with explicit flags runs with exactly those', { timeout: TEST_TIMEOUT_MS }, async () => {
       const result = await run({ entry: thread('argvThread'), execArgv: ['--import', 'tsx'] });
       assert.deepEqual(JSON.parse(result.buffer.toString('utf8')), ['--import', 'tsx']);
     });

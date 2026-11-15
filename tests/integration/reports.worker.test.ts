@@ -10,12 +10,12 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { after, before, describe, it } from 'node:test';
+import { after, afterEach, before, beforeEach, describe, it } from 'node:test';
 import type { ReportsConfig } from '../../src/config/env.js';
 import { createApplicationReportWorker } from '../../src/jobs/reports/index.js';
 import { runInThread } from '../../src/jobs/reports/runGenerator.js';
 import type { Generator } from '../../src/jobs/reports/types.js';
-import type { WorkerHooks } from '../../src/jobs/reports/worker.js';
+import type { ReportWorker, RunResult, WorkerHooks } from '../../src/jobs/reports/worker.js';
 import type { ReportContent } from '../../src/modules/reports/content.js';
 import { REPORT_ERROR_MESSAGES, ReportAbandonedError } from '../../src/modules/reports/failures.js';
 import { bodyOf, startTestApp, type TestApp } from '../helpers/app.js';
@@ -30,12 +30,15 @@ import {
   insertVariable,
 } from '../helpers/fixtures.js';
 import { fileOf, pdfFacts, readWorkbook, sheetHeader, sheetRows } from '../helpers/reportFiles.js';
-import { auditOfReport, insertReport, reportOf, type ReportBody } from '../helpers/reports.js';
+import { auditOfReport, explainWorkerFailures, insertReport, reportOf, type ReportBody } from '../helpers/reports.js';
 import { watchPgOverlap } from '../helpers/pgWarnings.js';
 import { asUser } from '../helpers/users.js';
 
 const PII = 'ana.perez@example.test';
 const THREADS = new URL('../helpers/threads/', import.meta.url);
+
+/** A test that has not finished by then is hung, not slow: the slowest real PDF takes ~7 s here. Per test, never global. */
+const TEST_TIMEOUT_MS = 45_000;
 
 /** The columns of each part, as D-116 lists them (the specification, written out on purpose). */
 const COLUMNS: Record<string, string[]> = {
@@ -143,8 +146,8 @@ describe('reports: the worker', () => {
       hooks?: WorkerHooks;
       maxContentChars?: number;
     } = {},
-  ) =>
-    createApplicationReportWorker(
+  ): ReportWorker => {
+    const worker = createApplicationReportWorker(
       { db: t.db, logger: t.built.logger, jira: t.built.jira, config: { ...t.config.reports, ...over.config } },
       {
         ...(over.generators === undefined ? {} : { generators: over.generators }),
@@ -152,6 +155,35 @@ describe('reports: the worker', () => {
         ...(over.maxContentChars === undefined ? {} : { maxContentChars: over.maxContentChars }),
       },
     );
+    created.push(worker);
+    return worker;
+  };
+
+  /** Every worker a test creates, stopped after it (a thread that is still alive is terminated by `stop()`). */
+  const created: ReportWorker[] = [];
+
+  // Each test sees only its own reports: whatever an earlier test left PENDING (a failed assertion between the request
+  // and the pass) is removed, because a pass takes the OLDEST pending report, not the one the test just asked for.
+  beforeEach(async () => {
+    await t.owner.query(`DELETE FROM report WHERE status = 'PENDING'`);
+  });
+  afterEach(async () => {
+    await Promise.all(created.splice(0).map((worker) => worker.stop()));
+  });
+
+  /**
+   * One pass of the worker, which must end as `expected`. When it does not, the message says why the worker logged
+   * (kind of failure, class and code of the error, database codes, first frames; never content).
+   */
+  const expectPass = async (worker: ReportWorker, expected: RunResult): Promise<void> => {
+    const from = t.logs.length;
+    const got = await worker.runOnce();
+    assert.equal(
+      got,
+      expected,
+      `the pass ended "${got}", expected "${expected}"${explainWorkerFailures(t.logs.slice(from))}`,
+    );
+  };
 
   /** Saves a PENDING report the way the endpoint does (the fixture writes the same row). */
   const request = (
@@ -208,171 +240,195 @@ describe('reports: the worker', () => {
     },
   });
 
-  it('with nothing PENDING the pass is idle', async () => {
+  it('with nothing PENDING the pass is idle', { timeout: TEST_TIMEOUT_MS }, async () => {
     assert.equal(await makeWorker().runOnce(), 'idle');
   });
 
   describe('Excel', () => {
-    it('writes a real workbook with the parts, columns and order of D-116, neutralized text, and the dashboard figures', async () => {
-      const id = await request({ format: 'XLSX', title: 'Estado de la documentación – SAR', publish: false });
-      assert.equal(await makeWorker().runOnce(), 'ready');
-      const report = await detail(id);
-      assert.equal(report.status, 'READY');
-      assert.match(report.fileName ?? '', /^estado-de-la-documentacion-sar-\d{4}-\d{2}-\d{2}\.xlsx$/);
-      assert.equal(report.fileName, `estado-de-la-documentacion-sar-${report.completedAt?.slice(0, 10)}.xlsx`);
-      const stored = (await fileOf(t, id))!;
-      assert.equal(stored.mimeType, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      assert.deepEqual([...stored.content.subarray(0, 4)], [0x50, 0x4b, 0x03, 0x04]);
-      assert.equal(report.fileSize, stored.content.length);
+    it(
+      'writes a real workbook with the parts, columns and order of D-116, neutralized text, and the dashboard figures',
+      { timeout: TEST_TIMEOUT_MS },
+      async () => {
+        const id = await request({ format: 'XLSX', title: 'Estado de la documentación – SAR', publish: false });
+        await expectPass(makeWorker(), 'ready');
+        const report = await detail(id);
+        assert.equal(report.status, 'READY', explainWorkerFailures(t.logs));
+        assert.match(report.fileName ?? '', /^estado-de-la-documentacion-sar-\d{4}-\d{2}-\d{2}\.xlsx$/);
+        assert.equal(report.fileName, `estado-de-la-documentacion-sar-${report.completedAt?.slice(0, 10)}.xlsx`);
+        const stored = (await fileOf(t, id))!;
+        assert.equal(stored.mimeType, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        assert.deepEqual([...stored.content.subarray(0, 4)], [0x50, 0x4b, 0x03, 0x04]);
+        assert.equal(report.fileSize, stored.content.length);
 
-      const workbook = await readWorkbook(stored.content);
-      assert.deepEqual(
-        workbook.worksheets.map((s) => s.name),
-        Object.keys(COLUMNS),
-      );
-      for (const sheet of workbook.worksheets) assert.deepEqual(sheetHeader(sheet), COLUMNS[sheet.name], sheet.name);
+        const workbook = await readWorkbook(stored.content);
+        assert.deepEqual(
+          workbook.worksheets.map((s) => s.name),
+          Object.keys(COLUMNS),
+        );
+        for (const sheet of workbook.worksheets) assert.deepEqual(sheetHeader(sheet), COLUMNS[sheet.name], sheet.name);
 
-      // Screens: by name in code-point order; the template text is neutralized and the long one is whole.
-      const screens = sheetRows(workbook.getWorksheet('Screens')!);
-      const names = screens.map((row) => text(row[0]));
-      assert.deepEqual(names, [...names].sort(byCodePoint));
-      assert.deepEqual(names.slice(0, 1), ['Alpha']);
-      assert.equal(names.at(-1), 'alpha');
-      const alpha = screens[0]!;
-      assert.equal(alpha[1], 'APPROVED');
-      assert.equal(alpha[5], "'=Navigate(Home)", 'on start begins with = : forced to text');
-      assert.equal(text(alpha[6]).length, 20_000, 'the longest field is whole');
-      assert.equal(alpha[7], 'Layers: UI > Data');
+        // Screens: by name in code-point order; the template text is neutralized and the long one is whole.
+        const screens = sheetRows(workbook.getWorksheet('Screens')!);
+        const names = screens.map((row) => text(row[0]));
+        assert.deepEqual(names, [...names].sort(byCodePoint));
+        assert.deepEqual(names.slice(0, 1), ['Alpha']);
+        assert.equal(names.at(-1), 'alpha');
+        const alpha = screens[0]!;
+        assert.equal(alpha[1], 'APPROVED');
+        assert.equal(alpha[5], "'=Navigate(Home)", 'on start begins with = : forced to text');
+        assert.equal(text(alpha[6]).length, 20_000, 'the longest field is whole');
+        assert.equal(alpha[7], 'Layers: UI > Data');
 
-      // Components: by screen, component and id; the formula is text.
-      const components = sheetRows(workbook.getWorksheet('Components')!);
-      assert.deepEqual(
-        components.map((row) => [row[0], row[1]]),
-        [
-          ['Alpha', 'btnCancel'],
-          ['Alpha', 'btnSave'],
-        ],
-      );
-      assert.equal(components[1]![4], "'-Set(gUser, 1)");
+        // Components: by screen, component and id; the formula is text.
+        const components = sheetRows(workbook.getWorksheet('Components')!);
+        assert.deepEqual(
+          components.map((row) => [row[0], row[1]]),
+          [
+            ['Alpha', 'btnCancel'],
+            ['Alpha', 'btnSave'],
+          ],
+        );
+        assert.equal(components[1]![4], "'-Set(gUser, 1)");
 
-      // Variables, with the environments as `DEV, PROD`, and the collections with their fields in position order.
-      const variables = sheetRows(workbook.getWorksheet('Variables')!);
-      assert.deepEqual(
-        variables.map((row) => row[0]),
-        ['gAdmin', 'gUser'],
-      );
-      assert.deepEqual([variables[1]![2], variables[1]![3], variables[1]![5]], ['GLOBAL', 'Alpha', 'DEV, PROD']);
-      assert.equal(variables[0]![3] ?? null, null, 'no origin screen');
-      const collections = sheetRows(workbook.getWorksheet('Collections')!);
-      assert.deepEqual(
-        collections.map((row) => [row[0], row[4]]),
-        [
-          ['colFree', 'No'],
-          ['colItems', 'Yes'],
-        ],
-      );
-      const fields = sheetRows(workbook.getWorksheet('Collection fields')!);
-      assert.deepEqual(
-        fields.map((row) => [row[0], row[1], row[2]]),
-        [
-          ['colItems', 1, 'first'],
-          ['colItems', 2, 'second'],
-        ],
-      );
+        // Variables, with the environments as `DEV, PROD`, and the collections with their fields in position order.
+        const variables = sheetRows(workbook.getWorksheet('Variables')!);
+        assert.deepEqual(
+          variables.map((row) => row[0]),
+          ['gAdmin', 'gUser'],
+        );
+        assert.deepEqual([variables[1]![2], variables[1]![3], variables[1]![5]], ['GLOBAL', 'Alpha', 'DEV, PROD']);
+        assert.equal(variables[0]![3] ?? null, null, 'no origin screen');
+        const collections = sheetRows(workbook.getWorksheet('Collections')!);
+        assert.deepEqual(
+          collections.map((row) => [row[0], row[4]]),
+          [
+            ['colFree', 'No'],
+            ['colItems', 'Yes'],
+          ],
+        );
+        const fields = sheetRows(workbook.getWorksheet('Collection fields')!);
+        assert.deepEqual(
+          fields.map((row) => [row[0], row[1], row[2]]),
+          [
+            ['colItems', 1, 'first'],
+            ['colItems', 2, 'second'],
+          ],
+        );
 
-      // Dependencies: the edge between the two screens, with relation, types and names.
-      const dependencies = sheetRows(workbook.getWorksheet('Dependencies')!);
-      assert.ok(dependencies.some((row) => row[0] === 'NAVIGATES_TO' && row[2] === 'Alpha' && row[4] === 'Zeta'));
+        // Dependencies: the edge between the two screens, with relation, types and names.
+        const dependencies = sheetRows(workbook.getWorksheet('Dependencies')!);
+        assert.ok(dependencies.some((row) => row[0] === 'NAVIGATES_TO' && row[2] === 'Alpha' && row[4] === 'Zeta'));
 
-      // Summary: the same figures as GET /dashboard/indicators (D-106).
-      const indicators = indicatorsOf(await getIndicators(t, applicationId));
-      const summary = new Map(sheetRows(workbook.getWorksheet('Summary')!).map((row) => [text(row[0]), row[1]]));
-      assert.equal(summary.get('Screens'), indicators.documentation.totalScreens);
-      for (const [status, count] of Object.entries(indicators.documentation.byStatus)) {
-        assert.equal(summary.get(`Screens ${status}`), count, status);
-      }
-      assert.equal(summary.get('Approved screens (%)'), indicators.documentation.approvedPercent);
-      assert.equal(summary.get('Variables'), indicators.variables.total);
-      assert.equal(summary.get('Variables without origin screen'), indicators.variables.untraced);
-      assert.equal(summary.get('Collections'), indicators.collections.total);
-      assert.equal(summary.get('Collections not documented'), indicators.collections.undocumented);
-      assert.equal(summary.get('Generated by'), 'Ada Admin');
-      assert.ok(summary.get('Generated at (UTC)') instanceof Date);
-    });
+        // Summary: the same figures as GET /dashboard/indicators (D-106).
+        const indicators = indicatorsOf(await getIndicators(t, applicationId));
+        const summary = new Map(sheetRows(workbook.getWorksheet('Summary')!).map((row) => [text(row[0]), row[1]]));
+        assert.equal(summary.get('Screens'), indicators.documentation.totalScreens);
+        for (const [status, count] of Object.entries(indicators.documentation.byStatus)) {
+          assert.equal(summary.get(`Screens ${status}`), count, status);
+        }
+        assert.equal(summary.get('Approved screens (%)'), indicators.documentation.approvedPercent);
+        assert.equal(summary.get('Variables'), indicators.variables.total);
+        assert.equal(summary.get('Variables without origin screen'), indicators.variables.untraced);
+        assert.equal(summary.get('Collections'), indicators.collections.total);
+        assert.equal(summary.get('Collections not documented'), indicators.collections.undocumented);
+        assert.equal(summary.get('Generated by'), 'Ada Admin');
+        assert.ok(summary.get('Generated at (UTC)') instanceof Date);
+      },
+    );
 
-    it('the scope decides the parts: no screens, components, variables or collections means no such sheet', async () => {
-      const id = await request({ scope: { elementTypes: ['VARIABLE'], includeDependencies: true } });
-      assert.equal(await makeWorker().runOnce(), 'ready');
-      const workbook = await readWorkbook((await fileOf(t, id))!.content);
-      assert.deepEqual(
-        workbook.worksheets.map((s) => s.name),
-        ['Variables', 'Dependencies'],
-      );
-      assert.deepEqual(sheetRows(workbook.getWorksheet('Dependencies')!), [], 'an edge needs both ends in the report');
-    });
+    it(
+      'the scope decides the parts: no screens, components, variables or collections means no such sheet',
+      { timeout: TEST_TIMEOUT_MS },
+      async () => {
+        const id = await request({ scope: { elementTypes: ['VARIABLE'], includeDependencies: true } });
+        await expectPass(makeWorker(), 'ready');
+        const workbook = await readWorkbook((await fileOf(t, id))!.content);
+        assert.deepEqual(
+          workbook.worksheets.map((s) => s.name),
+          ['Variables', 'Dependencies'],
+        );
+        assert.deepEqual(
+          sheetRows(workbook.getWorksheet('Dependencies')!),
+          [],
+          'an edge needs both ends in the report',
+        );
+      },
+    );
 
-    it('screenIds and documentationStatus filter the screens and, through them, the components', async () => {
-      const id = await request({
-        scope: {
-          elementTypes: ['SCREEN', 'COMPONENT'],
-          screenIds: [alphaId, zetaId],
-          documentationStatus: ['APPROVED'],
-        },
-      });
-      assert.equal(await makeWorker().runOnce(), 'ready');
-      const workbook = await readWorkbook((await fileOf(t, id))!.content);
-      assert.deepEqual(
-        sheetRows(workbook.getWorksheet('Screens')!).map((r) => r[0]),
-        ['Alpha'],
-      );
-      assert.deepEqual(
-        sheetRows(workbook.getWorksheet('Components')!).map((r) => r[0]),
-        ['Alpha', 'Alpha'],
-      );
-    });
+    it(
+      'screenIds and documentationStatus filter the screens and, through them, the components',
+      { timeout: TEST_TIMEOUT_MS },
+      async () => {
+        const id = await request({
+          scope: {
+            elementTypes: ['SCREEN', 'COMPONENT'],
+            screenIds: [alphaId, zetaId],
+            documentationStatus: ['APPROVED'],
+          },
+        });
+        await expectPass(makeWorker(), 'ready');
+        const workbook = await readWorkbook((await fileOf(t, id))!.content);
+        assert.deepEqual(
+          sheetRows(workbook.getWorksheet('Screens')!).map((r) => r[0]),
+          ['Alpha'],
+        );
+        assert.deepEqual(
+          sheetRows(workbook.getWorksheet('Components')!).map((r) => r[0]),
+          ['Alpha', 'Alpha'],
+        );
+      },
+    );
   });
 
   describe('PDF', () => {
-    it('writes a real PDF: signature, pages, Title and Author from the report; long text takes as many pages as it needs', async () => {
-      const short = await request({ format: 'PDF', title: 'Variables only', scope: { elementTypes: ['VARIABLE'] } });
-      const long = await request({
-        format: 'PDF',
-        title: '=Pantalla – ñandú',
-        scope: { elementTypes: ['SCREEN'], screenIds: [alphaId] },
-      });
-      const worker = makeWorker();
-      assert.equal(await worker.runOnce(), 'ready');
-      assert.equal(await worker.runOnce(), 'ready');
-      const shortFile = (await fileOf(t, short))!;
-      const longFile = (await fileOf(t, long))!;
-      assert.equal(shortFile.mimeType, 'application/pdf');
-      assert.equal(longFile.content.subarray(0, 5).toString('latin1'), '%PDF-');
-      const shortFacts = pdfFacts(shortFile.content);
-      const longFacts = pdfFacts(longFile.content);
-      assert.equal(shortFacts.pages, 1);
-      assert.ok(longFacts.pages >= 4, `20000 characters need several pages (${longFacts.pages})`);
-      assert.equal(longFacts.title, '=Pantalla – ñandú');
-      assert.equal(longFacts.author, 'Ada Admin');
-      assert.equal(shortFacts.title, 'Variables only');
-    });
+    it(
+      'writes a real PDF: signature, pages, Title and Author from the report; long text takes as many pages as it needs',
+      { timeout: TEST_TIMEOUT_MS },
+      async () => {
+        const short = await request({ format: 'PDF', title: 'Variables only', scope: { elementTypes: ['VARIABLE'] } });
+        const long = await request({
+          format: 'PDF',
+          title: '=Pantalla – ñandú',
+          scope: { elementTypes: ['SCREEN'], screenIds: [alphaId] },
+        });
+        const worker = makeWorker();
+        await expectPass(worker, 'ready');
+        await expectPass(worker, 'ready');
+        const shortFile = (await fileOf(t, short))!;
+        const longFile = (await fileOf(t, long))!;
+        assert.equal(shortFile.mimeType, 'application/pdf');
+        assert.equal(longFile.content.subarray(0, 5).toString('latin1'), '%PDF-');
+        const shortFacts = pdfFacts(shortFile.content);
+        const longFacts = pdfFacts(longFile.content);
+        assert.equal(shortFacts.pages, 1);
+        assert.ok(longFacts.pages >= 4, `20000 characters need several pages (${longFacts.pages})`);
+        assert.equal(longFacts.title, '=Pantalla – ñandú');
+        assert.equal(longFacts.author, 'Ada Admin');
+        assert.equal(shortFacts.title, 'Variables only');
+      },
+    );
 
-    it('a character the font cannot draw is replaced by "?" and logged once, with the count and never the text', async () => {
-      const screen = await insertScreen(t, applicationId, { name: 'Pantalla 中文' });
-      const id = await request({ format: 'PDF', scope: { elementTypes: ['SCREEN'], screenIds: [screen.id] } });
-      assert.equal(await makeWorker().runOnce(), 'ready');
-      const warnings = logsOf(id).filter((entry) => String(entry['msg']).includes('without a glyph'));
-      assert.equal(warnings.length, 1);
-      assert.equal(warnings[0]!['replacedCharacters'], 2);
-      assert.ok(!JSON.stringify(logsOf(id)).includes('中'));
-    });
+    it(
+      'a character the font cannot draw is replaced by "?" and logged once, with the count and never the text',
+      { timeout: TEST_TIMEOUT_MS },
+      async () => {
+        const screen = await insertScreen(t, applicationId, { name: 'Pantalla 中文' });
+        const id = await request({ format: 'PDF', scope: { elementTypes: ['SCREEN'], screenIds: [screen.id] } });
+        await expectPass(makeWorker(), 'ready');
+        const warnings = logsOf(id).filter((entry) => String(entry['msg']).includes('without a glyph'));
+        assert.equal(warnings.length, 1);
+        assert.equal(warnings[0]!['replacedCharacters'], 2);
+        assert.ok(!JSON.stringify(logsOf(id)).includes('中'));
+      },
+    );
 
-    it('PDF and Excel get the very same content, in the same order', async () => {
+    it('PDF and Excel get the very same content, in the same order', { timeout: TEST_TIMEOUT_MS }, async () => {
       const seen: { pdf?: ReportContent; xlsx?: ReportContent } = {};
       const worker = makeWorker({ generators: capturing(seen) });
       await request({ format: 'PDF', title: 'Same' });
       await request({ format: 'XLSX', title: 'Same' });
-      assert.equal(await worker.runOnce(), 'ready');
-      assert.equal(await worker.runOnce(), 'ready');
+      await expectPass(worker, 'ready');
+      await expectPass(worker, 'ready');
       assert.ok(seen.pdf && seen.xlsx);
       assert.deepEqual(
         seen.pdf.sections.map((s) => s.name),
@@ -389,26 +445,30 @@ describe('reports: the worker', () => {
   });
 
   describe('publishing', () => {
-    it('READY sets the file data, completedAt and, when the request said so, isPublished and publishedAt together', async () => {
-      const published = await request({ publish: true });
-      const hidden = await request({ publish: false });
-      const worker = makeWorker({ generators: capturing({}) });
-      assert.equal(await worker.runOnce(), 'ready');
-      assert.equal(await worker.runOnce(), 'ready');
-      const yes = await detail(published);
-      assert.deepEqual([yes.status, yes.isPublished], ['READY', true]);
-      assert.equal(yes.publishedAt, yes.completedAt, 'in the same update');
-      assert.ok(yes.fileName && yes.fileSize !== null && yes.completedAt);
-      const no = await detail(hidden);
-      assert.deepEqual([no.status, no.isPublished, no.publishedAt], ['READY', false, null]);
-      assert.equal((await asUser(t, t.users.reader.token).get(`/reports/${hidden}`)).status, 404);
-      assert.equal((await asUser(t, t.users.reader.token).get(`/reports/${published}`)).status, 200);
-    });
+    it(
+      'READY sets the file data, completedAt and, when the request said so, isPublished and publishedAt together',
+      { timeout: TEST_TIMEOUT_MS },
+      async () => {
+        const published = await request({ publish: true });
+        const hidden = await request({ publish: false });
+        const worker = makeWorker({ generators: capturing({}) });
+        await expectPass(worker, 'ready');
+        await expectPass(worker, 'ready');
+        const yes = await detail(published);
+        assert.deepEqual([yes.status, yes.isPublished], ['READY', true]);
+        assert.equal(yes.publishedAt, yes.completedAt, 'in the same update');
+        assert.ok(yes.fileName && yes.fileSize !== null && yes.completedAt);
+        const no = await detail(hidden);
+        assert.deepEqual([no.status, no.isPublished, no.publishedAt], ['READY', false, null]);
+        assert.equal((await asUser(t, t.users.reader.token).get(`/reports/${hidden}`)).status, 404);
+        assert.equal((await asUser(t, t.users.reader.token).get(`/reports/${published}`)).status, 200);
+      },
+    );
 
-    it('a report in an archived application can be generated (D-47)', async () => {
+    it('a report in an archived application can be generated (D-47)', { timeout: TEST_TIMEOUT_MS }, async () => {
       const archived = (await insertApplication(t, { status: 'ARCHIVED' })).id;
       const id = await request({ applicationId: archived, scope: { elementTypes: ['VARIABLE'] } });
-      assert.equal(await makeWorker({ generators: capturing({}) }).runOnce(), 'ready');
+      await expectPass(makeWorker({ generators: capturing({}) }), 'ready');
       assert.equal((await detail(id)).status, 'READY');
     });
   });
@@ -426,7 +486,7 @@ describe('reports: the worker', () => {
       assert.equal(await fileOf(t, id), null);
     };
 
-    it('too slow: the thread is terminated at the deadline', async () => {
+    it('too slow: the thread is terminated at the deadline', { timeout: TEST_TIMEOUT_MS }, async () => {
       const id = await request({ format: 'PDF', publish: true });
       const worker = makeWorker({
         config: { maxSeconds: 1 },
@@ -443,186 +503,220 @@ describe('reports: the worker', () => {
             }),
         },
       });
-      assert.equal(await worker.runOnce(), 'failed');
+      await expectPass(worker, 'failed');
       await assertFailed(id, REPORT_ERROR_MESSAGES.TOO_SLOW);
     });
 
-    it('too large: a thread that runs out of memory, a file over maxBytes, too many rows, too much text', async () => {
-      const oom = await request({ format: 'PDF' });
-      const memory = makeWorker({
-        generators: {
-          PDF: (content, context) =>
-            runInThread({
-              format: 'PDF',
-              content,
-              maxBytes: context.maxBytes,
-              maxMemoryMb: 64,
-              deadlineMs: context.deadlineMs,
-              signal: context.signal,
-              entry: new URL('oomThread.ts', THREADS),
-            }),
-        },
-      });
-      assert.equal(await memory.runOnce(), 'failed');
-      await assertFailed(oom, REPORT_ERROR_MESSAGES.TOO_LARGE);
+    it(
+      'too large: a thread that runs out of memory, a file over maxBytes, too many rows, too much text',
+      { timeout: TEST_TIMEOUT_MS },
+      async () => {
+        const oom = await request({ format: 'PDF' });
+        const memory = makeWorker({
+          generators: {
+            PDF: (content, context) =>
+              runInThread({
+                format: 'PDF',
+                content,
+                maxBytes: context.maxBytes,
+                maxMemoryMb: 64,
+                deadlineMs: context.deadlineMs,
+                signal: context.signal,
+                entry: new URL('oomThread.ts', THREADS),
+              }),
+          },
+        });
+        await expectPass(memory, 'failed');
+        await assertFailed(oom, REPORT_ERROR_MESSAGES.TOO_LARGE);
 
-      const bytes = await request({ format: 'XLSX' });
-      assert.equal(await makeWorker({ config: { maxBytes: 5 }, generators: capturing({}) }).runOnce(), 'failed');
-      await assertFailed(bytes, REPORT_ERROR_MESSAGES.TOO_LARGE);
+        const bytes = await request({ format: 'XLSX' });
+        await expectPass(makeWorker({ config: { maxBytes: 5 }, generators: capturing({}) }), 'failed');
+        await assertFailed(bytes, REPORT_ERROR_MESSAGES.TOO_LARGE);
 
-      const rows = await request({ format: 'XLSX' });
-      assert.equal(await makeWorker({ config: { maxRows: 3 }, generators: capturing({}) }).runOnce(), 'failed');
-      await assertFailed(rows, REPORT_ERROR_MESSAGES.TOO_LARGE);
-    });
+        const rows = await request({ format: 'XLSX' });
+        await expectPass(makeWorker({ config: { maxRows: 3 }, generators: capturing({}) }), 'failed');
+        await assertFailed(rows, REPORT_ERROR_MESSAGES.TOO_LARGE);
+      },
+    );
 
-    it('too large before reading: when the text of the report is over the limit, no part is read at all', async () => {
-      const id = await request({ format: 'XLSX' });
-      const read: string[] = [];
-      const worker = makeWorker({
-        maxContentChars: 100,
-        generators: capturing({}),
-        hooks: { afterSection: (name) => Promise.resolve(void read.push(name)) },
-      });
-      assert.equal(await worker.runOnce(), 'failed');
-      await assertFailed(id, REPORT_ERROR_MESSAGES.TOO_LARGE);
-      assert.deepEqual(read, [], 'the size is known from one aggregate query, before any content is read');
-      assert.ok(logsOf(id).some((entry) => entry['limit'] === 'chars'));
-    });
+    it(
+      'too large before reading: when the text of the report is over the limit, no part is read at all',
+      { timeout: TEST_TIMEOUT_MS },
+      async () => {
+        const id = await request({ format: 'XLSX' });
+        const read: string[] = [];
+        const worker = makeWorker({
+          maxContentChars: 100,
+          generators: capturing({}),
+          hooks: { afterSection: (name) => Promise.resolve(void read.push(name)) },
+        });
+        await expectPass(worker, 'failed');
+        await assertFailed(id, REPORT_ERROR_MESSAGES.TOO_LARGE);
+        assert.deepEqual(read, [], 'the size is known from one aggregate query, before any content is read');
+        assert.ok(logsOf(id).some((entry) => entry['limit'] === 'chars'));
+      },
+    );
 
-    it('a deleted screen: the screens of the request that no longer exist', async () => {
+    it('a deleted screen: the screens of the request that no longer exist', { timeout: TEST_TIMEOUT_MS }, async () => {
       const doomed = await insertScreen(t, applicationId, { name: 'Doomed' });
       const id = await request({ scope: { elementTypes: ['SCREEN'], screenIds: [alphaId, doomed.id] } });
       await t.owner.query(`DELETE FROM screen WHERE id = $1`, [doomed.id]);
-      assert.equal(await makeWorker({ generators: capturing({}) }).runOnce(), 'failed');
+      await expectPass(makeWorker({ generators: capturing({}) }), 'failed');
       await assertFailed(id, REPORT_ERROR_MESSAGES.SCREEN_GONE);
     });
 
-    it('any other failure: the generic text; the detail goes to the log with the id and without the content', async () => {
-      const id = await request({ format: 'XLSX' });
-      const worker = makeWorker({
-        generators: {
-          XLSX: () => Promise.reject(new Error(`could not write the report of ${PII}`)),
-        },
-      });
-      assert.equal(await worker.runOnce(), 'failed');
-      await assertFailed(id, REPORT_ERROR_MESSAGES.OTHER);
-      const failure = logsOf(id).find((entry) => entry['msg'] === 'report generation failed');
-      assert.ok(failure, 'the failure is logged with the id of the report');
-      assert.equal(failure['failure'], 'OTHER');
-      assert.ok(!t.logs.join('\n').includes(PII), 'the text of the exception is not logged');
-      assert.ok(!JSON.stringify(await detail(id)).includes(PII));
-    });
+    it(
+      'any other failure: the generic text; the detail goes to the log with the id and without the content',
+      { timeout: TEST_TIMEOUT_MS },
+      async () => {
+        const id = await request({ format: 'XLSX' });
+        const worker = makeWorker({
+          generators: {
+            XLSX: () => Promise.reject(new Error(`could not write the report of ${PII}`)),
+          },
+        });
+        await expectPass(worker, 'failed');
+        await assertFailed(id, REPORT_ERROR_MESSAGES.OTHER);
+        const failure = logsOf(id).find((entry) => entry['msg'] === 'report generation failed');
+        assert.ok(failure, 'the failure is logged with the id of the report');
+        assert.equal(failure['failure'], 'OTHER');
+        assert.ok(!t.logs.join('\n').includes(PII), 'the text of the exception is not logged');
+        assert.ok(!JSON.stringify(await detail(id)).includes(PII));
+      },
+    );
 
-    it('a database error leaves the transaction unusable: it is rolled back and FAILED is written in a new one', async () => {
-      const id = await request({ scope: { elementTypes: ['COLLECTION'] } });
-      await t.owner.query(`REVOKE SELECT ON collection_field FROM docs_app`);
-      try {
-        assert.equal(await makeWorker({ generators: capturing({}) }).runOnce(), 'failed');
-      } finally {
-        await t.owner.query(`GRANT SELECT ON collection_field TO docs_app`);
-      }
-      await assertFailed(id, REPORT_ERROR_MESSAGES.OTHER);
-      assert.ok(logsOf(id).some((entry) => String(entry['msg']).includes('new transaction')));
-    });
+    it(
+      'a database error leaves the transaction unusable: it is rolled back and FAILED is written in a new one',
+      { timeout: TEST_TIMEOUT_MS },
+      async () => {
+        const id = await request({ scope: { elementTypes: ['COLLECTION'] } });
+        await t.owner.query(`REVOKE SELECT ON collection_field FROM docs_app`);
+        try {
+          await expectPass(makeWorker({ generators: capturing({}) }), 'failed');
+        } finally {
+          await t.owner.query(`GRANT SELECT ON collection_field TO docs_app`);
+        }
+        await assertFailed(id, REPORT_ERROR_MESSAGES.OTHER);
+        assert.ok(logsOf(id).some((entry) => String(entry['msg']).includes('new transaction')));
+      },
+    );
 
-    it('a failed report is never published, and its text is the only thing a client reads', async () => {
-      const id = await request({ publish: true, generatedBy: t.users.developer.id });
-      const worker = makeWorker({ generators: { XLSX: () => Promise.reject(new Error(PII)) } });
-      assert.equal(await worker.runOnce(), 'failed');
-      const report = await detail(id);
-      assert.deepEqual([report.status, report.isPublished], ['FAILED', false]);
-      assert.equal(
-        (await asUser(t, t.users.admin.token).put(`/reports/${id}/publication`, { isPublished: true })).status,
-        409,
-      );
-      assert.equal(bodyOf(await asUser(t, t.users.admin.token).get(`/reports/${id}/file`)).code, 'REPORT_NOT_READY');
-    });
+    it(
+      'a failed report is never published, and its text is the only thing a client reads',
+      { timeout: TEST_TIMEOUT_MS },
+      async () => {
+        const id = await request({ publish: true, generatedBy: t.users.developer.id });
+        const worker = makeWorker({ generators: { XLSX: () => Promise.reject(new Error(PII)) } });
+        await expectPass(worker, 'failed');
+        const report = await detail(id);
+        assert.deepEqual([report.status, report.isPublished], ['FAILED', false]);
+        assert.equal(
+          (await asUser(t, t.users.admin.token).put(`/reports/${id}/publication`, { isPublished: true })).status,
+          409,
+        );
+        assert.equal(bodyOf(await asUser(t, t.users.admin.token).get(`/reports/${id}/file`)).code, 'REPORT_NOT_READY');
+      },
+    );
   });
 
   describe('the snapshot', () => {
-    it('the report shows the documentation as it was when the generation started, even if it changes meanwhile', async () => {
-      const seen: { xlsx?: ReportContent } = {};
-      const id = await request({ scope: { elementTypes: ['SCREEN', 'VARIABLE'], includeStatusSummary: true } });
-      let changed = false;
-      const worker = makeWorker({
-        generators: capturing(seen),
-        hooks: {
-          // After the screens were read, other users change the documentation and commit.
-          afterSection: async (name) => {
-            if (name !== 'Screens' || changed) return;
-            changed = true;
-            await t.owner.query(`UPDATE screen SET name = 'Renamed meanwhile' WHERE id = $1`, [zetaId]);
-            await t.owner.query(
-              `UPDATE variable SET name = 'gRenamedMeanwhile' WHERE name = 'gUser' AND application_id = $1`,
-              [applicationId],
-            );
-            await insertVariable(t, applicationId, { name: 'gAddedMeanwhile', scope: 'GLOBAL' });
-            await t.owner.query(`DELETE FROM variable WHERE name = 'gAdmin' AND application_id = $1`, [applicationId]);
+    it(
+      'the report shows the documentation as it was when the generation started, even if it changes meanwhile',
+      { timeout: TEST_TIMEOUT_MS },
+      async () => {
+        const seen: { xlsx?: ReportContent } = {};
+        const id = await request({ scope: { elementTypes: ['SCREEN', 'VARIABLE'], includeStatusSummary: true } });
+        let changed = false;
+        const worker = makeWorker({
+          generators: capturing(seen),
+          hooks: {
+            // After the screens were read, other users change the documentation and commit.
+            afterSection: async (name) => {
+              if (name !== 'Screens' || changed) return;
+              changed = true;
+              await t.owner.query(`UPDATE screen SET name = 'Renamed meanwhile' WHERE id = $1`, [zetaId]);
+              await t.owner.query(
+                `UPDATE variable SET name = 'gRenamedMeanwhile' WHERE name = 'gUser' AND application_id = $1`,
+                [applicationId],
+              );
+              await insertVariable(t, applicationId, { name: 'gAddedMeanwhile', scope: 'GLOBAL' });
+              await t.owner.query(`DELETE FROM variable WHERE name = 'gAdmin' AND application_id = $1`, [
+                applicationId,
+              ]);
+            },
           },
-        },
-      });
-      try {
-        assert.equal(await worker.runOnce(), 'ready');
-        assert.ok(changed);
-        const variables = seen.xlsx!.sections.find((s) => s.name === 'Variables')!;
-        assert.deepEqual(
-          variables.rows
-            .map((r) => r[0])
-            .filter((n) => String(n).startsWith('g'))
-            .sort(),
-          ['gAdmin', 'gUser'],
-        );
-        const screens = seen.xlsx!.sections.find((s) => s.name === 'Screens')!;
-        assert.ok(screens.rows.some((r) => r[0] === 'Zeta') && !screens.rows.some((r) => r[0] === 'Renamed meanwhile'));
-        const summary = new Map(seen.xlsx!.sections[0]!.rows.map((r) => [r[0], r[1]]));
-        assert.equal(summary.get('Variables'), 2, 'the summary was read in the same snapshot');
-        assert.equal((await detail(id)).status, 'READY');
-      } finally {
-        await t.owner.query(`UPDATE screen SET name = 'Zeta' WHERE id = $1`, [zetaId]);
-        await t.owner.query(`UPDATE variable SET name = 'gUser' WHERE name = 'gRenamedMeanwhile'`);
-        await t.owner.query(`DELETE FROM variable WHERE name = 'gAddedMeanwhile' AND application_id = $1`, [
-          applicationId,
-        ]);
-        await insertVariable(t, applicationId, { name: 'gAdmin', scope: 'GLOBAL', originScreenId: null });
-      }
-    });
+        });
+        try {
+          await expectPass(worker, 'ready');
+          assert.ok(changed);
+          const variables = seen.xlsx!.sections.find((s) => s.name === 'Variables')!;
+          assert.deepEqual(
+            variables.rows
+              .map((r) => r[0])
+              .filter((n) => String(n).startsWith('g'))
+              .sort(),
+            ['gAdmin', 'gUser'],
+          );
+          const screens = seen.xlsx!.sections.find((s) => s.name === 'Screens')!;
+          assert.ok(
+            screens.rows.some((r) => r[0] === 'Zeta') && !screens.rows.some((r) => r[0] === 'Renamed meanwhile'),
+          );
+          const summary = new Map(seen.xlsx!.sections[0]!.rows.map((r) => [r[0], r[1]]));
+          assert.equal(summary.get('Variables'), 2, 'the summary was read in the same snapshot');
+          assert.equal((await detail(id)).status, 'READY');
+        } finally {
+          await t.owner.query(`UPDATE screen SET name = 'Zeta' WHERE id = $1`, [zetaId]);
+          await t.owner.query(`UPDATE variable SET name = 'gUser' WHERE name = 'gRenamedMeanwhile'`);
+          await t.owner.query(`DELETE FROM variable WHERE name = 'gAddedMeanwhile' AND application_id = $1`, [
+            applicationId,
+          ]);
+          await insertVariable(t, applicationId, { name: 'gAdmin', scope: 'GLOBAL', originScreenId: null });
+        }
+      },
+    );
   });
 
   describe('the audit', () => {
-    it('the writes of the worker are attributed to the user who asked for the report (generated_by), READY and FAILED', async () => {
-      const ready = await request({ generatedBy: t.users.developer.id });
-      const failed = await request({ generatedBy: t.users.reader.id, title: 'Will fail' });
-      const worker = makeWorker({
-        generators: {
-          XLSX: (content) =>
-            content.title === 'Will fail' ? Promise.reject(new Error('x')) : capturing({}).XLSX(content),
-        },
-      });
-      assert.equal(await worker.runOnce(), 'ready');
-      assert.equal(await worker.runOnce(), 'failed');
-      const readyRecords = (await auditOfReport(t, ready, 'UPDATE')).filter((r) => r.changed_fields.includes('status'));
-      assert.deepEqual(
-        readyRecords.map((r) => r.actor_user_id),
-        [t.users.developer.id],
-      );
-      const failedRecords = (await auditOfReport(t, failed, 'UPDATE')).filter((r) =>
-        r.changed_fields.includes('status'),
-      );
-      assert.deepEqual(
-        failedRecords.map((r) => r.actor_user_id),
-        [t.users.reader.id],
-      );
-      const { rows } = await t.owner.query<{ n: string }>(
-        `SELECT count(*) AS n FROM audit_log WHERE entity_type = 'report_file'`,
-      );
-      assert.equal(rows[0]!.n, '0', 'report_file is not audited (D-18)');
-    });
+    it(
+      'the writes of the worker are attributed to the user who asked for the report (generated_by), READY and FAILED',
+      { timeout: TEST_TIMEOUT_MS },
+      async () => {
+        const ready = await request({ generatedBy: t.users.developer.id });
+        const failed = await request({ generatedBy: t.users.reader.id, title: 'Will fail' });
+        const worker = makeWorker({
+          generators: {
+            XLSX: (content) =>
+              content.title === 'Will fail' ? Promise.reject(new Error('x')) : capturing({}).XLSX(content),
+          },
+        });
+        await expectPass(worker, 'ready');
+        await expectPass(worker, 'failed');
+        const readyRecords = (await auditOfReport(t, ready, 'UPDATE')).filter((r) =>
+          r.changed_fields.includes('status'),
+        );
+        assert.deepEqual(
+          readyRecords.map((r) => r.actor_user_id),
+          [t.users.developer.id],
+        );
+        const failedRecords = (await auditOfReport(t, failed, 'UPDATE')).filter((r) =>
+          r.changed_fields.includes('status'),
+        );
+        assert.deepEqual(
+          failedRecords.map((r) => r.actor_user_id),
+          [t.users.reader.id],
+        );
+        const { rows } = await t.owner.query<{ n: string }>(
+          `SELECT count(*) AS n FROM audit_log WHERE entity_type = 'report_file'`,
+        );
+        assert.equal(rows[0]!.n, '0', 'report_file is not audited (D-18)');
+      },
+    );
 
-    it('also when FAILED is written in a new transaction', async () => {
+    it('also when FAILED is written in a new transaction', { timeout: TEST_TIMEOUT_MS }, async () => {
       const id = await request({ scope: { elementTypes: ['COLLECTION'] }, generatedBy: t.users.developer.id });
       await t.owner.query(`REVOKE SELECT ON collection_field FROM docs_app`);
       try {
-        assert.equal(await makeWorker({ generators: capturing({}) }).runOnce(), 'failed');
+        await expectPass(makeWorker({ generators: capturing({}) }), 'failed');
       } finally {
         await t.owner.query(`GRANT SELECT ON collection_field TO docs_app`);
       }
@@ -635,87 +729,99 @@ describe('reports: the worker', () => {
   });
 
   describe('files it must not create', () => {
-    it('generating a PDF and an Excel with the real threads writes nothing to the temporary directory or the project', async () => {
-      const sandbox = mkdtempSync(join(tmpdir(), 'reports-tmp-'));
-      const saved = { TMPDIR: process.env['TMPDIR'], TEMP: process.env['TEMP'], TMP: process.env['TMP'] };
-      process.env['TMPDIR'] = process.env['TEMP'] = process.env['TMP'] = sandbox; // what os.tmpdir() reads
-      const project = readdirSync('.').sort();
-      try {
-        assert.equal(tmpdir(), sandbox);
-        const pdf = await request({ format: 'PDF' });
-        const xlsx = await request({ format: 'XLSX' });
-        const worker = makeWorker();
-        assert.equal(await worker.runOnce(), 'ready');
-        assert.equal(await worker.runOnce(), 'ready');
-        assert.ok((await fileOf(t, pdf)) && (await fileOf(t, xlsx)));
-        // `tsx` keeps its own transform cache in the temporary directory (`tsx-<user>`) when it loads the thread from `src/`;
-        // that is the test runner, and `dist/` has none (checked by hand with the compiled build).
-        assert.deepEqual(
-          readdirSync(sandbox).filter((name) => !name.startsWith('tsx-')),
-          [],
-          'nothing in os.tmpdir()',
-        );
-        assert.deepEqual(readdirSync('.').sort(), project, 'nothing in the project directory');
-      } finally {
-        for (const [name, value] of Object.entries(saved)) {
-          if (value === undefined) delete process.env[name];
-          else process.env[name] = value;
+    it(
+      'generating a PDF and an Excel with the real threads writes nothing to the temporary directory or the project',
+      { timeout: TEST_TIMEOUT_MS },
+      async () => {
+        const sandbox = mkdtempSync(join(tmpdir(), 'reports-tmp-'));
+        const saved = { TMPDIR: process.env['TMPDIR'], TEMP: process.env['TEMP'], TMP: process.env['TMP'] };
+        process.env['TMPDIR'] = process.env['TEMP'] = process.env['TMP'] = sandbox; // what os.tmpdir() reads
+        const project = readdirSync('.').sort();
+        try {
+          assert.equal(tmpdir(), sandbox);
+          const pdf = await request({ format: 'PDF' });
+          const xlsx = await request({ format: 'XLSX' });
+          const worker = makeWorker();
+          await expectPass(worker, 'ready');
+          await expectPass(worker, 'ready');
+          assert.ok((await fileOf(t, pdf)) && (await fileOf(t, xlsx)));
+          // `tsx` keeps its own transform cache in the temporary directory (`tsx-<user>`) when it loads the thread from `src/`;
+          // that is the test runner, and `dist/` has none (checked by hand with the compiled build).
+          assert.deepEqual(
+            readdirSync(sandbox).filter((name) => !name.startsWith('tsx-')),
+            [],
+            'nothing in os.tmpdir()',
+          );
+          assert.deepEqual(readdirSync('.').sort(), project, 'nothing in the project directory');
+        } finally {
+          for (const [name, value] of Object.entries(saved)) {
+            if (value === undefined) delete process.env[name];
+            else process.env[name] = value;
+          }
+          rmSync(sandbox, { recursive: true, force: true });
         }
-        rmSync(sandbox, { recursive: true, force: true });
-      }
-    });
+      },
+    );
   });
 
   describe('stopping', () => {
-    it('stop() waits for the report that is being generated when it has the time', async () => {
-      const id = await request({});
-      let release!: () => void;
-      const gate = new Promise<void>((resolve) => (release = resolve));
-      let started!: () => void;
-      const running = new Promise<void>((resolve) => (started = resolve));
-      const worker = makeWorker({
-        config: { shutdownGraceMs: 60_000 },
-        generators: {
-          XLSX: async (content) => {
-            started();
-            await gate;
-            return capturing({}).XLSX(content);
-          },
-        },
-      });
-      const pass = worker.runOnce();
-      await running;
-      const stopped = worker.stop();
-      release();
-      await stopped;
-      assert.equal(await pass, 'ready');
-      assert.equal((await detail(id)).status, 'READY');
-      assert.equal(await worker.runOnce(), 'idle', 'a stopped worker takes no new report');
-    });
-
-    it('when the time is over the report is given up: it goes back to PENDING and its lock is released', async () => {
-      const id = await request({});
-      let started!: () => void;
-      const running = new Promise<void>((resolve) => (started = resolve));
-      const worker = makeWorker({
-        config: { shutdownGraceMs: 0 },
-        generators: {
-          XLSX: (_content, context) =>
-            new Promise((_resolve, reject) => {
+    it(
+      'stop() waits for the report that is being generated when it has the time',
+      { timeout: TEST_TIMEOUT_MS },
+      async () => {
+        const id = await request({});
+        let release!: () => void;
+        const gate = new Promise<void>((resolve) => (release = resolve));
+        let started!: () => void;
+        const running = new Promise<void>((resolve) => (started = resolve));
+        const worker = makeWorker({
+          config: { shutdownGraceMs: 60_000 },
+          generators: {
+            XLSX: async (content) => {
               started();
-              context.signal.addEventListener('abort', () => reject(new ReportAbandonedError()), { once: true });
-            }),
-        },
-      });
-      const pass = worker.runOnce();
-      await running;
-      await worker.stop();
-      assert.equal(await pass, 'abandoned');
-      const report = await detail(id);
-      assert.deepEqual([report.status, report.errorMessage], ['PENDING', null]);
-      // The row is not locked any more: another worker takes it at once.
-      const again = await makeWorker({ generators: capturing({}) }).runOnce();
-      assert.equal(again, 'ready');
-    });
+              await gate;
+              return capturing({}).XLSX(content);
+            },
+          },
+        });
+        const pass = worker.runOnce();
+        await running;
+        const stopped = worker.stop();
+        release();
+        await stopped;
+        assert.equal(await pass, 'ready');
+        assert.equal((await detail(id)).status, 'READY');
+        assert.equal(await worker.runOnce(), 'idle', 'a stopped worker takes no new report');
+      },
+    );
+
+    it(
+      'when the time is over the report is given up: it goes back to PENDING and its lock is released',
+      { timeout: TEST_TIMEOUT_MS },
+      async () => {
+        const id = await request({});
+        let started!: () => void;
+        const running = new Promise<void>((resolve) => (started = resolve));
+        const worker = makeWorker({
+          config: { shutdownGraceMs: 0 },
+          generators: {
+            XLSX: (_content, context) =>
+              new Promise((_resolve, reject) => {
+                started();
+                context.signal.addEventListener('abort', () => reject(new ReportAbandonedError()), { once: true });
+              }),
+          },
+        });
+        const pass = worker.runOnce();
+        await running;
+        await worker.stop();
+        assert.equal(await pass, 'abandoned');
+        const report = await detail(id);
+        assert.deepEqual([report.status, report.errorMessage], ['PENDING', null]);
+        // The row is not locked any more: another worker takes it at once.
+        const again = await makeWorker({ generators: capturing({}) }).runOnce();
+        assert.equal(again, 'ready');
+      },
+    );
   });
 });

@@ -30,17 +30,54 @@ const RUNS_FROM_SOURCE = fileURLToPath(import.meta.url).endsWith('.ts');
 /** The thread file of this build. */
 export const GENERATOR_THREAD = new URL(`./generatorThread${RUNS_FROM_SOURCE ? '.ts' : '.js'}`, import.meta.url);
 
+/** The only preload a thread started from `src/` needs: the one that lets it load `.ts` files. */
+const TYPESCRIPT_LOADER = /^tsx(?:\/.*)?$/;
+
 /**
- * Flags the thread starts with. From `src/` (development and tests) it inherits those of the process, which is how `tsx`
- * lets the thread load `.ts` files. From `dist/` it inherits NOTHING: a flag such as `--inspect` or `--max-old-space-size`
- * of the API process must not reach the thread (an inspector port would be opened twice).
+ * Flags the thread starts with. From `dist/` it inherits NOTHING: a flag such as `--inspect` or `--max-old-space-size`
+ * of the API process must not reach the thread (an inspector port would be opened twice). From `src/` (development and
+ * tests) it inherits ONLY the loader that lets it read `.ts` files (`--import tsx`): the other preloads of the process
+ * belong to the process, not to the thread. In `npm test` one of them is the pg watcher, which imports `node:test` and
+ * starts a second test runner inside the thread, reporting on the stdout of the real one.
  *
  * @param parent - `process.execArgv` of the main thread.
  * @param fromSource - True when the code runs from `src/` through `tsx`.
  */
 export function threadExecArgv(parent: readonly string[], fromSource: boolean): string[] {
-  return fromSource ? [...parent] : [];
+  if (!fromSource) return [];
+  const kept: string[] = [];
+  for (let i = 0; i < parent.length; i += 1) {
+    const flag = parent[i]!;
+    if (flag === '--import' || flag === '--require') {
+      const specifier = parent[i + 1];
+      i += 1;
+      if (specifier !== undefined && TYPESCRIPT_LOADER.test(specifier)) kept.push(flag, specifier);
+    } else if (flag.startsWith('--import=') && TYPESCRIPT_LOADER.test(flag.slice('--import='.length))) {
+      kept.push(flag);
+    }
+  }
+  return kept;
 }
+
+/**
+ * The environment of the thread: the one of the process without the variable with which `node --test` tells a child
+ * that it belongs to a test run (a thread that inherited it would behave as a second child of the runner).
+ *
+ * @param parent - `process.env` of the main thread.
+ */
+export function threadEnv(parent: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const { NODE_TEST_CONTEXT: _runner, ...rest } = parent;
+  return rest;
+}
+
+/** The class of a thrown value. */
+const errorNameOf = (error: unknown): string => (error instanceof Error ? error.name : 'NonError');
+
+/** The `code` of a thrown value when it is a fixed identifier (`ERR_WORKER_…`, `ENOENT`); anything else is not logged. */
+const errorCodeOf = (error: unknown): string | undefined => {
+  const code = (error as { code?: unknown } | null)?.code;
+  return typeof code === 'string' && /^[A-Z0-9_]{1,64}$/.test(code) ? code : undefined;
+};
 
 /** What a run needs. */
 export type ThreadRun = {
@@ -76,14 +113,22 @@ export function runInThread(run: ThreadRun): Promise<GeneratedFile> {
       return;
     }
     const input: ThreadInput = { format: run.format, content: run.content, maxBytes: run.maxBytes };
-    const thread = new Worker(run.entry ?? GENERATOR_THREAD, {
-      workerData: input,
-      resourceLimits: { maxOldGenerationSizeMb: run.maxMemoryMb },
-      execArgv: run.execArgv ?? threadExecArgv(process.execArgv, RUNS_FROM_SOURCE),
-      // Nothing of the thread is printed by the API process.
-      stdout: false,
-      stderr: false,
-    });
+    let thread: Worker;
+    try {
+      thread = new Worker(run.entry ?? GENERATOR_THREAD, {
+        workerData: input,
+        resourceLimits: { maxOldGenerationSizeMb: run.maxMemoryMb },
+        execArgv: run.execArgv ?? threadExecArgv(process.execArgv, RUNS_FROM_SOURCE),
+        env: threadEnv(process.env),
+        // Nothing of the thread is printed by the API process.
+        stdout: false,
+        stderr: false,
+      });
+    } catch (error) {
+      // The thread could not even be created (invalid flags, content that cannot be cloned): class and code, no text.
+      reject(new ReportThreadError(errorNameOf(error), errorCodeOf(error)));
+      return;
+    }
 
     let settled = false;
     let timedOut = false;
@@ -128,7 +173,7 @@ export function runInThread(run: ThreadRun): Promise<GeneratedFile> {
       } else if (message.kind === 'TOO_LARGE') {
         fail(new ReportTooLargeError('bytes'));
       } else {
-        fail(new ReportThreadError(message.errorClass));
+        fail(new ReportThreadError(message.errorClass, message.code));
       }
     });
     thread.once('error', (error: Error & { code?: string }) => {
@@ -136,7 +181,7 @@ export function runInThread(run: ThreadRun): Promise<GeneratedFile> {
         why(() =>
           error.code === 'ERR_WORKER_OUT_OF_MEMORY'
             ? new ReportTooLargeError('memory')
-            : new ReportThreadError(error.name),
+            : new ReportThreadError(error.name, errorCodeOf(error)),
         ),
       );
     });

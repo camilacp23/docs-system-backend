@@ -54,7 +54,14 @@ export class ReportAbandonedError extends Error {
 
 /** The generator thread failed for a reason other than time, size or memory. Only the class of the error travels. */
 export class ReportThreadError extends Error {
-  constructor(readonly errorClass: string) {
+  /**
+   * @param errorClass - The class of the error of the thread (or `exit code N`).
+   * @param code - The `code` of that error when it has one (`ERR_…`, `ENOENT`…), a fixed identifier and never content.
+   */
+  constructor(
+    readonly errorClass: string,
+    readonly code?: string,
+  ) {
     super('the report generator thread failed');
     this.name = 'ReportThreadError';
   }

@@ -39,6 +39,7 @@ import {
   REPORT_ERROR_MESSAGES,
   ReportAbandonedError,
   ReportScreenGoneError,
+  ReportThreadError,
   ReportTooLargeError,
   ReportTooSlowError,
   type ReportFailure,
@@ -164,6 +165,13 @@ export function createReportWorker(options: ReportWorkerOptions): ReportWorker {
       return { failure: 'TOO_LARGE', fields: { errorClass: error.name, limit: error.limit } };
     }
     if (error instanceof ReportScreenGoneError) return { failure: 'SCREEN_GONE', fields: { errorClass: error.name } };
+    if (error instanceof ReportThreadError) {
+      // What the thread (or its creation) failed with: the class and the code of its error, never its text.
+      return {
+        failure: 'OTHER',
+        fields: { errorClass: error.name, threadErrorClass: error.errorClass, threadCode: error.code ?? null },
+      };
+    }
     const facts = extractDbFacts(error);
     if (facts !== null) {
       const fields = { errorClass: 'DatabaseError', prismaCode: facts.prismaCode, sqlstate: facts.sqlstate };

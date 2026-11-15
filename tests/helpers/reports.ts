@@ -116,3 +116,32 @@ export async function auditOfReport(t: Pick<TestApp, 'owner'>, reportId: number,
   );
   return rows;
 }
+
+/**
+ * What the worker logged when it failed a report, for the message of an assertion: the kind of failure, the class and
+ * the code of the error, the database codes and the first frames of the stack. Never a value of the documentation (the
+ * worker does not log one), so it can be printed by a CI run.
+ *
+ * @param lines - The JSON log lines written while the pass ran.
+ * @returns A line per failure, or an empty string when the worker logged none.
+ */
+export function explainWorkerFailures(lines: readonly string[]): string {
+  const FIELDS = ['failure', 'errorClass', 'threadErrorClass', 'threadCode', 'prismaCode', 'sqlstate', 'limit'];
+  const out: string[] = [];
+  for (const line of lines) {
+    let entry: Record<string, unknown>;
+    try {
+      entry = JSON.parse(line) as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+    const msg = typeof entry['msg'] === 'string' ? entry['msg'] : '';
+    if (!msg.startsWith('report generation failed') && !msg.startsWith('could not')) continue;
+    const facts = FIELDS.filter((key) => entry[key] !== undefined && entry[key] !== null).map(
+      (key) => `${key}=${String(entry[key])}`,
+    );
+    const frames = typeof entry['stack'] === 'string' ? entry['stack'].split('\n').slice(0, 2).join(' |') : '';
+    out.push(`report ${String(entry['reportId'])}: ${msg} (${facts.join(', ')})${frames === '' ? '' : ` ${frames}`}`);
+  }
+  return out.length === 0 ? '' : `\nworker log:\n  ${out.join('\n  ')}`;
+}

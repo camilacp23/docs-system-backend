@@ -19,7 +19,7 @@ export type ThreadInput = { format: 'PDF' | 'XLSX'; content: ReportContent; maxB
 /** What the thread answers: the file, or why there is none. */
 export type ThreadOutput =
   | { type: 'done'; buffer: ArrayBuffer; mimeType: string; replacedCharacters: number; heapPeakMb: number }
-  | { type: 'failed'; kind: 'TOO_LARGE' | 'OTHER'; errorClass: string };
+  | { type: 'failed'; kind: 'TOO_LARGE' | 'OTHER'; errorClass: string; code?: string };
 
 const input = workerData as ThreadInput;
 let heapPeak = 0;
@@ -58,10 +58,13 @@ try {
   parentPort!.postMessage(output, [transferable]);
 } catch (error) {
   const errorClass = error instanceof Error ? error.name : 'NonError';
+  const code = (error as { code?: unknown } | null)?.code;
   const output: ThreadOutput = {
     type: 'failed',
     kind: errorClass === 'ReportTooLargeError' ? 'TOO_LARGE' : 'OTHER',
     errorClass,
+    // The `code` of an error is a fixed identifier (`ERR_…`, `ENOENT`), never a value of the documentation.
+    ...(typeof code === 'string' && /^[A-Z0-9_]{1,64}$/.test(code) ? { code } : {}),
   };
   parentPort!.postMessage(output);
 }
