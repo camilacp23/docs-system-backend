@@ -12,6 +12,7 @@ import { applicationsHandlers } from './applications/routes.js';
 import { auditHandlers } from './audit/routes.js';
 import { authHandlers } from './auth/routes.js';
 import { collectionsHandlers } from './collections/routes.js';
+import { commentsHandlers } from './comments/routes.js';
 import { dashboardHandlers } from './dashboard/routes.js';
 import { dependenciesHandlers } from './dependencies/routes.js';
 import { reportsHandlers } from './reports/routes.js';
@@ -50,6 +51,7 @@ export function createModuleHandlers(deps: {
     }),
     ...variablesHandlers(deps.db),
     ...collectionsHandlers(deps.db),
+    ...commentsHandlers(deps.db),
     ...dependenciesHandlers(deps.db),
     ...auditHandlers(deps.db),
     ...searchHandlers(deps.db),

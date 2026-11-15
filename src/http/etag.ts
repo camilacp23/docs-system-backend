@@ -36,6 +36,17 @@ export function etagOfJson(representation: unknown): string {
   return `W/"${createHash('sha256').update(JSON.stringify(representation)).digest('hex').slice(0, 16)}"`;
 }
 
+/**
+ * ETag of a comment (D-123): `W/"<epoch ms of updatedAt, or of createdAt when updatedAt is null>"`. It is the same in
+ * the 201, the 200 of the edit and what a client builds from an item of the list (the list keeps its own hash, D-72).
+ *
+ * @param comment - The comment as the API returns it.
+ * @returns The weak ETag.
+ */
+export function commentEtagOf(comment: { createdAt: Date | string; updatedAt: Date | string | null }): string {
+  return etagOf({ updatedAt: comment.updatedAt ?? comment.createdAt });
+}
+
 /** Counters that are part of the ETag of a screen (they change without touching `updated_at`). */
 export type ScreenEtagSource = { updatedAt: Date | string; pendingSubtasks: number; commentCount: number };
 
