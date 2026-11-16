@@ -1,0 +1,29 @@
+info:
+  name: '50 Archived · archive the other application 200'
+  type: http
+  seq: 50
+http:
+  method: PUT
+  url: '{{baseUrl}}/applications/{{onbOtherAppId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{onbAdminToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Onboarding other {{onbRun}}",
+        "description": null,
+        "platform": "Power Apps",
+        "jiraProjectKey": null,
+        "status": "ARCHIVED"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("archived", function () { expect(res.body.data.status).to.equal("ARCHIVED"); });
+settings:
+  encodeUrl: true

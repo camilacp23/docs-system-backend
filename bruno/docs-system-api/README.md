@@ -1,7 +1,7 @@
 # docs-system-api (Bruno collection)
 
 Requests and assertions for every implemented operation, grouped by module: `Auth`, `Users`, `Applications`,
-`Screens`, `Variables`, `Collections`, `Jira`, `Dependencies`, `Audit`, `Search`, `Dashboard`, `Reports` and `Comments` (868 executions and 2088
+`Screens`, `Variables`, `Collections`, `Jira`, `Dependencies`, `Audit`, `Search`, `Dashboard`, `Reports`, `Comments` and `Onboarding` (927 executions and 2184
 assertions in all; the polling requests of `Reports` run more than once). It runs against the isolated database
 `docs_sandbox`, never against `docs_system`.
 
@@ -245,3 +245,37 @@ API_FIRST_PASS="Comments/0?-*.yml Comments/1?-*.yml Comments/2?-*.yml Comments/3
 
 The first pass stops after the thread was read (setup done, five comments in the thread, the screen `IN_PROGRESS`, no cleanup),
 and the second pass, with its own users, applications and prefix, passes.
+
+## Onboarding folder
+
+60 requests (`seq` 14, after `Comments`; 96 assertions). It builds a run application of its own with 12 screens, 12 `GLOBAL`
+variables and 13 components, so that every ordering rule has a tie to break and every list is cut at 10. Everything is built
+by the requests themselves, in the order that the API allows: a screen can only navigate to a screen that already exists, so
+the screens are created from the last one to the first, and App (OnStart), which exists from the start, is edited at the end
+to navigate to the first screens. The names of the run carry a random prefix that starts with a letter.
+
+| Requests | Covers |
+| -------- | ------ |
+| 01-08    | Setup: users, the run application and the other one, and the id of its App (OnStart) screen |
+| 10-23    | Setup: 12 `GLOBAL` variables (`gTop` is read by 4 screens, `gMid` by 2, ten more by one each, so the ties are real), the same name `gTop` in the other application, and one collection that no screen reads |
+| 24-35    | Setup: 12 screens with one component each (names that differ only in case, and one component that uses nothing); S03 navigates back to App (OnStart) |
+| 37-38    | Setup: App (OnStart) with its template and its two navigations (the cycle App (OnStart), S01, S02, S03 and back, with S11 and S12 apart from it), and a screen with the same name in the other application |
+| 40-46    | `GET`: 401; the exact body (counts, App (OnStart) with its seven template fields, 10 of 12 key screens in reading order with the unreachable ones last, 10 of 12 global variables by code point, 10 of 12 top components); 304 with the hash `ETag`; the Developer and the Reader get the same body and the same `ETag`; the other application does not leak |
+| 50-53    | Archived application: it is read like any other, by the three roles, with the same body |
+| 60-68    | 400 for a missing or non-numeric `applicationId`, 404 for each role and for an id beyond the integer range, 400 before 404, 401 before 400, and no 304 for a 404 |
+| 70       | Sandbox Fixtures is read, not changed |
+| 100-102  | Cleanup: archives the run application (an application cannot be deleted), checks that it is still read with the same body, and that Sandbox Fixtures is untouched |
+
+### Cleanup: what stays
+
+An application cannot be deleted, so each run leaves two archived applications with a random name that no later run reads
+(the second one is archived by request 50, the first by request 100). `npm run test:api` recreates and drops `docs_sandbox`
+on every run, so nothing accumulates there; on a sandbox you keep (`npm run sandbox:db`) each run adds two archived
+applications. Every assertion is limited to the elements of the run. An interrupted run is simulated with `API_FIRST_PASS`:
+
+```bash
+API_FIRST_PASS="Onboarding/0?-*.yml Onboarding/1?-*.yml Onboarding/2?-*.yml Onboarding/3?-*.yml Onboarding/41-*.yml" npm run test:api -- Onboarding
+```
+
+The first pass stops after the exact body was read (setup done, no cleanup, the application still active), and the second
+pass, with its own users, applications and prefix, passes.

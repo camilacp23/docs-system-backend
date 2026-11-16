@@ -1,0 +1,29 @@
+info:
+  name: '100 Cleanup · archive the run application 200'
+  type: http
+  seq: 100
+http:
+  method: PUT
+  url: '{{baseUrl}}/applications/{{onbAppId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{onbAdminToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Onboarding {{onbRun}}",
+        "description": null,
+        "platform": "Power Apps",
+        "jiraProjectKey": null,
+        "status": "ARCHIVED"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("archived", function () { expect(res.body.data.status).to.equal("ARCHIVED"); });
+settings:
+  encodeUrl: true
