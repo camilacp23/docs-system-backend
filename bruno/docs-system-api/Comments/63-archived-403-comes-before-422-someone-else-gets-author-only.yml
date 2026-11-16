@@ -1,0 +1,23 @@
+info:
+  name: '63 Archived · 403 comes before 422: someone else gets AUTHOR_ONLY'
+  type: http
+  seq: 63
+http:
+  method: PUT
+  url: '{{baseUrl}}/comments/{{comOtherCmtId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{comRdToken}}'
+  body:
+    type: json
+    data: |-
+      { "text": "Not mine" }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 403", function () { expect(res.status).to.equal(403); });
+        test("reason", function () { expect(res.body.details.reason).to.equal("AUTHOR_ONLY"); });
+settings:
+  encodeUrl: true

@@ -138,7 +138,7 @@ describe('screens: GET /screens/{id}', () => {
     assert.equal((await t.http.get('/api/v1/screens/1')).status, 401);
   });
 
-  it('the nine operations are implemented; the comments of Module 10 still answer NOT_IMPLEMENTED', () => {
+  it('the nine screen operations and the three of the comments (Module 10) are implemented', () => {
     const implemented = [
       'listScreens',
       'createScreen',
@@ -149,10 +149,11 @@ describe('screens: GET /screens/{id}', () => {
       'reviewScreen',
       'createJiraTicket',
       'listJiraTickets',
+      // Module 10: the comments, implemented in B-31 (the review keeps writing its comment through the same service).
+      'listComments',
+      'createComment',
+      'updateComment',
     ];
     for (const operationId of implemented) assert.ok(!t.built.notImplemented.includes(operationId), operationId);
-    // The review writes its comment through the comments service, which exposes no endpoint (D-88).
-    const pending = ['listComments', 'createComment', 'updateComment'];
-    for (const operationId of pending) assert.ok(t.built.notImplemented.includes(operationId), operationId);
   });
 });

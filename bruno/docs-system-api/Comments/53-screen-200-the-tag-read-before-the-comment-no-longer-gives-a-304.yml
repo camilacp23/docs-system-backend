@@ -1,0 +1,20 @@
+info:
+  name: '53 Screen · 200 the tag read before the comment no longer gives a 304'
+  type: http
+  seq: 53
+http:
+  method: GET
+  url: '{{baseUrl}}/screens/{{comScrId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{comDevToken}}'
+    - name: If-None-Match
+      value: '{{comScrEtag}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+settings:
+  encodeUrl: true

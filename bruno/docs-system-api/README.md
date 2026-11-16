@@ -1,7 +1,7 @@
 # docs-system-api (Bruno collection)
 
 Requests and assertions for every implemented operation, grouped by module: `Auth`, `Users`, `Applications`,
-`Screens`, `Variables`, `Collections`, `Jira`, `Dependencies`, `Audit`, `Search`, `Dashboard` and `Reports` (815 executions and 1988
+`Screens`, `Variables`, `Collections`, `Jira`, `Dependencies`, `Audit`, `Search`, `Dashboard`, `Reports` and `Comments` (868 executions and 2088
 assertions in all; the polling requests of `Reports` run more than once). It runs against the isolated database
 `docs_sandbox`, never against `docs_system`.
 
@@ -213,3 +213,35 @@ API_FIRST_PASS="Reports/0?-*.yml Reports/1?-*.yml Reports/2?-*.yml Reports/3[0-4
 
 The first pass stops after the polls (setup done, three reports generated and published, the application still active, no
 cleanup), and the second pass, with its own application and prefix, passes.
+
+## Comments folder
+
+52 requests (`seq` 13, after `Reports`; 100 assertions). It logs in the administrator, creates a Developer and a Reader with
+random e-mails and two applications of its own (`Comments <suffix>`, and one that is archived during the run), and names the
+screens with a random prefix. The comments are written by the requests themselves, and the review comment is created the way
+the API does it: `POST /screens/{id}/review` with RETURN on a screen that the Developer took to `IN_REVIEW`.
+
+| Requests | Covers |
+| -------- | ------ |
+| 01-13    | Setup: users, both applications, a screen in each (the first one with the seven template fields), a comment written before the archiving, the first screen taken to `IN_REVIEW`, and its empty thread |
+| 20-27    | `POST`: 401, 400 for whitespace and for an empty text with an unknown field, 404, 400 before 404, and the 201 of the three roles on a screen `IN_REVIEW` (the tag is the one of `createdAt`, there is NO `Location`, the text is stored as written) |
+| 30       | The review comment: the Administrator returns the screen with a comment |
+| 31-36    | `GET`: the thread oldest first with the review comment and its `reviewDecision`, 304 with the hash `ETag`, paging, 400, 404, 401 |
+| 40-49    | `PUT`: 400, 404, 403 `AUTHOR_ONLY` (the Administrator too), 412 with `currentETag`, 412 before 422, 422 `REVIEW_COMMENT_LOCKED`, the edit with `If-Match` (`updatedAt` set, new tag), the same text that writes nothing, 412 for the same text with an old tag |
+| 50-54    | The screen: a comment changes its tag (`commentCount`) but not its `updatedAt`, the old tag no longer gives a 304, and a `PUT /screens/{id}` with the `If-Match` read before the comment is a 200 |
+| 60-64    | Archived application: the comment and the edit are 422 `APPLICATION_ARCHIVED`, 403 comes first for someone else, and the thread can still be read |
+| 100-103  | Cleanup: deletes the first screen (its comments go with it), archives the first application and checks that the second one stays archived |
+
+### Cleanup: what stays
+
+A screen of an archived application cannot be deleted, and an application cannot be deleted at all, so the second application
+and its one screen and comment stay (archived, with a random name that no later run reads). `npm run test:api` recreates and
+drops `docs_sandbox` on every run, so nothing accumulates there; on a sandbox you keep (`npm run sandbox:db`) each run adds one
+archived application. An interrupted run is simulated with `API_FIRST_PASS`:
+
+```bash
+API_FIRST_PASS="Comments/0?-*.yml Comments/1?-*.yml Comments/2?-*.yml Comments/30-*.yml Comments/31-*.yml" npm run test:api -- Comments
+```
+
+The first pass stops after the thread was read (setup done, five comments in the thread, the screen `IN_PROGRESS`, no cleanup),
+and the second pass, with its own users, applications and prefix, passes.

@@ -1,0 +1,23 @@
+info:
+  name: '12 Setup · screen Alpha to IN_REVIEW 200'
+  type: http
+  seq: 12
+http:
+  method: PUT
+  url: '{{baseUrl}}/screens/{{comScrId}}/status'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{comDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "status": "IN_REVIEW" }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("in review", function () { expect(res.body.data.documentationStatus).to.equal("IN_REVIEW"); });
+settings:
+  encodeUrl: true

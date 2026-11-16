@@ -1,7 +1,7 @@
 /**
  * Routes of the screens module (Module 4): binds each implemented operationId of the contract to its handler. Roles
  * are not declared here; the contract (x-roles) is the only source of authorization (D-39). The Jira operations are the creation of
- * tickets, the tree and the signed webhook (whose raw body and signature are handled by `http/jiraWebhookGate`). The comment of a review is written through the comments service, which has no endpoints yet.
+ * tickets, the tree and the signed webhook (whose raw body and signature are handled by `http/jiraWebhookGate`). The comment of a review is written through the comments service (D-88).
  *
  * @module modules/screens/routes
  */
@@ -46,7 +46,7 @@ export function screensHandlers(
   const collections = createCollectionService(db, applications, lookup, variables);
   const runAsIntegration = createIntegrationActor(db, jiraDeps.integrationUserEmail);
   const controller = createScreensController(
-    createScreenService(db, applications, variables, collections, createCommentService()),
+    createScreenService(db, applications, variables, collections, createCommentService(db, applications, lookup)),
     createJiraTicketService({ db, applications, ...jiraDeps }),
     createJiraTreeService({
       db,

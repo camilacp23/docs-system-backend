@@ -1,0 +1,25 @@
+info:
+  name: '10 Setup · the Developer comments on the other application while it is active 201'
+  type: http
+  seq: 10
+http:
+  method: POST
+  url: '{{baseUrl}}/screens/{{comOtherScrId}}/comments'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{comDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "text": "Written before the archiving" }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) { bru.setVar("comOtherCmtId", res.body.data.id); bru.setVar("comOtherCmtEtag", res.headers["etag"]); }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+settings:
+  encodeUrl: true

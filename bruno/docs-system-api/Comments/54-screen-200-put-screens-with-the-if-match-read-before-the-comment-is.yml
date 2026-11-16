@@ -1,0 +1,33 @@
+info:
+  name: '54 Screen · 200 PUT /screens with the If-Match read BEFORE the comment is not a 412'
+  type: http
+  seq: 54
+http:
+  method: PUT
+  url: '{{baseUrl}}/screens/{{comScrId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{comDevToken}}'
+    - name: If-Match
+      value: '{{comScrEtag}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{comPrefix}}Alpha",
+        "miroLink": null,
+        "template": { "onStart": "a", "workingProcess": "b", "architecture": "c", "dataModel": "d", "requirements": "e", "knownIssues": "f", "risks": "g, edited" },
+        "components": [],
+        "variableLinks": [],
+        "collectionLinks": [],
+        "navigations": []
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("saved, with the counter that changed meanwhile", function () { expect(res.body.data.template.risks).to.equal("g, edited"); expect(res.body.data.commentCount).to.equal(5); });
+settings:
+  encodeUrl: true

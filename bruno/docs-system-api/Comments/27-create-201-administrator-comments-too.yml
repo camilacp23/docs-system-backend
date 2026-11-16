@@ -1,0 +1,26 @@
+info:
+  name: '27 Create · 201 Administrator comments too'
+  type: http
+  seq: 27
+http:
+  method: POST
+  url: '{{baseUrl}}/screens/{{comScrId}}/comments'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{comAdminToken}}'
+  body:
+    type: json
+    data: |-
+      { "text": "A note from the Administrator" }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) { bru.setVar("comAdmCmtId", res.body.data.id); }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("no Location", function () { expect(res.headers["location"]).to.equal(undefined); });
+settings:
+  encodeUrl: true

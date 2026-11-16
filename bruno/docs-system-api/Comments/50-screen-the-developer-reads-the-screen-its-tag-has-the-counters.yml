@@ -1,0 +1,22 @@
+info:
+  name: '50 Screen · the Developer reads the screen: its tag has the counters'
+  type: http
+  seq: 50
+http:
+  method: GET
+  url: '{{baseUrl}}/screens/{{comScrId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{comDevToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 200) { bru.setVar("comScrEtag", res.headers["etag"]); bru.setVar("comScrUpdatedAt", res.body.data.updatedAt); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("four comments in the tag and in the body", function () { expect(res.body.data.commentCount).to.equal(4); expect(res.headers["etag"]).to.equal('W/"' + new Date(res.body.data.updatedAt).getTime() + '-0-4"'); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,19 @@
+info:
+  name: '13 Setup · screen Alpha has no comment yet'
+  type: http
+  seq: 13
+http:
+  method: GET
+  url: '{{baseUrl}}/screens/{{comScrId}}/comments'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{comRdToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("an empty page", function () { expect(res.body.data).to.deep.equal([]); expect(res.body.total).to.equal(0); expect(res.body.page).to.equal(1); expect(res.body.pageSize).to.equal(20); });
+settings:
+  encodeUrl: true
