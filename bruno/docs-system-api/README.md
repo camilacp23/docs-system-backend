@@ -266,6 +266,15 @@ to navigate to the first screens. The names of the run carry a random prefix tha
 | 70       | Sandbox Fixtures is read, not changed |
 | 100-102  | Cleanup: archives the run application (an application cannot be deleted), checks that it is still read with the same body, and that Sandbox Fixtures is untouched |
 
+### Why the cycle goes through App (OnStart)
+
+A first version closed the cycle with a `PUT /screens/{id}` of S03 (navigating to S01), and it answered 400. The cause was the body
+of the request, not the API: the script that builds the screen body also put `applicationId` in the `PUT`, which only the `POST`
+accepts, so the answer was `VALIDATION_ERROR` with `details.fields = [{ field: "applicationId", rule: "unevaluatedProperties" }]`.
+Without `applicationId` the same body is a 200, even when the components and the variable links are sent again without their
+`id`: they are re-created (new ids) and the screen ends up as sent. The folder keeps the cycle App (OnStart), S01, S02, S03 and back
+to App (OnStart) because it needs no `PUT` of a screen with content.
+
 ### Cleanup: what stays
 
 An application cannot be deleted, so each run leaves two archived applications with a random name that no later run reads
