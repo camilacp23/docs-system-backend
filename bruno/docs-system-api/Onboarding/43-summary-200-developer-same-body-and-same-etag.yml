@@ -1,0 +1,19 @@
+info:
+  name: '43 Summary · 200 developer, same body and same ETag'
+  type: http
+  seq: 43
+http:
+  method: GET
+  url: '{{baseUrl}}/onboarding/summary?applicationId={{onbAppId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{onbDevToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the same body and the same ETag as the administrator", function () { expect(JSON.stringify(res.body)).to.equal(bru.getVar("onbBody")); expect(res.headers["etag"]).to.equal(bru.getVar("onbEtag")); });
+settings:
+  encodeUrl: true

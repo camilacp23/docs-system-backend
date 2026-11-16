@@ -1,0 +1,16 @@
+info:
+  name: '67 Validation · 401 comes before 400 (no token, no applicationId)'
+  type: http
+  seq: 67
+http:
+  method: GET
+  url: '{{baseUrl}}/onboarding/summary'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 401", function () { expect(res.status).to.equal(401); });
+        test("UNAUTHENTICATED", function () { expect(res.body.code).to.equal("UNAUTHENTICATED"); });
+settings:
+  encodeUrl: true

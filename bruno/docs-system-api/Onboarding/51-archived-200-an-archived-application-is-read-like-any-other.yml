@@ -1,0 +1,19 @@
+info:
+  name: '51 Archived · 200 an archived application is read like any other (administrator)'
+  type: http
+  seq: 51
+http:
+  method: GET
+  url: '{{baseUrl}}/onboarding/summary?applicationId={{onbOtherAppId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{onbAdminToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the same body as before it was archived", function () { expect(JSON.stringify(res.body)).to.equal(bru.getVar("onbOtherBody")); });
+settings:
+  encodeUrl: true

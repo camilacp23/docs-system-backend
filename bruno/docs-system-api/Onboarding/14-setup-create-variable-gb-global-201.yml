@@ -1,0 +1,31 @@
+info:
+  name: '14 Setup · create variable gB (GLOBAL) 201'
+  type: http
+  seq: 14
+http:
+  method: POST
+  url: '{{baseUrl}}/variables'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{onbDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{onbAppId}},
+        "name": "{{onbPrefix}}gB",
+        "dataType": "TEXT",
+        "scope": "GLOBAL",
+        "environments": [{ "environment": "DEV" }]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        const ids = JSON.parse(bru.getVar("onbIds") || "{}"); if (res.status === 201) { ids["gB"] = res.body.data.id; bru.setVar("onbIds", JSON.stringify(ids)); }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+settings:
+  encodeUrl: true
