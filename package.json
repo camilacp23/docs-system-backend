@@ -24,6 +24,7 @@
     "test:perf:reports": "node --import tsx --import ./tests/setup/failOnPgOverlap.ts --test tests/perf/reports.performance.test.ts",
     "test:legacy": "bash scripts/test-legacy.sh",
     "db:test:template": "tsx scripts/db-test-template.ts",
+    "audit:gate": "tsx scripts/auditGate.ts",
     "prisma:generate": "prisma generate",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx src/scripts/seed.ts",

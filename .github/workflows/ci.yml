@@ -82,7 +82,8 @@ jobs:
           pip install pyyaml==6.0.3
 
       - name: Audit all dependencies (blocking)
-        run: npm audit --audit-level=high
+        # Same as `npm audit --audit-level=high`, except advisories with no patched release (scripts/auditGate.ts).
+        run: npm run audit:gate
 
       - name: Generate passwords for docs_owner and docs_app
         run: |
