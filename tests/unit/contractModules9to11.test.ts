@@ -26,7 +26,7 @@ type Contract = {
 const contract = parse(readFileSync(DEFAULT_OPENAPI_PATH, 'utf8')) as Contract;
 
 /** The operations of Modules 9 to 11 that this contract version describes, with a concrete URL for each. */
-const OPERATIONS: { method: 'get' | 'post' | 'put'; path: string; url: string }[] = [
+const OPERATIONS: { method: 'get' | 'post' | 'put' | 'delete'; path: string; url: string }[] = [
   { method: 'post', path: '/reports/pdf', url: '/reports/pdf' },
   { method: 'post', path: '/reports/excel', url: '/reports/excel' },
   { method: 'get', path: '/reports', url: '/reports?applicationId=1' },
@@ -37,6 +37,9 @@ const OPERATIONS: { method: 'get' | 'post' | 'put'; path: string; url: string }[
   { method: 'post', path: '/screens/{id}/comments', url: '/screens/7/comments' },
   { method: 'put', path: '/comments/{id}', url: '/comments/31' },
   { method: 'get', path: '/onboarding/summary', url: '/onboarding/summary?applicationId=1' },
+  { method: 'get', path: '/onboarding/progress', url: '/onboarding/progress?applicationId=1' },
+  { method: 'put', path: '/onboarding/progress/steps/{step}', url: '/onboarding/progress/steps/3?applicationId=1' },
+  { method: 'delete', path: '/onboarding/progress', url: '/onboarding/progress?applicationId=1' },
 ];
 
 /** The JSON examples of a media type, by name (a single `example` is named `example`). */

@@ -1,5 +1,5 @@
 /**
- * Routes of the onboarding module (Module 11): binds the operationId of the contract to its handler. Roles are not
+ * Routes of the onboarding module (Module 11): binds each operationId of the contract to its handler. Roles are not
  * declared here; the contract (x-roles) is the only source of authorization (D-39).
  *
  * @module modules/onboarding/routes
@@ -21,7 +21,7 @@ import { createOnboardingService, type OnboardingService } from './service.js';
  * @param hooks - Test hooks of the repository; production passes none.
  */
 export function createOnboardingModuleService(
-  db: Pick<Database, 'base'>,
+  db: Pick<Database, 'base' | 'auditedTransaction'>,
   deps: { jira: Pick<JiraClient, 'jiraAvailable'> },
   hooks?: OnboardingHooks,
 ): OnboardingService {
@@ -29,20 +29,27 @@ export function createOnboardingModuleService(
     createOnboardingRepository(db, hooks),
     createDashboardModuleService(db, deps),
     createDependenciesModuleService(db),
+    db,
   );
 }
 
 /**
- * Handlers of the /onboarding/summary operation.
+ * Handlers of the /onboarding operations (the summary and the progress of the user).
  *
  * @param db - Database connected as docs_app.
  * @param deps - The Jira client (see `createOnboardingModuleService`).
  * @param hooks - Test hooks of the repository; production passes none.
  */
 export function onboardingHandlers(
-  db: Pick<Database, 'base'>,
+  db: Pick<Database, 'base' | 'auditedTransaction'>,
   deps: { jira: Pick<JiraClient, 'jiraAvailable'> },
   hooks?: OnboardingHooks,
 ): OperationHandlers {
-  return { getOnboardingSummary: createOnboardingController(createOnboardingModuleService(db, deps, hooks)).summary };
+  const controller = createOnboardingController(createOnboardingModuleService(db, deps, hooks));
+  return {
+    getOnboardingSummary: controller.summary,
+    getOnboardingProgress: controller.progress,
+    completeOnboardingStep: controller.completeStep,
+    resetOnboardingProgress: controller.resetProgress,
+  };
 }

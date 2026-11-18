@@ -1,5 +1,6 @@
 /**
- * Queries of the onboarding summary (FR-25, D-124). Read only: nothing here writes.
+ * Queries of the onboarding summary (FR-25, D-124), which are read only, and of the progress of a user (D-133), which are
+ * plain functions on the client they receive.
  *
  * One read is one snapshot: a `REPEATABLE READ` transaction opened `READ ONLY`, one statement after the other on the
  * connection of the transaction (never in parallel). The counts and the graph are NOT read here: the dashboard and the
@@ -8,9 +9,12 @@
  * seven template fields of App (OnStart) and the data type of the chosen variables. Each is a small statement by
  * primary key.
  *
+ * The progress (`onboarding_progress`, one row per completed step of a user in an application) is read and written
+ * by the functions at the end of this file: the service gives them the client of an `auditedTransaction`.
+ *
  * @module modules/onboarding/repository
  */
-import { Prisma } from '../../generated/prisma/client.js';
+import { Prisma, type PrismaClient } from '../../generated/prisma/client.js';
 import type { Database } from '../../db/prisma.js';
 import type { IndicatorsClient } from '../dashboard/repository.js';
 import type { GraphClient } from '../dependencies/repository.js';
@@ -96,4 +100,66 @@ export function createOnboardingRepository(
         { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
       ),
   };
+}
+
+/**
+ * The steps a user completed in an application, ascending, in ONE statement (so the application and the steps are
+ * read at the same instant).
+ *
+ * @param client - Transaction client or plain client.
+ * @param userId - The user.
+ * @param applicationId - The application.
+ * @returns The completed steps, or `null` when the application does not exist.
+ */
+export async function readCompletedSteps(
+  client: Pick<PrismaClient, '$queryRaw'>,
+  userId: number,
+  applicationId: number,
+): Promise<number[] | null> {
+  const rows = await client.$queryRaw<{ steps: number[] }[]>`
+    SELECT COALESCE(
+             (SELECT array_agg(p.step::int ORDER BY p.step)
+                FROM onboarding_progress p
+               WHERE p.user_id = ${userId} AND p.application_id = ${applicationId}),
+             '{}'::int[]) AS steps
+      FROM application a
+     WHERE a.id = ${applicationId}`;
+  return rows[0]?.steps ?? null;
+}
+
+/**
+ * Marks a step as completed. A step that is already completed is left as it is (it keeps its `completed_at`), so
+ * repeating the call is harmless, also when two requests arrive at the same time.
+ *
+ * @param client - Transaction client of `auditedTransaction`.
+ * @param userId - The user.
+ * @param applicationId - The application (it must exist: the foreign key rejects it otherwise).
+ * @param step - The step, 1 to 5 (the table has a CHECK).
+ */
+export async function insertCompletedStep(
+  client: Pick<PrismaClient, '$executeRaw'>,
+  userId: number,
+  applicationId: number,
+  step: number,
+): Promise<void> {
+  await client.$executeRaw`
+    INSERT INTO onboarding_progress (user_id, application_id, step)
+    VALUES (${userId}, ${applicationId}, ${step})
+    ON CONFLICT (user_id, application_id, step) DO NOTHING`;
+}
+
+/**
+ * Deletes every completed step of a user in an application.
+ *
+ * @param client - Transaction client of `auditedTransaction`.
+ * @param userId - The user.
+ * @param applicationId - The application.
+ */
+export async function deleteCompletedSteps(
+  client: Pick<PrismaClient, '$executeRaw'>,
+  userId: number,
+  applicationId: number,
+): Promise<void> {
+  await client.$executeRaw`
+    DELETE FROM onboarding_progress WHERE user_id = ${userId} AND application_id = ${applicationId}`;
 }

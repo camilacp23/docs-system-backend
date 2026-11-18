@@ -178,12 +178,13 @@ model User {
   updatedAt    DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   applications    Application[]
-  authoredScreens Screen[]       @relation("ScreenAuthor")
+  authoredScreens Screen[]             @relation("ScreenAuthor")
   jiraTickets     JiraTicket[]
   comments        Comment[]
   reports         Report[]
   auditLogs       AuditLog[]
   refreshTokens   RefreshToken[]
+  onboardingSteps OnboardingProgress[]
 
   @@map("app_user")
 }
@@ -216,9 +217,10 @@ model Application {
   createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  createdBy User                @relation(fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  elements  DocumentedElement[]
-  reports   Report[]
+  createdBy       User                 @relation(fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  elements        DocumentedElement[]
+  reports         Report[]
+  onboardingSteps OnboardingProgress[]
 
   @@map("application")
 }
@@ -567,4 +569,21 @@ model AuditLog {
   @@index([applicationId, createdAt])
   @@index([createdAt(sort: Desc)])
   @@map("audit_log")
+}
+
+// ------------------------------------------------- onboarding progress
+/// FR-25: one row per onboarding step (1..5, CHECK onboarding_progress_step_chk) that a user completed in an
+/// application. Personal navigation state, not documentation: not audited (like refresh_token), see D-133.
+model OnboardingProgress {
+  userId        Int      @map("user_id")
+  applicationId Int      @map("application_id")
+  step          Int      @db.SmallInt
+  completedAt   DateTime @default(now()) @map("completed_at") @db.Timestamptz(3)
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+
+  @@id([userId, applicationId, step])
+  @@index([applicationId])
+  @@map("onboarding_progress")
 }

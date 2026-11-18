@@ -18,8 +18,8 @@ describe('the real module registry', () => {
     await t.close();
   });
 
-  it('covers the 50 operations of the contract: none is left to answer NOT_IMPLEMENTED', () => {
-    assert.equal(t.built.policies.size, 50);
+  it('covers the 53 operations of the contract: none is left to answer NOT_IMPLEMENTED', () => {
+    assert.equal(t.built.policies.size, 53);
     assert.deepEqual(t.built.notImplemented, []);
   });
 

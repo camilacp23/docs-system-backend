@@ -45,9 +45,9 @@ describe('application chain', () => {
   };
 
   describe('startup', () => {
-    it('mounts the 50 operations of the contract', () => {
-      assert.equal(t.built.policies.size, 50);
-      assert.equal(t.built.notImplemented.length, 47); // listUsers, listApplications and getUser have handlers
+    it('mounts the 53 operations of the contract', () => {
+      assert.equal(t.built.policies.size, 53);
+      assert.equal(t.built.notImplemented.length, 50); // listUsers, listApplications and getUser have handlers
     });
 
     it('refuses to start when an operation loses x-roles', () => {

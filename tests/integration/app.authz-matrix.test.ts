@@ -18,7 +18,8 @@ const ROLES: { role: Role; key: 'admin' | 'developer' | 'reader' }[] = [
 ];
 
 /** Concrete URL of an operation: path parameters replaced by values that satisfy the contract. */
-const urlOf = (p: OperationPolicy): string => p.expressPath.replace(':type', 'SCREEN').replace(':id', '999999');
+const urlOf = (p: OperationPolicy): string =>
+  p.expressPath.replace(':type', 'SCREEN').replace(':id', '999999').replace(':step', '1');
 
 const send = (t: TestApp, p: OperationPolicy, token?: string) => {
   const req = t.http[p.method.toLowerCase() as 'get' | 'post' | 'put' | 'delete'](urlOf(p));
@@ -37,9 +38,9 @@ describe('authorization matrix (real application)', () => {
     await t.close();
   });
 
-  it('the contract has 50 operations, 4 public and 46 protected', () => {
-    assert.equal(t.built.policies.size, 50);
-    assert.equal(protectedOps.length, 46);
+  it('the contract has 53 operations, 4 public and 49 protected', () => {
+    assert.equal(t.built.policies.size, 53);
+    assert.equal(protectedOps.length, 49);
   });
 
   it('without a token every protected operation is 401', async () => {
@@ -50,7 +51,7 @@ describe('authorization matrix (real application)', () => {
     }
   });
 
-  it('46 operations x 3 roles: allowed roles pass the gate, the others get 403 with requiredRoles', async () => {
+  it('49 operations x 3 roles: allowed roles pass the gate, the others get 403 with requiredRoles', async () => {
     let checked = 0;
     const unexpected: string[] = [];
     for (const p of protectedOps) {
@@ -69,7 +70,7 @@ describe('authorization matrix (real application)', () => {
         }
       }
     }
-    assert.equal(checked, 138);
+    assert.equal(checked, 147);
     assert.deepEqual(unexpected, []);
   });
 
