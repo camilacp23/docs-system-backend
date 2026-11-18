@@ -11,24 +11,55 @@ declare module 'pdfkit' {
     readonly fullName: string;
   }
 
+  /** The text options the generator uses. */
+  interface TextOptions {
+    width?: number;
+    height?: number;
+    lineGap?: number;
+    paragraphGap?: number;
+    align?: 'left' | 'center' | 'right';
+    lineBreak?: boolean;
+    ellipsis?: boolean;
+    characterSpacing?: number;
+  }
+
   /** A PDF document written to memory: listen to `data` and `end`, or use the `Buffer`s it emits. */
   class PDFDocument {
     constructor(options?: {
       autoFirstPage?: boolean;
       size?: string;
       margin?: number;
+      margins?: { top: number; bottom: number; left: number; right: number };
       info?: Record<string, string | Date>;
     });
+    x: number;
+    y: number;
     readonly _font: { readonly font: EmbeddedFont };
-    readonly page: { readonly width: number; readonly margins: { readonly left: number; readonly right: number } };
+    readonly page: {
+      readonly width: number;
+      readonly height: number;
+      readonly margins: { top: number; bottom: number; left: number; right: number };
+    };
     registerFont(name: string, source: string): this;
     font(source: string): this;
     fontSize(size: number): this;
-    text(text: string, options?: { width?: number; lineGap?: number; paragraphGap?: number }): this;
+    fillColor(color: string): this;
+    strokeColor(color: string): this;
+    lineWidth(width: number): this;
+    rect(x: number, y: number, width: number, height: number): this;
+    roundedRect(x: number, y: number, width: number, height: number, radius: number): this;
+    moveTo(x: number, y: number): this;
+    lineTo(x: number, y: number): this;
+    fill(color?: string): this;
+    stroke(color?: string): this;
+    text(text: string, options?: TextOptions): this;
+    text(text: string, x: number, y: number, options?: TextOptions): this;
+    heightOfString(text: string, options?: TextOptions): number;
+    widthOfString(text: string, options?: TextOptions): number;
     moveDown(lines?: number): this;
     addPage(): this;
     on(event: 'data', listener: (chunk: Buffer) => void): this;
-    on(event: 'end', listener: () => void): this;
+    on(event: 'end' | 'pageAdded', listener: () => void): this;
     on(event: 'error', listener: (error: Error) => void): this;
     end(): void;
   }
