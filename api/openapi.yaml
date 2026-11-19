@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Technical Documentation System API
-  version: 0.4.0
+  version: 0.5.0
   summary: REST API contracts — SDD Interface Viewpoint (Bitácora 3, Activities 5 and 6)
   description: |
     Contracts of the eleven modules (41 operations of SRS Table 25), the
@@ -183,6 +183,14 @@ info:
     steps (1 to 5) that the user completed in each application. The progress is personal: it always belongs to
     the user of the token, every role may use it, and it is allowed on an archived application. No existing
     operation, `x-roles` or `x-rule` changed (53 operations).
+
+    Changes in 0.5.0 (where a variable is created inside its origin screen, D-134): `VariableWrite` accepts the optional
+    `originUsedIn` (the event or property of the origin screen where the variable is created, for example `OnVisible`;
+    same format as `UsedIn`, `null` or absent = not described) and `Variable` returns it. A screen returns it in the
+    `variableLinks[]` item with `isOrigin = true` (`null` in the others). The origin row itself does not change: it keeps
+    `usedIn = origin` and stays read-only in `PUT /screens/{id}`, so the variable is still understood as created there;
+    `originUsedIn` is edited with `PUT /variables/{id}`. Without `originScreenId` it is a 400 (`originUsedIn`, rule
+    `requires`). The change is additive: no operation, `x-roles` or `x-rule` changed (53 operations).
 
     Error catalog (`code` -> HTTP status: `message`):
 
@@ -769,6 +777,9 @@ paths:
         name must be free where DUPLICATE_NAME says (global variable: in the
         application; context variable: in its origin screen, or in the application
         when it has none); a repeated environment is a 400 with its position.
+        `originUsedIn` (optional) describes where the variable is created inside its origin
+        screen; without `originScreenId` it is a 400 with `details.fields[].field` =
+        `originUsedIn`. It does not change the `origin` link of the screen.
       requestBody:
         required: true
         content:
@@ -847,6 +858,9 @@ paths:
         `POST /variables`), SCOPE_CONFLICT, CONTEXT_SCREEN_MISMATCH. The name must be
         free where DUPLICATE_NAME says (409). The environments are replaced by
         difference, and a change in them also moves the `ETag`.
+        `originUsedIn` is replaced like the other fields (omitted = null) and also moves
+        the `ETag`; without `originScreenId` it is a 400 with `details.fields[].field` =
+        `originUsedIn`, and when the origin screen is removed it is cleared by the database.
       parameters:
         - $ref: '#/components/parameters/IfMatch'
       requestBody:
@@ -1333,7 +1347,8 @@ paths:
         Links with `usedIn = origin` are maintained by the variables module: they come
         back with `isOrigin = true`, are never read as editable, and are never updated
         or deleted here, even when they are missing from the body. `usedIn = origin` in
-        the body is a 400.
+        the body is a 400. The origin row also carries `originUsedIn` (where the variable is
+        created in this screen); it is read-only here and is edited with `PUT /variables/{id}`.
         `If-Match` is always checked when sent, also when the body changes nothing.
         Only its `updatedAt` part is compared, inside the transaction: a change of
         `pendingSubtasks` or `commentCount` between the read and the save is not a 412.
@@ -3534,6 +3549,11 @@ components:
           type: [integer, 'null']
           minimum: 1
           description: Screen where the variable is created; null = without full traceability. A CONTEXT variable cannot originate in the App (OnStart) screen.
+        originUsedIn:
+          description: Event or property of the origin screen where the variable is created (e.g. OnVisible). Optional; requires `originScreenId` (400 otherwise). The `origin` link of the screen is not affected.
+          oneOf:
+            - $ref: '#/components/schemas/UsedIn'
+            - type: 'null'
         environments:
           type: array
           minItems: 1
@@ -3570,9 +3590,10 @@ components:
       allOf:
         - $ref: '#/components/schemas/VariableSummary'
         - type: object
-          required: [description, environmentDetails]
+          required: [description, originUsedIn, environmentDetails]
           properties:
             description: { type: [string, 'null'] }
+            originUsedIn: { type: [string, 'null'], description: 'Where the variable is created inside its origin screen (D-134); null when not described or without origin screen' }
             environmentDetails: { type: array, items: { $ref: '#/components/schemas/EnvironmentPresence' } }
     VariableEnvelope:
       type: object
@@ -3898,13 +3919,14 @@ components:
               type: array
               items:
                 type: object
-                required: [id, variable, accessMode, usedIn, isOrigin]
+                required: [id, variable, accessMode, usedIn, isOrigin, originUsedIn]
                 properties:
                   id: { type: integer }
                   variable: { $ref: '#/components/schemas/Ref' }
                   accessMode: { $ref: '#/components/schemas/AccessMode' }
                   usedIn: { type: string }
                   isOrigin: { type: boolean, description: 'Row maintained by the variables module (read-only here): a write never updates or deletes it and does not reconcile it' }
+                  originUsedIn: { type: [string, 'null'], description: 'Only on the origin row (isOrigin = true): where the variable is created in this screen, edited with PUT /variables/{id}; null in the other rows or when not described (D-134)' }
             collectionLinks:
               type: array
               items:

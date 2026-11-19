@@ -52,6 +52,8 @@ export type VariableSummaryView = {
 /** A variable as `GET`, `POST` and `PUT` return it (contract schema `Variable`). */
 export type VariableView = VariableSummaryView & {
   description: string | null;
+  /** Event or property of the origin screen where the variable is created (D-134); `null` without origin screen. */
+  originUsedIn: string | null;
   environmentDetails: EnvironmentDetail[];
 };
 
@@ -62,6 +64,7 @@ export type VariableData = {
   scope: VariableScope;
   description: string | null;
   originScreenId: number | null;
+  originUsedIn: string | null;
 };
 
 /** Sortable fields of `GET /variables` (the whitelist is the contract's description of `sort`). */
@@ -105,6 +108,7 @@ const VARIABLE_SELECT = {
   dataType: true,
   scope: true,
   description: true,
+  originUsedIn: true,
   createdAt: true,
   updatedAt: true,
   originScreen: { select: { id: true, name: true } },
@@ -133,6 +137,7 @@ const toSummary = (row: Row): VariableSummaryView => ({
 const toView = (row: Row): VariableView => ({
   ...toSummary(row),
   description: row.description,
+  originUsedIn: row.originScreen === null ? null : row.originUsedIn,
   environmentDetails: row.element.environments,
 });
 
@@ -175,6 +180,7 @@ const HEAD_SELECT = {
   dataType: true,
   scope: true,
   description: true,
+  originUsedIn: true,
   createdAt: true,
   updatedAt: true,
   originScreen: { select: { id: true, name: true } },
@@ -371,6 +377,7 @@ export async function createVariable(
           dataType: data.dataType,
           scope: data.scope,
           description: data.description,
+          originUsedIn: data.originUsedIn,
           ...(data.originScreenId === null ? {} : { originScreen: { connect: { id: data.originScreenId } } }),
         },
       },

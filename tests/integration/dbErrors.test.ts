@@ -46,6 +46,7 @@ const CHECK_VALIDATION = [
   'screen_name_not_blank_chk',
   'screen_miro_link_https_chk',
   'variable_name_not_blank_chk',
+  'variable_origin_used_in_chk',
   'collection_name_not_blank_chk',
   'component_name_not_blank_chk',
   'component_type_not_blank_chk',

@@ -142,6 +142,7 @@ const RULES: Record<string, ConstraintRule> = {
   screen_name_not_blank_chk: notBlank('name'),
   screen_miro_link_https_chk: check('miroLink', 'Must start with https://.'),
   variable_name_not_blank_chk: notBlank('name'),
+  variable_origin_used_in_chk: check('originUsedIn', 'Must not be blank or "origin".'),
   collection_name_not_blank_chk: notBlank('name'),
   component_name_not_blank_chk: notBlank('components[].name'),
   component_type_not_blank_chk: notBlank('components[].type'),

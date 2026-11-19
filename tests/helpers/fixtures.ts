@@ -119,6 +119,7 @@ export async function insertVariable(
     dataType?: string;
     description?: string | null;
     originScreenId?: number | null;
+    originUsedIn?: string | null;
     environments?: readonly { environment: Environment; notes?: string | null }[];
   } = {},
 ): Promise<{ id: number; name: string }> {
@@ -126,8 +127,8 @@ export async function insertVariable(
   const id = await transaction(t, async () => {
     const elementId = await insertElement(t, 'VARIABLE', applicationId);
     await t.owner.query(
-      `INSERT INTO variable (id, application_id, name, data_type, scope, description, origin_screen_id)
-       VALUES ($1, $2, $3, $4::data_type, $5::variable_scope, $6, $7)`,
+      `INSERT INTO variable (id, application_id, name, data_type, scope, description, origin_screen_id, origin_used_in)
+       VALUES ($1, $2, $3, $4::data_type, $5::variable_scope, $6, $7, $8)`,
       [
         elementId,
         applicationId,
@@ -136,6 +137,7 @@ export async function insertVariable(
         over.scope ?? 'GLOBAL',
         over.description ?? null,
         over.originScreenId ?? null,
+        over.originUsedIn ?? null,
       ],
     );
     await insertEnvironments(t, elementId, 'VARIABLE', over.environments ?? [{ environment: 'DEV' }]);

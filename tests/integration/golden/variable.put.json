@@ -17,6 +17,7 @@
       "createdAt": "<date>",
       "updatedAt": "<date>",
       "description": "Golden variable, changed",
+      "originUsedIn": "OnVisible",
       "environmentDetails": [
         {
           "environment": "DEV",

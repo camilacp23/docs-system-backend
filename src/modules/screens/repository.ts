@@ -157,7 +157,15 @@ export type ComponentView = {
 };
 
 /** A link to a variable; `isOrigin` rows are maintained by the variables module (contract `variableLinks[]`). */
-export type VariableLinkView = { id: number; variable: Ref; accessMode: AccessMode; usedIn: string; isOrigin: boolean };
+export type VariableLinkView = {
+  id: number;
+  variable: Ref;
+  accessMode: AccessMode;
+  usedIn: string;
+  isOrigin: boolean;
+  /** Only on the origin row: where the variable is created in this screen, as the variables module stores it (D-134). */
+  originUsedIn: string | null;
+};
 
 /** A link to a collection (contract `collectionLinks[]`). */
 export type CollectionLinkView = { id: number; collection: Ref; accessMode: AccessMode; usedIn: string };
@@ -237,7 +245,12 @@ type DetailParts = {
   uses: { id: number; sourceId: number; targetId: number; targetType: string; description: string | null }[];
   variables: Map<number, Ref>;
   collections: Map<number, Ref>;
-  variableLinks: { id: number; accessMode: AccessMode; usedIn: string; variable: Ref }[];
+  variableLinks: {
+    id: number;
+    accessMode: AccessMode;
+    usedIn: string;
+    variable: Ref & { originUsedIn: string | null };
+  }[];
   collectionLinks: CollectionLinkView[];
   navigations: { id: number; targetId: number; description: string | null }[];
   screens: Map<number, Ref>;
@@ -284,10 +297,11 @@ const toDetail = (row: ScreenRow, parts: DetailParts): ScreenView => {
     })),
     variableLinks: parts.variableLinks.map((l) => ({
       id: l.id,
-      variable: l.variable,
+      variable: { id: l.variable.id, name: l.variable.name },
       accessMode: l.accessMode,
       usedIn: l.usedIn,
       isOrigin: l.usedIn === 'origin',
+      originUsedIn: l.usedIn === 'origin' ? l.variable.originUsedIn : null,
     })),
     collectionLinks: parts.collectionLinks,
     navigations: parts.navigations
@@ -342,7 +356,12 @@ export async function findScreenById(
 
   const variableLinks = await client.screenVariable.findMany({
     where: { screenId: id },
-    select: { id: true, accessMode: true, usedIn: true, variable: REF_SELECT },
+    select: {
+      id: true,
+      accessMode: true,
+      usedIn: true,
+      variable: { select: { id: true, name: true, originUsedIn: true } },
+    },
     orderBy: [{ variable: { name: 'asc' } }, { usedIn: 'asc' }, { id: 'asc' }],
   });
   const collectionLinks = await client.screenCollection.findMany({

@@ -23,6 +23,7 @@ export type VariableSummaryBody = {
 /** A variable as GET, POST and PUT return it. */
 export type VariableBody = VariableSummaryBody & {
   description: string | null;
+  originUsedIn: string | null;
   environmentDetails: { environment: string; notes: string | null }[];
 };
 
@@ -83,6 +84,7 @@ export const putBodyOf = (v: VariableBody, over: Record<string, unknown> = {}) =
   scope: v.scope,
   description: v.description,
   originScreenId: v.originScreen?.id ?? null,
+  originUsedIn: v.originUsedIn,
   environments: v.environmentDetails,
   ...over,
 });

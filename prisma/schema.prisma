@@ -293,6 +293,7 @@ model Variable {
   scope          VariableScope
   description    String?
   originScreenId Int?          @map("origin_screen_id")
+  originUsedIn   String?       @map("origin_used_in") @db.VarChar(200)
   createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 

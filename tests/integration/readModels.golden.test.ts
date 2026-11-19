@@ -98,7 +98,11 @@ describe('read models: the answers of the large resources never change', () => {
 
     const created = screenOf(post);
     // A variable that originates in the screen (the database adds its `origin` link), Jira Subtasks and comments.
-    await insertVariable(t, app.id, { name: 'gGoldOrigin', originScreenId: created.id });
+    await insertVariable(t, app.id, {
+      name: 'gGoldOrigin',
+      originScreenId: created.id,
+      originUsedIn: 'OnVisible',
+    });
     await insertSubtasks(t, created.id, ['TO_DO', 'DONE', 'IN_PROGRESS']);
     await insertComments(t, created.id, 3);
     await insertScreenCollection(t, {
@@ -210,6 +214,7 @@ describe('read models: the answers of the large resources never change', () => {
       scope: 'GLOBAL',
       description: 'Golden variable',
       originScreenId: origin.id,
+      originUsedIn: 'OnVisible',
       environments: [{ environment: 'PROD', notes: 'Real' }, { environment: 'DEV' }],
     });
     assert.equal(post.status, 201, JSON.stringify(post.body));
