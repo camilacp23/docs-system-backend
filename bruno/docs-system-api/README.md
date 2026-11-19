@@ -1,7 +1,7 @@
 # docs-system-api (Bruno collection)
 
 Requests and assertions for every implemented operation, grouped by module: `Auth`, `Users`, `Applications`,
-`Screens`, `Variables`, `Collections`, `Jira`, `Dependencies`, `Audit`, `Search`, `Dashboard`, `Reports`, `Comments`, `Onboarding` and `OnboardingProgress` (967 executions and 2270
+`Screens`, `Variables`, `Collections`, `Jira`, `Dependencies`, `Audit`, `Search`, `Dashboard`, `Reports`, `Comments`, `Onboarding`, `OnboardingProgress` and `LinkedItems` (996 executions and 2327
 assertions in all; the polling requests of `Reports` run more than once). It runs against the isolated database
 `docs_sandbox`, never against `docs_system`.
 
@@ -316,3 +316,28 @@ API_FIRST_PASS="OnboardingProgress/0?-*.yml OnboardingProgress/1?-*.yml Onboardi
 
 The first pass stops after the Developer's progress was reset (setup done, rows written, no cleanup, both applications active),
 and the second pass, with its own users, applications and prefix, passes.
+
+## LinkedItems folder
+
+29 requests (`seq` 16, after `OnboardingProgress`; 57 assertions). It covers what a screen shows that belongs to other rows: where
+a variable is created in its origin screen (`originUsedIn`) and the `ETag` of the screen after a linked item changes. It logs in the
+administrator, creates a Developer and a Reader with random e-mails and an application of its own (a name with accents and a `ñ`),
+and names what it creates with a random prefix that starts with a letter. Every JSON answer is checked to be UTF-8 and every error
+request checks `code`, `message` and `details`. Sandbox Fixtures is only read.
+
+| Requests | Covers |
+| -------- | ------ |
+| 01-09    | Setup: users, the run application, screen `Target`, a `GLOBAL` variable and screen `Main`, which links the variable and navigates to `Target` |
+| 20-25    | `originUsedIn`: a variable created with `originScreenId` and `originUsedIn` returns it; the origin row of `variableLinks` in the screen shows it and the other link does not (`null`); 400 without `originScreenId` (rule `requires`, with its exact message); removing the origin screen leaves it `null` |
+| 30-36    | `ETag` of the screen: four parts, 304 when nothing changed; after the linked variable is renamed the previous `If-None-Match` answers 200 with the new name (same `updatedAt`, new fingerprint) and the new tag answers 304; a `PUT /screens/{id}` with the `If-Match` read before the rename is a 200, and one with another `updatedAt` is still a 412 |
+| 100-106  | Cleanup: deletes the screens and the variables, lists with `q=<prefix>` that `total` is 0, archives the run application and checks that Sandbox Fixtures is untouched |
+
+An application cannot be deleted, so each run leaves one archived application with a random name that no later run reads. An
+interrupted run is simulated with `API_FIRST_PASS`:
+
+```bash
+API_FIRST_PASS="LinkedItems/0?-*.yml LinkedItems/2?-*.yml LinkedItems/30-*.yml LinkedItems/31-*.yml LinkedItems/32-*.yml" npm run test:api -- LinkedItems
+```
+
+The first pass stops after the linked variable was renamed (setup done, the origin removed, no cleanup, the application still
+active), and the second pass, with its own users, application and prefix, passes.
