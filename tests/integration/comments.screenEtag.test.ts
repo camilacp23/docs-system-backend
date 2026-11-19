@@ -36,7 +36,7 @@ describe('comments and the ETag of the screen (D-101)', () => {
     const { screen } = await createScreenVia(dev(), app.id);
     const before = await read(screen.id);
     const etagBefore = String(before.headers.etag);
-    assert.equal(etagBefore, `W/"${Date.parse(screenOf(before).updatedAt)}-0-0"`);
+    assert.ok(etagBefore.startsWith(`W/"${Date.parse(screenOf(before).updatedAt)}-0-0-`));
 
     const created = await reader().post(`/screens/${screen.id}/comments`, { text: 'A first comment' });
     assert.equal(created.status, 201);
@@ -44,14 +44,14 @@ describe('comments and the ETag of the screen (D-101)', () => {
     const after = await read(screen.id);
     assert.equal(screenOf(after).commentCount, 1);
     assert.equal(screenOf(after).updatedAt, screenOf(before).updatedAt, 'updatedAt did not move');
-    assert.equal(after.headers.etag, `W/"${Date.parse(screenOf(before).updatedAt)}-0-1"`);
+    assert.ok(String(after.headers.etag).startsWith(`W/"${Date.parse(screenOf(before).updatedAt)}-0-1-`));
     assert.notEqual(after.headers.etag, etagBefore);
     assert.equal((await read(screen.id, etagBefore)).status, 200, 'the old tag no longer gives a 304');
     assert.equal((await read(screen.id, String(after.headers.etag))).status, 304);
 
     const second = await dev().post(`/screens/${screen.id}/comments`, { text: 'A second one' });
     assert.equal(second.status, 201);
-    assert.match(String((await read(screen.id)).headers.etag), /-0-2"$/);
+    assert.match(String((await read(screen.id)).headers.etag), /-0-2-[0-9a-f]{8}"$/);
   });
 
   it('PUT /screens/{id} with an If-Match read BEFORE the comment is a 200, not a 412', async () => {
@@ -67,7 +67,7 @@ describe('comments and the ETag of the screen (D-101)', () => {
     );
     assert.equal(res.status, 200, JSON.stringify(res.body));
     assert.equal(screenOf(res).commentCount, 1, 'the response carries the counter that changed meanwhile');
-    assert.match(String(res.headers.etag), /-0-1"$/);
+    assert.match(String(res.headers.etag), /-0-1-[0-9a-f]{8}"$/);
   });
 
   it('a stale updatedAt is still a 412 with the full ETag, comments or not', async () => {

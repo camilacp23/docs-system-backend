@@ -47,26 +47,80 @@ export function commentEtagOf(comment: { createdAt: Date | string; updatedAt: Da
   return etagOf({ updatedAt: comment.updatedAt ?? comment.createdAt });
 }
 
-/** Counters that are part of the ETag of a screen (they change without touching `updated_at`). */
-export type ScreenEtagSource = { updatedAt: Date | string; pendingSubtasks: number; commentCount: number };
-
-/** `W/"<updatedAt ms>"`, optionally followed by `-<pendingSubtasks>-<commentCount>`; captures the milliseconds. */
-const SCREEN_ETAG = /^W\/"(\d+)(?:-\d+-\d+)?"$/;
+/** A reference to another row as the detail of a screen shows it. */
+type NamedRef = { id: number; name: string };
 
 /**
- * ETag of a screen (D-101): `W/"<updatedAt ms>-<pendingSubtasks>-<commentCount>"`. The counters change without
- * touching `updated_at` (Jira tickets, comments), so they are part of the validator used by `If-None-Match`.
+ * What the ETag of a screen needs from the screen as the API returns it: `updatedAt`, the two counters and the items of
+ * the detail that come from OTHER rows (they change without touching `updated_at` of the screen).
+ */
+export type ScreenEtagSource = {
+  updatedAt: Date | string;
+  pendingSubtasks: number;
+  commentCount: number;
+  author: NamedRef;
+  components: { uses: { id: number; targetType: string; target: NamedRef }[] }[];
+  variableLinks: { id: number; variable: NamedRef; isOrigin: boolean; originUsedIn: string | null }[];
+  collectionLinks: { id: number; collection: NamedRef }[];
+  navigations: { id: number; targetScreen: NamedRef }[];
+};
+
+/**
+ * `W/"<updatedAt ms>"`, optionally followed by `-<pendingSubtasks>-<commentCount>` and then `-<fingerprint>` (8 lowercase
+ * hex digits); captures the milliseconds. Only these three formats are accepted by `If-Match`.
+ */
+const SCREEN_ETAG = /^W\/"(\d+)(?:-\d+-\d+(?:-[0-9a-f]{8})?)?"$/;
+
+/**
+ * Fingerprint of the items of a screen that come from other rows (D-153): the author (id and name); each use of a
+ * component (id, type, id and name of its target); each variable link (id, id and name of the variable and, in the origin
+ * row, its `originUsedIn`); each collection link (id, id and name of the collection); each navigation (id, id and name of
+ * the target screen). The entries are sorted as text, so the result does not depend on the order of the arrays, and the
+ * digest is the first 8 hex digits of SHA-256. It is computed from data the detail already read: no extra query.
+ *
+ * @param screen - The screen as the API returns it.
+ * @returns 8 lowercase hexadecimal digits.
+ */
+export function screenFingerprintOf(screen: ScreenEtagSource): string {
+  const entries: string[] = [JSON.stringify(['author', screen.author.id, screen.author.name])];
+  for (const component of screen.components) {
+    for (const use of component.uses) {
+      entries.push(JSON.stringify(['use', use.id, use.targetType, use.target.id, use.target.name]));
+    }
+  }
+  for (const link of screen.variableLinks) {
+    const text = link.isOrigin ? link.originUsedIn : null;
+    entries.push(JSON.stringify(['variable', link.id, link.variable.id, link.variable.name, text]));
+  }
+  for (const link of screen.collectionLinks) {
+    entries.push(JSON.stringify(['collection', link.id, link.collection.id, link.collection.name]));
+  }
+  for (const navigation of screen.navigations) {
+    entries.push(
+      JSON.stringify(['navigation', navigation.id, navigation.targetScreen.id, navigation.targetScreen.name]),
+    );
+  }
+  entries.sort();
+  return createHash('sha256').update(JSON.stringify(entries)).digest('hex').slice(0, 8);
+}
+
+/**
+ * ETag of a screen (D-153): `W/"<updatedAt ms>-<pendingSubtasks>-<commentCount>-<fingerprint>"`. The counters (Jira
+ * tickets, comments) and the items of other rows (names of what the screen links to, the origin text, the author) change
+ * without touching `updated_at`, so they are part of the validator used by `If-None-Match`.
  *
  * @param screen - The screen as the API returns it.
  * @returns The weak ETag.
  */
 export function screenEtagOf(screen: ScreenEtagSource): string {
-  return `W/"${new Date(screen.updatedAt).getTime()}-${screen.pendingSubtasks}-${screen.commentCount}"`;
+  const ms = new Date(screen.updatedAt).getTime();
+  return `W/"${ms}-${screen.pendingSubtasks}-${screen.commentCount}-${screenFingerprintOf(screen)}"`;
 }
 
 /**
- * Verifies `If-Match` of a screen (D-101): only the `updatedAt` part is compared, so a change of the counters between
- * the read and the save is not a 412. The former format `W/"<ms>"` is accepted; any other format is a mismatch.
+ * Verifies `If-Match` of a screen (D-101, D-153): only the `updatedAt` part is compared, so a change of the counters or of
+ * the items of other rows between the read and the save is not a 412. The formats `W/"<ms>"`, `W/"<ms>-<n>-<n>"` and the
+ * full one are accepted; any other format is a mismatch.
  *
  * @param req - Request.
  * @param element - Noun of the resource for the message ("screen").
