@@ -1,5 +1,5 @@
 /**
- * Rules of the onboarding summary (FR-25; D-124), which is read only, and of the progress of the user (D-133). The
+ * Rules of the onboarding summary (FR-25; D-124), which is read only, and of the progress of the user (D-149). The
  * service never sees req/res.
  *
  * Everything is read in ONE snapshot, one statement after the other: the application (404 when it does not exist,
@@ -11,7 +11,7 @@
  * The progress is the set of steps (1 to 5) that the user of the request completed in an application. It is personal:
  * every operation reads or writes only the rows of that user, who comes from the token and never from the request. It
  * is not documentation, so an archived application accepts it (D-47 does not apply); an application that does not exist
- * is a 404. Every write runs in one `auditedTransaction` (R-2: it is raw SQL); the table has no audit trigger (D-133).
+ * is a 404. Every write runs in one `auditedTransaction` (R-2: it is raw SQL); the table has no audit trigger (D-149).
  *
  * @module modules/onboarding/service
  */

@@ -48,7 +48,7 @@ export type VariableInput = {
   scope: VariableScope;
   description?: string | null;
   originScreenId?: number | null;
-  /** Event or property of the origin screen where the variable is created (D-134); needs `originScreenId`. */
+  /** Event or property of the origin screen where the variable is created (D-150); needs `originScreenId`. */
   originUsedIn?: string | null;
   environments: { environment: Environment; notes?: string | null }[];
 };
@@ -95,7 +95,7 @@ const toColumns = (input: VariableInput): repo.VariableData => ({
   originUsedIn: input.originUsedIn ?? null,
 });
 
-/** D-134: the description of where the variable is created in its origin screen makes no sense without that screen. */
+/** D-150: the description of where the variable is created in its origin screen makes no sense without that screen. */
 function assertOriginUsedInHasOrigin(input: VariableInput): void {
   if (input.originUsedIn === undefined || input.originUsedIn === null) return;
   if (input.originScreenId !== undefined && input.originScreenId !== null) return;

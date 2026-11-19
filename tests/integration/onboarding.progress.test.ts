@@ -1,5 +1,5 @@
 /**
- * Module 11, the progress of the user in the onboarding (FR-25; D-133) through HTTP on disposable data: the three
+ * Module 11, the progress of the user in the onboarding (FR-25; D-149) through HTTP on disposable data: the three
  * operations for the three roles, that the progress is personal and belongs to one application, idempotence (also with
  * requests at the same time), the 400, 401 and 404 answers, the archived application, the ETag and the 304, that
  * nothing is written to the audit log, the CHECK and the foreign keys of the table, and the contract.
@@ -277,7 +277,7 @@ describe('onboarding: the progress of the user', () => {
   });
 
   describe('the audit log and the table', () => {
-    it('writes nothing to the audit log: the progress is not documentation (D-133)', async () => {
+    it('writes nothing to the audit log: the progress is not documentation (D-149)', async () => {
       const applicationId = await freshApplication();
       const count = async () =>
         Number((await t.owner.query<{ n: string }>(`SELECT count(*) AS n FROM audit_log`)).rows[0]!.n);
