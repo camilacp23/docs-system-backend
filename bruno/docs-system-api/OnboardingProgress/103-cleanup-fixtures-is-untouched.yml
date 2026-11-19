@@ -1,0 +1,19 @@
+info:
+  name: '103 Cleanup · 200 Sandbox Fixtures is untouched'
+  type: http
+  seq: 103
+http:
+  method: GET
+  url: '{{baseUrl}}/onboarding/summary?applicationId={{fixturesAppId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{opAdminToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("still App (OnStart) and two screens, two variables, two collections", function () { const c = res.body.data.counts; expect([c.screens, c.variables, c.collections]).to.deep.equal([3, 2, 2]); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,24 @@
+info:
+  name: '45 Validation · 404 PUT for an application that does not exist'
+  type: http
+  seq: 45
+http:
+  method: PUT
+  url: '{{baseUrl}}/onboarding/progress/steps/1?applicationId=999999999'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{opDevToken}}'
+  body:
+    type: json
+    data: |-
+      {}
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 404", function () { expect(res.status).to.equal(404); });
+        test("code, message and details", function () { expect(res.body.code).to.equal("NOT_FOUND"); expect(res.body.message).to.equal("This application doesn't exist. It may have been deleted."); expect(res.body.details).to.deep.equal({ element: "application", id: 999999999 }); });
+        test("the answer is UTF-8", function () { expect(String(res.headers["content-type"]).toLowerCase()).to.contain("charset=utf-8"); });
+settings:
+  encodeUrl: true

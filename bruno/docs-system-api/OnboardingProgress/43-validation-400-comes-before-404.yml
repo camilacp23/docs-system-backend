@@ -1,0 +1,24 @@
+info:
+  name: '43 Validation · 400 comes before 404 (step 0 on an application that does not exist)'
+  type: http
+  seq: 43
+http:
+  method: PUT
+  url: '{{baseUrl}}/onboarding/progress/steps/0?applicationId=999999999'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{opDevToken}}'
+  body:
+    type: json
+    data: |-
+      {}
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 400", function () { expect(res.status).to.equal(400); });
+        test("code, message and details", function () { expect(res.body.code).to.equal("VALIDATION_ERROR"); expect(res.body.message).to.equal("Check the highlighted fields."); expect(res.body.details).to.deep.equal({ fields: [{ field: "step", rule: "minimum", message: "must be >= 1" }] }); });
+        test("the answer is UTF-8", function () { expect(String(res.headers["content-type"]).toLowerCase()).to.contain("charset=utf-8"); });
+settings:
+  encodeUrl: true
