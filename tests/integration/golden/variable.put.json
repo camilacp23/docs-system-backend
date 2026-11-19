@@ -1,0 +1,33 @@
+{
+  "status": 200,
+  "etag": "<etag>",
+  "body": {
+    "data": {
+      "id": "#1",
+      "applicationId": "#2",
+      "name": "gGoldenVariable",
+      "dataType": "TEXT",
+      "scope": "GLOBAL",
+      "originScreen": {
+        "id": "#3",
+        "name": "Golden origin screen"
+      },
+      "fullTraceability": true,
+      "environments": ["DEV", "PROD"],
+      "createdAt": "<date>",
+      "updatedAt": "<date>",
+      "description": "Golden variable, changed",
+      "originUsedIn": "OnVisible",
+      "environmentDetails": [
+        {
+          "environment": "DEV",
+          "notes": null
+        },
+        {
+          "environment": "PROD",
+          "notes": "Real"
+        }
+      ]
+    }
+  }
+}

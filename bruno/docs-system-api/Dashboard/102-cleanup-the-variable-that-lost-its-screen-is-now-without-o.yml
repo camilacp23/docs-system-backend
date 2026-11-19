@@ -1,0 +1,23 @@
+info:
+  name: '102 Cleanup · the variable that lost its screen is now without origin'
+  type: http
+  seq: 102
+http:
+  method: GET
+  url: '{{baseUrl}}/dashboard/indicators?applicationId={{dasAppId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{dasReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        const d = res.body.data;
+        test("only App (OnStart) is left among the screens", function () { expect(d.documentation.totalScreens).to.equal(1); expect(d.documentation.byStatus.UNDOCUMENTED).to.equal(1); expect(d.documentation.approvedPercent).to.equal(0); });
+        test("both variables are without origin now, the one that lost it included", function () { expect(d.variables).to.deep.equal({ total: 2, untraced: 2 }); });
+        test("no collection is linked to a screen any more", function () { expect(d.collections).to.deep.equal({ total: 2, undocumented: 2 }); });
+        test("the tickets went with their screen", function () { expect(d.jira.pendingSubtasks).to.equal(0); expect(d.jira.lastSyncedAt).to.equal(null); });
+settings:
+  encodeUrl: true

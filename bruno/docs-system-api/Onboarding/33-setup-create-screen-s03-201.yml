@@ -1,0 +1,39 @@
+info:
+  name: '33 Setup · create screen S03 201'
+  type: http
+  seq: 33
+http:
+  method: POST
+  url: '{{baseUrl}}/screens'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{onbDevToken}}'
+  body:
+    type: json
+    data: |-
+      {}
+  auth: inherit
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        const ids = JSON.parse(bru.getVar("onbIds"));
+        const reads = ["gTop", "gB"]; const comps = {"btn": ["gTop", "g1"]}; const navs = ["APP"];
+        req.setBody({
+          applicationId: Number(bru.getVar("onbAppId")),
+          name: bru.getVar("onbPrefix") + "S03",
+          miroLink: null,
+          template: { "onStart": null, "workingProcess": null, "architecture": null, "dataModel": null, "requirements": null, "knownIssues": null, "risks": null },
+          components: Object.keys(comps).map(function (c) { return { name: c, type: "Button", onSelect: null, description: null, uses: comps[c].map(function (v) { return { targetType: "VARIABLE", targetId: ids[v], description: null }; }) }; }),
+          variableLinks: reads.map(function (v, i) { return { variableId: ids[v], accessMode: "READ", usedIn: "Ctl" + i + ".Text" }; }),
+          collectionLinks: [],
+          navigations: navs.map(function (n) { return { targetScreenId: n === "APP" ? Number(bru.getVar("onbAppScreenId")) : ids[n], description: null }; })
+        });
+    - type: after-response
+      code: |-
+        const ids = JSON.parse(bru.getVar("onbIds") || "{}"); if (res.status === 201) { ids["S03"] = res.body.data.id; bru.setVar("onbIds", JSON.stringify(ids)); }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+settings:
+  encodeUrl: true

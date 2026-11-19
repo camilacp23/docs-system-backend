@@ -1,0 +1,26 @@
+info:
+  name: '33 ETag · 200 the previous If-None-Match gives the new name'
+  type: http
+  seq: 33
+http:
+  method: GET
+  url: '{{baseUrl}}/screens/{{lkMainId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{lkReaderToken}}'
+    - name: If-None-Match
+      value: '{{lkEtag0}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 200) { bru.setVar("lkEtag1", res.headers["etag"]); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the answer is UTF-8", function () { expect(String(res.headers["content-type"]).toLowerCase()).to.contain("charset=utf-8"); });
+        test("the variable link shows the new name", function () { expect(res.body.data.variableLinks.some(function (l) { return l.variable.name === bru.interpolate("{{lkPrefix}}gLinkedRenamed"); })).to.equal(true); });
+        test("updatedAt did not move, the ETag did (the fingerprint)", function () { expect(res.body.data.updatedAt).to.equal(bru.getVar("lkUpdatedAt0")); expect(res.headers["etag"]).to.match(/^W\/"\d+-\d+-\d+-[0-9a-f]{8}"$/); expect(res.headers["etag"]).to.not.equal(bru.getVar("lkEtag0")); const a = bru.getVar("lkEtag0").split("-"); const b = res.headers["etag"].split("-"); expect(b.slice(0, 3).join("-")).to.equal(a.slice(0, 3).join("-")); expect(b[3]).to.not.equal(a[3]); });
+settings:
+  encodeUrl: true

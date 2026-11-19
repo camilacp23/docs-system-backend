@@ -1,0 +1,32 @@
+info:
+  name: '13 Setup · create a variable in the other application 201'
+  type: http
+  seq: 13
+http:
+  method: POST
+  url: '{{baseUrl}}/variables'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{dasAdminToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{dasOtherAppId}},
+        "name": "other{{dasRun}}",
+        "dataType": "TEXT",
+        "scope": "GLOBAL",
+        "environments": [{ "environment": "DEV" }]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) { bru.setVar("dasOtherVarId", res.body.data.id); }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("the variable is ready", function () { expect(bru.getVar("dasOtherVarId")).to.be.a("number"); });
+settings:
+  encodeUrl: true

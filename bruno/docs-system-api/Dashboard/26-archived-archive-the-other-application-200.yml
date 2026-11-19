@@ -1,0 +1,34 @@
+info:
+  name: '26 Archived · archive the other application 200'
+  type: http
+  seq: 26
+http:
+  method: PUT
+  url: '{{baseUrl}}/applications/{{dasOtherAppId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{dasAdminToken}}'
+    - name: If-Match
+      value: '{{dasOtherEtag}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Dashboard other {{dasRun}}",
+        "description": null,
+        "platform": "Power Apps",
+        "jiraProjectKey": null,
+        "status": "ARCHIVED"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 200) { bru.setVar("dasOtherEtag", res.headers["etag"]); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("archived", function () { expect(res.body.data.status).to.equal("ARCHIVED"); });
+settings:
+  encodeUrl: true

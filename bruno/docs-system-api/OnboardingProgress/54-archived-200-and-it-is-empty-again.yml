@@ -1,0 +1,19 @@
+info:
+  name: '54 Archived · 200 and it is empty again'
+  type: http
+  seq: 54
+http:
+  method: GET
+  url: '{{baseUrl}}/onboarding/progress?applicationId={{opOtherAppId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{opDevToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("progress of the other application", function () { const d = res.body.data; expect(d.applicationId).to.equal(Number(bru.getVar("opOtherAppId"))); expect(d.totalSteps).to.equal(5); expect(d.completedSteps).to.deep.equal([]); });
+settings:
+  encodeUrl: true

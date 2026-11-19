@@ -1,0 +1,22 @@
+info:
+  name: '11 Setup · Sandbox Fixtures has no report yet'
+  type: http
+  seq: 11
+http:
+  method: GET
+  url: '{{baseUrl}}/reports?applicationId={{fixturesAppId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{repAdminToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 200) { bru.setVar("repFixturesReports", res.body.total); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("a total is known before the run", function () { expect(bru.getVar("repFixturesReports")).to.be.a("number"); });
+settings:
+  encodeUrl: true

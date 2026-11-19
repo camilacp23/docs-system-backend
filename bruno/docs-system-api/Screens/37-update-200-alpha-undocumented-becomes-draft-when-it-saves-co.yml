@@ -40,6 +40,6 @@ runtime:
       code: |-
         test("status 200", function () { expect(res.status).to.equal(200); });
         test("DRAFT now", function () { expect(res.body.data.documentationStatus).to.equal("DRAFT"); expect(res.body.data.template.onStart).to.equal("Alpha starts here"); });
-        test("the ETag changed", function () { expect(res.headers["etag"]).to.not.equal(bru.getVar("scrAPrev")); expect(res.headers["etag"]).to.match(/^W\/"\d+-\d+-\d+"$/); });
+        test("the ETag changed", function () { expect(res.headers["etag"]).to.not.equal(bru.getVar("scrAPrev")); expect(res.headers["etag"]).to.match(/^W\/"\d+-\d+-\d+-[0-9a-f]{8}"$/); });
 settings:
   encodeUrl: true

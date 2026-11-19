@@ -1,0 +1,23 @@
+info:
+  name: '51 Archived · 200 a step is completed on an archived application'
+  type: http
+  seq: 51
+http:
+  method: PUT
+  url: '{{baseUrl}}/onboarding/progress/steps/4?applicationId={{opOtherAppId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{opDevToken}}'
+  body:
+    type: json
+    data: |-
+      {}
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("progress of the other application", function () { const d = res.body.data; expect(d.applicationId).to.equal(Number(bru.getVar("opOtherAppId"))); expect(d.totalSteps).to.equal(5); expect(d.completedSteps).to.deep.equal([4]); });
+settings:
+  encodeUrl: true

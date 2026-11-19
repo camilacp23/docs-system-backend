@@ -1,0 +1,34 @@
+info:
+  name: '35 ETag · 200 PUT /screens with the If-Match read before the rename is not a 412'
+  type: http
+  seq: 35
+http:
+  method: PUT
+  url: '{{baseUrl}}/screens/{{lkMainId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{lkDevToken}}'
+    - name: If-Match
+      value: '{{lkEtag0}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{lkPrefix}}Main",
+        "miroLink": null,
+        "template": { "onStart": null, "workingProcess": null, "architecture": null, "dataModel": null, "requirements": null, "knownIssues": null, "risks": null },
+        "components": [],
+        "variableLinks": [{ "id": {{lkLinkId}}, "variableId": {{lkLinkedId}}, "accessMode": "READ", "usedIn": "lblName.Text" }],
+        "collectionLinks": [],
+        "navigations": [{ "id": {{lkNavId}}, "targetScreenId": {{lkTargetId}}, "description": null }]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the answer carries the current tag", function () { expect(res.headers["etag"]).to.equal(bru.getVar("lkEtag1")); });
+        test("the answer is UTF-8", function () { expect(String(res.headers["content-type"]).toLowerCase()).to.contain("charset=utf-8"); });
+settings:
+  encodeUrl: true

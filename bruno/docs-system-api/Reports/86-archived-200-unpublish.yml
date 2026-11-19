@@ -1,0 +1,23 @@
+info:
+  name: '86 Archived · 200 unpublish'
+  type: http
+  seq: 86
+http:
+  method: PUT
+  url: '{{baseUrl}}/reports/{{repArchivedId}}/publication'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{repDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "isPublished": false }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("not published", function () { expect([res.body.data.isPublished, res.body.data.publishedAt]).to.deep.equal([false, null]); });
+settings:
+  encodeUrl: true

@@ -24,6 +24,6 @@ runtime:
       code: |-
         test("status 200", function () { expect(res.status).to.equal(200); });
         test("the status is IN_REVIEW", function () { expect(res.body.data.documentationStatus).to.equal("IN_REVIEW"); });
-        test("the ETag is a weak validator", function () { expect(res.headers["etag"]).to.match(/^W\/"\d+-\d+-\d+"$/); });
+        test("the ETag is a weak validator", function () { expect(res.headers["etag"]).to.match(/^W\/"\d+-\d+-\d+-[0-9a-f]{8}"$/); });
 settings:
   encodeUrl: true

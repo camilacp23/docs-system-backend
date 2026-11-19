@@ -1,0 +1,18 @@
+info:
+  name: '100 Cleanup · delete the variable 204'
+  type: http
+  seq: 100
+http:
+  method: DELETE
+  url: '{{baseUrl}}/variables/{{repVarId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{repAdminToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 204", function () { expect(res.status).to.equal(204); });
+settings:
+  encodeUrl: true

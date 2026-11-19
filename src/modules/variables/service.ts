@@ -48,6 +48,8 @@ export type VariableInput = {
   scope: VariableScope;
   description?: string | null;
   originScreenId?: number | null;
+  /** Event or property of the origin screen where the variable is created (D-150); needs `originScreenId`. */
+  originUsedIn?: string | null;
   environments: { environment: Environment; notes?: string | null }[];
 };
 
@@ -90,7 +92,17 @@ const toColumns = (input: VariableInput): repo.VariableData => ({
   scope: input.scope,
   description: input.description ?? null,
   originScreenId: input.originScreenId ?? null,
+  originUsedIn: input.originUsedIn ?? null,
 });
+
+/** D-150: the description of where the variable is created in its origin screen makes no sense without that screen. */
+function assertOriginUsedInHasOrigin(input: VariableInput): void {
+  if (input.originUsedIn === undefined || input.originUsedIn === null) return;
+  if (input.originScreenId !== undefined && input.originScreenId !== null) return;
+  throw E.validation([
+    { field: 'originUsedIn', rule: 'requires', message: 'Choose the origin screen first, or leave this empty.' },
+  ]);
+}
 
 const toEnvironments = (input: VariableInput): repo.EnvironmentInput[] =>
   [...input.environments]
@@ -185,6 +197,7 @@ export function createVariableService(
 
     async create(input) {
       assertDistinctEnvironments(input.environments);
+      assertOriginUsedInHasOrigin(input);
       assertIdInRange(input.applicationId, 'application');
       const application = await applications.get(input.applicationId);
       const columns = toColumns(input);
@@ -211,6 +224,7 @@ export function createVariableService(
 
     async update(id, input, assertCurrent) {
       assertDistinctEnvironments(input.environments);
+      assertOriginUsedInHasOrigin(input);
       const columns = toColumns(input);
       return db.auditedTransaction(async (tx) => {
         await repo.lockVariableForUpdate(tx, id);
@@ -251,6 +265,7 @@ export function createVariableService(
         if (scopeChanged) changes.scope = columns.scope;
         if (columns.description !== current.description) changes.description = columns.description;
         if (originChanged) changes.originScreenId = columns.originScreenId;
+        if (columns.originUsedIn !== current.originUsedIn) changes.originUsedIn = columns.originUsedIn;
 
         const wanted = toEnvironments(input);
         const present = current.environmentDetails;

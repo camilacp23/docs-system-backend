@@ -1,0 +1,35 @@
+info:
+  name: '30 Generate · 202 PDF as Developer (UTF-8 title)'
+  type: http
+  seq: 30
+http:
+  method: POST
+  url: '{{baseUrl}}/reports/pdf'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{repDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{repAppId}},
+        "title": "Documentación ñandú – {{repRun}}",
+        "scope": { "elementTypes": ["SCREEN", "VARIABLE"], "includeStatusSummary": true, "screenIds": [{{repScrId}}], "includeDependencies": true },
+        "publish": false
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 202) { bru.setVar("repPdfId", res.body.data.id); bru.setVar("repPdfEtag0", res.headers["etag"]); }
+    - type: tests
+      code: |-
+        test("status 202", function () { expect(res.status).to.equal(202); });
+        test("the answer is UTF-8", function () { expect(String(res.headers["content-type"]).toLowerCase()).to.contain("charset=utf-8"); });
+        const d = res.body.data;
+        test("saved as PENDING with the title as sent", function () { expect(d.status).to.equal("PENDING"); expect(d.format).to.equal("PDF"); expect(d.title).to.equal("Documentación ñandú – " + bru.getVar("repRun")); expect(d.isPublished).to.equal(false); });
+        test("Location and the ETag of its updatedAt, and no Retry-After", function () { expect(res.headers["location"]).to.equal("/api/v1/reports/" + d.id); expect(res.headers["etag"]).to.equal('W/"' + new Date(d.updatedAt).getTime() + '"'); expect(res.headers["retry-after"]).to.equal(undefined); });
+        test("the file data are still empty", function () { expect([d.fileName, d.fileSize, d.errorMessage, d.completedAt, d.publishedAt]).to.deep.equal([null, null, null, null, null]); });
+settings:
+  encodeUrl: true

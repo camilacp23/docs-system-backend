@@ -1,0 +1,20 @@
+info:
+  name: '45 Summary · 304 for the reader with the ETag of the administrator'
+  type: http
+  seq: 45
+http:
+  method: GET
+  url: '{{baseUrl}}/onboarding/summary?applicationId={{onbAppId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{onbReaderToken}}'
+    - name: If-None-Match
+      value: '{{onbEtag}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 304", function () { expect(res.status).to.equal(304); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,31 @@
+info:
+  name: '32 ETag · 200 the Developer renames the linked variable'
+  type: http
+  seq: 32
+http:
+  method: PUT
+  url: '{{baseUrl}}/variables/{{lkLinkedId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{lkDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{lkPrefix}}gLinkedRenamed",
+        "dataType": "TEXT",
+        "scope": "GLOBAL",
+        "description": null,
+        "originScreenId": null,
+        "originUsedIn": null,
+        "environments": [{ "environment": "DEV", "notes": null }]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("renamed", function () { expect(res.body.data.name).to.equal(bru.interpolate("{{lkPrefix}}gLinkedRenamed")); });
+settings:
+  encodeUrl: true

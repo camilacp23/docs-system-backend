@@ -1,0 +1,19 @@
+info:
+  name: '49 Read · list as Reader with published=false is an empty page'
+  type: http
+  seq: 49
+http:
+  method: GET
+  url: '{{baseUrl}}/reports?applicationId={{repAppId}}&published=false'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{repReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("an empty page, not an error", function () { expect(res.body.data).to.deep.equal([]); expect(res.body.total).to.equal(0); });
+settings:
+  encodeUrl: true

@@ -32,7 +32,7 @@ describe('screens: GET /screens/{id}', () => {
   const dev = () => asUser(t, t.users.developer.token);
   const reader = () => asUser(t, t.users.reader.token);
 
-  it('200 returns the Screen with ETag W/"<updatedAt ms>-<pendingSubtasks>-<commentCount>", author, counters and the origin rows flagged', async () => {
+  it('200 returns the Screen with ETag W/"<updatedAt ms>-<pendingSubtasks>-<commentCount>-<fingerprint>", author, counters and the origin rows flagged', async () => {
     const origin = await insertScreen(t, app.id, { name: 'Origin' });
     const variable = await insertVariable(t, app.id, {
       name: 'locOrigin',
@@ -44,9 +44,11 @@ describe('screens: GET /screens/{id}', () => {
     const res = await reader().get(`/screens/${origin.id}`);
     assert.equal(res.status, 200);
     const screen = screenOf(res);
-    assert.equal(
-      res.headers.etag,
-      `W/"${new Date(screen.updatedAt).getTime()}-${screen.pendingSubtasks}-${screen.commentCount}"`,
+    assert.match(
+      String(res.headers.etag),
+      new RegExp(
+        `^W/"${new Date(screen.updatedAt).getTime()}-${screen.pendingSubtasks}-${screen.commentCount}-[0-9a-f]{8}"$`,
+      ),
     );
     assert.equal(screen.name, 'Origin');
     assert.equal(screen.applicationId, app.id);
@@ -138,7 +140,7 @@ describe('screens: GET /screens/{id}', () => {
     assert.equal((await t.http.get('/api/v1/screens/1')).status, 401);
   });
 
-  it('the nine operations are implemented; the comments of Module 10 still answer NOT_IMPLEMENTED', () => {
+  it('the nine screen operations and the three of the comments (Module 10) are implemented', () => {
     const implemented = [
       'listScreens',
       'createScreen',
@@ -149,10 +151,11 @@ describe('screens: GET /screens/{id}', () => {
       'reviewScreen',
       'createJiraTicket',
       'listJiraTickets',
+      // Module 10: the comments, implemented in B-31 (the review keeps writing its comment through the same service).
+      'listComments',
+      'createComment',
+      'updateComment',
     ];
     for (const operationId of implemented) assert.ok(!t.built.notImplemented.includes(operationId), operationId);
-    // The review writes its comment through the comments service, which exposes no endpoint (D-88).
-    const pending = ['listComments', 'createComment', 'updateComment'];
-    for (const operationId of pending) assert.ok(t.built.notImplemented.includes(operationId), operationId);
   });
 });

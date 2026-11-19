@@ -22,7 +22,7 @@ describe('test app: the cause of a 500 is recorded', () => {
       throw new Error(KNOWN_MESSAGE);
     },
     // A database error: a transaction that outlives its timeout (Prisma P2028).
-    getIndicators: async () => {
+    listReports: async () => {
       await ref.app!.db.base.$transaction(
         async (tx) => {
           // The timeout (50 ms) expires while the code waits; the next statement finds the transaction closed.
@@ -75,7 +75,7 @@ describe('test app: the cause of a 500 is recorded', () => {
   });
 
   it('a database error: the log has the Prisma code and the reason, which is what a P2028 needs', async () => {
-    const res = await call('/dashboard/indicators?applicationId=1');
+    const res = await call('/reports?applicationId=1');
     assert.equal(res.status, 500);
     const requestId = bodyOf(res).details.requestId;
     const entry = t.errorLogs().find((e) => e.requestId === requestId);
@@ -89,7 +89,7 @@ describe('test app: the cause of a 500 is recorded', () => {
 
   it('never prints the token, the cookie or a password', async () => {
     await call('/onboarding/summary?applicationId=1').set('Cookie', 'rt=secret-refresh-value');
-    await call('/dashboard/indicators?applicationId=1');
+    await call('/reports?applicationId=1');
     const out = printed();
     assert.ok(out.length > 0);
     assert.ok(!out.includes(t.users.admin.token), 'the access token');

@@ -1,0 +1,24 @@
+info:
+  name: '29 Request · 404 a screen that does not exist, with its position'
+  type: http
+  seq: 29
+http:
+  method: POST
+  url: '{{baseUrl}}/reports/excel'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{repDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "applicationId": {{repAppId}}, "title": "x", "scope": { "elementTypes": ["SCREEN"], "screenIds": [{{repScrId}}, 999999999] }, "publish": false }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 404", function () { expect(res.status).to.equal(404); });
+        test("code and message", function () { expect(res.body.code).to.equal("NOT_FOUND"); expect(res.body.message).to.equal("This screen doesn't exist. It may have been deleted."); });
+        test("details", function () { expect(res.body.details).to.deep.equal({ element: "screen", id: 999999999, field: "scope.screenIds[1]" }); });
+settings:
+  encodeUrl: true

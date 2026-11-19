@@ -1,0 +1,22 @@
+info:
+  name: '40 Fixtures · Sandbox Fixtures is read, not changed'
+  type: http
+  seq: 40
+http:
+  method: GET
+  url: '{{baseUrl}}/dashboard/indicators?applicationId={{fixturesAppId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{dasReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        const d = res.body.data;
+        test("Sandbox Fixtures: App (OnStart) and two screens, all undocumented", function () { expect(d.documentation).to.deep.equal({ totalScreens: 3, byStatus: { UNDOCUMENTED: 3, DRAFT: 0, IN_PROGRESS: 0, IN_REVIEW: 0, APPROVED: 0 }, approvedPercent: 0 }); });
+        test("two variables with origin, two collections of which one is linked to no screen", function () { expect(d.variables).to.deep.equal({ total: 2, untraced: 0 }); expect(d.collections).to.deep.equal({ total: 2, undocumented: 1 }); });
+        test("no tickets", function () { expect(d.jira.pendingSubtasks).to.equal(0); expect(d.jira.lastSyncedAt).to.equal(null); });
+settings:
+  encodeUrl: true

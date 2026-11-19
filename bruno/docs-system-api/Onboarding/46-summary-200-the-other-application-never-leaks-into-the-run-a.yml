@@ -1,0 +1,31 @@
+info:
+  name: '46 Summary · 200 the other application never leaks into the run application'
+  type: http
+  seq: 46
+http:
+  method: GET
+  url: '{{baseUrl}}/onboarding/summary?applicationId={{onbOtherAppId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{onbReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        bru.setVar("onbOtherBody", JSON.stringify(res.body));
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        const p = bru.getVar("onbPrefix"); const d = res.body.data;
+        test("only its own screen, variable and component, with the same names", function () {
+          expect(d.application.id).to.equal(Number(bru.getVar("onbOtherAppId")));
+          expect(d.counts).to.deep.equal({ screens: 2, variables: 1, collections: 0, components: 1 });
+          expect(d.keyScreens.map(function (k) { return [k.screen.id, k.screen.name, k.connections, k.depth]; })).to.deep.equal([[Number(bru.getVar("onbOtherScreenId")), p + "S01", 1, null]]);
+          expect(d.globalVariables.map(function (v) { return [v.variable.id, v.usedByScreens]; })).to.deep.equal([[Number(bru.getVar("onbOtherVarId")), 1]]);
+          expect(d.topComponents.map(function (c) { return [c.component.name, c.uses]; })).to.deep.equal([["Gal", 1]]);
+          expect(d.appContextScreen.id).to.not.equal(Number(bru.getVar("onbAppScreenId")));
+          expect(d.appContextScreen.template.onStart).to.equal(null);
+        });
+settings:
+  encodeUrl: true

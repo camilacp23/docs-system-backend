@@ -118,7 +118,7 @@ async function main() {
   const self = await request(app).get(`/api/v1/users/${dev.id}`).set('Authorization', `Bearer ${tokens.DEVELOPER.tok}`);
   const other = await request(app).get(`/api/v1/users/${admin.id}`).set('Authorization', `Bearer ${tokens.DEVELOPER.tok}`);
   check('A24 GET /users/:id: a non-admin can read only their own user (SELF_OR_ROLE)', self.status === 200 && other.status === 403);
-  check('A25 every contract operation has x-roles (fail-closed loading)', policies.size === 50, `(${policies.size} operations)`);
+  check('A25 every contract operation has x-roles (fail-closed loading)', policies.size === 53, `(${policies.size} operations)`);
 
   // ---------------- absolute 12 h session (confirmed by the department)
   const s1 = await request(app).post('/api/v1/auth/login').set('X-Forwarded-For', '10.0.0.20').send({ email: 'dev@dept.local', password: PW });

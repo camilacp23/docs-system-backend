@@ -1,0 +1,35 @@
+info:
+  name: '37 Setup · App (OnStart) gets its template and navigates to S01 and S06 200'
+  type: http
+  seq: 37
+http:
+  method: PUT
+  url: '{{baseUrl}}/screens/{{onbAppScreenId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{onbDevToken}}'
+  body:
+    type: json
+    data: |-
+      {}
+  auth: inherit
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        const ids = JSON.parse(bru.getVar("onbIds"));
+        req.setBody({
+          name: "App (OnStart)",
+          miroLink: "https://miro.com/app/board/" + bru.getVar("onbRun") + "/",
+          template: { onStart: "Loads " + bru.getVar("onbPrefix") + "gTop.", workingProcess: null, architecture: null, dataModel: null, requirements: null, knownIssues: null, risks: "None." },
+          components: [], variableLinks: [], collectionLinks: [],
+          navigations: [{ targetScreenId: ids["S01"], description: null }, { targetScreenId: ids["S06"], description: null }]
+        });
+    - type: after-response
+      code: |-
+        if (res.status === 200) { bru.setVar("onbAppStatus", res.body.data.documentationStatus); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+settings:
+  encodeUrl: true

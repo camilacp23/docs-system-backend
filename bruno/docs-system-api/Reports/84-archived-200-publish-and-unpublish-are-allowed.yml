@@ -1,0 +1,23 @@
+info:
+  name: '84 Archived · 200 publish and unpublish are allowed'
+  type: http
+  seq: 84
+http:
+  method: PUT
+  url: '{{baseUrl}}/reports/{{repArchivedId}}/publication'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{repDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "isPublished": true }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("published", function () { expect(res.body.data.isPublished).to.equal(true); });
+settings:
+  encodeUrl: true

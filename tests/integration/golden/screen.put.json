@@ -1,0 +1,2168 @@
+{
+  "status": 200,
+  "etag": "<etag>",
+  "body": {
+    "data": {
+      "id": "#1",
+      "applicationId": "#2",
+      "name": "Golden big screen 2",
+      "isAppContext": false,
+      "documentationStatus": "DRAFT",
+      "author": {
+        "id": "#3",
+        "name": "Dev Eloper"
+      },
+      "pendingSubtasks": 2,
+      "commentCount": 3,
+      "createdAt": "<date>",
+      "updatedAt": "<date>",
+      "miroLink": null,
+      "template": {
+        "onStart": "on start",
+        "workingProcess": "process",
+        "architecture": null,
+        "dataModel": "model",
+        "requirements": null,
+        "knownIssues": "issues",
+        "risks": null
+      },
+      "components": [
+        {
+          "id": "#4",
+          "name": "cmp00",
+          "type": "Gallery",
+          "onSelect": null,
+          "description": null,
+          "uses": [
+            {
+              "id": "#5",
+              "targetType": "COLLECTION",
+              "target": {
+                "id": "#6",
+                "name": "colGold10"
+              },
+              "description": null
+            }
+          ]
+        },
+        {
+          "id": "#7",
+          "name": "cmp01",
+          "type": "Button",
+          "onSelect": "Navigate(S48)",
+          "description": null,
+          "uses": [
+            {
+              "id": "#8",
+              "targetType": "COLLECTION",
+              "target": {
+                "id": "#9",
+                "name": "colGold09"
+              },
+              "description": null
+            }
+          ]
+        },
+        {
+          "id": "#10",
+          "name": "cmp02",
+          "type": "Gallery",
+          "onSelect": null,
+          "description": null,
+          "uses": [
+            {
+              "id": "#11",
+              "targetType": "COLLECTION",
+              "target": {
+                "id": "#12",
+                "name": "colGold08"
+              },
+              "description": null
+            }
+          ]
+        },
+        {
+          "id": "#13",
+          "name": "cmp03",
+          "type": "Button",
+          "onSelect": null,
+          "description": null,
+          "uses": [
+            {
+              "id": "#14",
+              "targetType": "COLLECTION",
+              "target": {
+                "id": "#15",
+                "name": "colGold07"
+              },
+              "description": null
+            }
+          ]
+        },
+        {
+          "id": "#16",
+          "name": "cmp04",
+          "type": "Gallery",
+          "onSelect": "Navigate(S45)",
+          "description": "component 45",
+          "uses": [
+            {
+              "id": "#17",
+              "targetType": "COLLECTION",
+              "target": {
+                "id": "#18",
+                "name": "colGold06"
+              },
+              "description": null
+            }
+          ]
+        },
+        {
+          "id": "#19",
+          "name": "cmp05",
+          "type": "Button",
+          "onSelect": null,
+          "description": null,
+          "uses": [
+            {
+              "id": "#20",
+              "targetType": "COLLECTION",
+              "target": {
+                "id": "#21",
+                "name": "colGold05"
+              },
+              "description": null
+            }
+          ]
+        },
+        {
+          "id": "#22",
+          "name": "cmp06",
+          "type": "Gallery",
+          "onSelect": null,
+          "description": null,
+          "uses": [
+            {
+              "id": "#23",
+              "targetType": "COLLECTION",
+              "target": {
+                "id": "#24",
+                "name": "colGold04"
+              },
+              "description": null
+            }
+          ]
+        },
+        {
+          "id": "#25",
+          "name": "cmp07",
+          "type": "Button",
+          "onSelect": "Navigate(S42)",
+          "description": null,
+          "uses": [
+            {
+              "id": "#26",
+              "targetType": "COLLECTION",
+              "target": {
+                "id": "#27",
+                "name": "colGold03"
+              },
+              "description": null
+            }
+          ]
+        },
+        {
+          "id": "#28",
+          "name": "cmp08",
+          "type": "Gallery",
+          "onSelect": null,
+          "description": null,
+          "uses": [
+            {
+              "id": "#29",
+              "targetType": "COLLECTION",
+              "target": {
+                "id": "#30",
+                "name": "colGold02"
+              },
+              "description": null
+            }
+          ]
+        },
+        {
+          "id": "#31",
+          "name": "cmp09",
+          "type": "Button",
+          "onSelect": null,
+          "description": "component 40",
+          "uses": [
+            {
+              "id": "#32",
+              "targetType": "COLLECTION",
+              "target": {
+                "id": "#33",
+                "name": "colGold01"
+              },
+              "description": null
+            }
+          ]
+        },
+        {
+          "id": "#34",
+          "name": "cmp10",
+          "type": "Gallery",
+          "onSelect": "Navigate(S39)",
+          "description": null,
+          "uses": [
+            {
+              "id": "#35",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#35",
+                "name": "gGold039"
+              },
+              "description": "uses 39"
+            }
+          ]
+        },
+        {
+          "id": "#36",
+          "name": "cmp11",
+          "type": "Button",
+          "onSelect": null,
+          "description": null,
+          "uses": [
+            {
+              "id": "#37",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#37",
+                "name": "gGold038"
+              },
+              "description": "uses 38"
+            }
+          ]
+        },
+        {
+          "id": "#38",
+          "name": "cmp12",
+          "type": "Gallery",
+          "onSelect": null,
+          "description": null,
+          "uses": [
+            {
+              "id": "#39",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#39",
+                "name": "gGold037"
+              },
+              "description": "uses 37"
+            }
+          ]
+        },
+        {
+          "id": "#40",
+          "name": "cmp13",
+          "type": "Button",
+          "onSelect": "Navigate(S36)",
+          "description": null,
+          "uses": [
+            {
+              "id": "#41",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#41",
+                "name": "gGold036"
+              },
+              "description": "uses 36"
+            }
+          ]
+        },
+        {
+          "id": "#42",
+          "name": "cmp14",
+          "type": "Gallery",
+          "onSelect": null,
+          "description": "component 35",
+          "uses": [
+            {
+              "id": "#43",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#43",
+                "name": "gGold035"
+              },
+              "description": "uses 35"
+            }
+          ]
+        },
+        {
+          "id": "#44",
+          "name": "cmp15",
+          "type": "Button",
+          "onSelect": null,
+          "description": null,
+          "uses": [
+            {
+              "id": "#45",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#45",
+                "name": "gGold034"
+              },
+              "description": "uses 34"
+            }
+          ]
+        },
+        {
+          "id": "#46",
+          "name": "cmp16",
+          "type": "Gallery",
+          "onSelect": "Navigate(S33)",
+          "description": null,
+          "uses": [
+            {
+              "id": "#47",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#47",
+                "name": "gGold033"
+              },
+              "description": "uses 33"
+            }
+          ]
+        },
+        {
+          "id": "#48",
+          "name": "cmp17",
+          "type": "Button",
+          "onSelect": null,
+          "description": null,
+          "uses": [
+            {
+              "id": "#49",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#49",
+                "name": "gGold032"
+              },
+              "description": "uses 32"
+            }
+          ]
+        },
+        {
+          "id": "#50",
+          "name": "cmp18",
+          "type": "Gallery",
+          "onSelect": null,
+          "description": null,
+          "uses": [
+            {
+              "id": "#51",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#51",
+                "name": "gGold031"
+              },
+              "description": "uses 31"
+            }
+          ]
+        },
+        {
+          "id": "#52",
+          "name": "cmp19",
+          "type": "Button",
+          "onSelect": "Navigate(S30)",
+          "description": "component 30",
+          "uses": [
+            {
+              "id": "#53",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#53",
+                "name": "gGold030"
+              },
+              "description": "uses 30"
+            }
+          ]
+        },
+        {
+          "id": "#54",
+          "name": "cmp20",
+          "type": "Gallery",
+          "onSelect": null,
+          "description": null,
+          "uses": [
+            {
+              "id": "#55",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#55",
+                "name": "gGold029"
+              },
+              "description": "uses 29"
+            }
+          ]
+        },
+        {
+          "id": "#56",
+          "name": "cmp21",
+          "type": "Button",
+          "onSelect": null,
+          "description": null,
+          "uses": [
+            {
+              "id": "#57",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#57",
+                "name": "gGold028"
+              },
+              "description": "uses 28"
+            }
+          ]
+        },
+        {
+          "id": "#58",
+          "name": "cmp22",
+          "type": "Gallery",
+          "onSelect": "Navigate(S27)",
+          "description": null,
+          "uses": [
+            {
+              "id": "#59",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#59",
+                "name": "gGold027"
+              },
+              "description": "uses 27"
+            }
+          ]
+        },
+        {
+          "id": "#60",
+          "name": "cmp23",
+          "type": "Button",
+          "onSelect": null,
+          "description": null,
+          "uses": [
+            {
+              "id": "#61",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#61",
+                "name": "gGold026"
+              },
+              "description": "uses 26"
+            }
+          ]
+        },
+        {
+          "id": "#62",
+          "name": "cmp24",
+          "type": "Gallery",
+          "onSelect": null,
+          "description": "component 25",
+          "uses": [
+            {
+              "id": "#63",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#63",
+                "name": "gGold025"
+              },
+              "description": "uses 25"
+            }
+          ]
+        },
+        {
+          "id": "#64",
+          "name": "cmp25",
+          "type": "Button",
+          "onSelect": "Navigate(S24)",
+          "description": null,
+          "uses": [
+            {
+              "id": "#65",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#65",
+                "name": "gGold024"
+              },
+              "description": "uses 24"
+            }
+          ]
+        },
+        {
+          "id": "#66",
+          "name": "cmp26",
+          "type": "Gallery",
+          "onSelect": null,
+          "description": null,
+          "uses": [
+            {
+              "id": "#67",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#67",
+                "name": "gGold023"
+              },
+              "description": "uses 23"
+            }
+          ]
+        },
+        {
+          "id": "#68",
+          "name": "cmp27",
+          "type": "Button",
+          "onSelect": null,
+          "description": null,
+          "uses": [
+            {
+              "id": "#69",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#69",
+                "name": "gGold022"
+              },
+              "description": "uses 22"
+            }
+          ]
+        },
+        {
+          "id": "#70",
+          "name": "cmp28",
+          "type": "Gallery",
+          "onSelect": "Navigate(S21)",
+          "description": null,
+          "uses": [
+            {
+              "id": "#71",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#71",
+                "name": "gGold021"
+              },
+              "description": "uses 21"
+            }
+          ]
+        },
+        {
+          "id": "#72",
+          "name": "cmp29",
+          "type": "Button",
+          "onSelect": null,
+          "description": "component 20",
+          "uses": [
+            {
+              "id": "#73",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#73",
+                "name": "gGold020"
+              },
+              "description": "uses 20"
+            }
+          ]
+        },
+        {
+          "id": "#74",
+          "name": "cmp30",
+          "type": "Gallery",
+          "onSelect": null,
+          "description": null,
+          "uses": [
+            {
+              "id": "#75",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#75",
+                "name": "gGold019"
+              },
+              "description": "uses 19"
+            }
+          ]
+        },
+        {
+          "id": "#76",
+          "name": "cmp31",
+          "type": "Button",
+          "onSelect": "Navigate(S18)",
+          "description": null,
+          "uses": [
+            {
+              "id": "#77",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#77",
+                "name": "gGold018"
+              },
+              "description": "uses 18"
+            }
+          ]
+        },
+        {
+          "id": "#78",
+          "name": "cmp32",
+          "type": "Gallery",
+          "onSelect": null,
+          "description": null,
+          "uses": [
+            {
+              "id": "#79",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#79",
+                "name": "gGold017"
+              },
+              "description": "uses 17"
+            }
+          ]
+        },
+        {
+          "id": "#80",
+          "name": "cmp33",
+          "type": "Button",
+          "onSelect": null,
+          "description": null,
+          "uses": [
+            {
+              "id": "#81",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#81",
+                "name": "gGold016"
+              },
+              "description": "uses 16"
+            }
+          ]
+        },
+        {
+          "id": "#82",
+          "name": "cmp34",
+          "type": "Gallery",
+          "onSelect": "Navigate(S15)",
+          "description": "component 15",
+          "uses": [
+            {
+              "id": "#83",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#83",
+                "name": "gGold015"
+              },
+              "description": "uses 15"
+            }
+          ]
+        },
+        {
+          "id": "#84",
+          "name": "cmp35",
+          "type": "Button",
+          "onSelect": null,
+          "description": null,
+          "uses": [
+            {
+              "id": "#85",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#85",
+                "name": "gGold014"
+              },
+              "description": "uses 14"
+            }
+          ]
+        },
+        {
+          "id": "#86",
+          "name": "cmp36",
+          "type": "Gallery",
+          "onSelect": null,
+          "description": null,
+          "uses": [
+            {
+              "id": "#87",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#87",
+                "name": "gGold013"
+              },
+              "description": "uses 13"
+            }
+          ]
+        },
+        {
+          "id": "#88",
+          "name": "cmp37",
+          "type": "Button",
+          "onSelect": "Navigate(S12)",
+          "description": null,
+          "uses": [
+            {
+              "id": "#89",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#89",
+                "name": "gGold012"
+              },
+              "description": "uses 12"
+            }
+          ]
+        },
+        {
+          "id": "#90",
+          "name": "cmp38",
+          "type": "Gallery",
+          "onSelect": null,
+          "description": null,
+          "uses": [
+            {
+              "id": "#91",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#91",
+                "name": "gGold011"
+              },
+              "description": "uses 11"
+            }
+          ]
+        },
+        {
+          "id": "#92",
+          "name": "cmp39",
+          "type": "Button",
+          "onSelect": null,
+          "description": "component 10",
+          "uses": [
+            {
+              "id": "#93",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#93",
+                "name": "gGold010"
+              },
+              "description": "uses 10"
+            }
+          ]
+        },
+        {
+          "id": "#94",
+          "name": "cmp40",
+          "type": "Gallery",
+          "onSelect": "Navigate(S9)",
+          "description": null,
+          "uses": [
+            {
+              "id": "#95",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#95",
+                "name": "gGold009"
+              },
+              "description": "uses 9"
+            }
+          ]
+        },
+        {
+          "id": "#96",
+          "name": "cmp41",
+          "type": "Button",
+          "onSelect": null,
+          "description": null,
+          "uses": [
+            {
+              "id": "#97",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#97",
+                "name": "gGold008"
+              },
+              "description": "uses 8"
+            }
+          ]
+        },
+        {
+          "id": "#98",
+          "name": "cmp42",
+          "type": "Gallery",
+          "onSelect": null,
+          "description": null,
+          "uses": [
+            {
+              "id": "#99",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#99",
+                "name": "gGold007"
+              },
+              "description": "uses 7"
+            }
+          ]
+        },
+        {
+          "id": "#100",
+          "name": "cmp43",
+          "type": "Button",
+          "onSelect": "Navigate(S6)",
+          "description": null,
+          "uses": [
+            {
+              "id": "#101",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#101",
+                "name": "gGold006"
+              },
+              "description": "uses 6"
+            }
+          ]
+        },
+        {
+          "id": "#102",
+          "name": "cmp44",
+          "type": "Gallery",
+          "onSelect": null,
+          "description": "component 5",
+          "uses": [
+            {
+              "id": "#103",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#103",
+                "name": "gGold005"
+              },
+              "description": "uses 5"
+            }
+          ]
+        },
+        {
+          "id": "#104",
+          "name": "cmp45",
+          "type": "Button",
+          "onSelect": null,
+          "description": null,
+          "uses": [
+            {
+              "id": "#105",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#105",
+                "name": "gGold004"
+              },
+              "description": "uses 4"
+            }
+          ]
+        },
+        {
+          "id": "#106",
+          "name": "cmp46",
+          "type": "Gallery",
+          "onSelect": "Navigate(S3)",
+          "description": null,
+          "uses": [
+            {
+              "id": "#107",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#107",
+                "name": "gGold003"
+              },
+              "description": "uses 3"
+            }
+          ]
+        },
+        {
+          "id": "#108",
+          "name": "cmp47",
+          "type": "Button",
+          "onSelect": null,
+          "description": null,
+          "uses": [
+            {
+              "id": "#109",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#109",
+                "name": "gGold002"
+              },
+              "description": "uses 2"
+            }
+          ]
+        },
+        {
+          "id": "#110",
+          "name": "cmp48",
+          "type": "Gallery",
+          "onSelect": null,
+          "description": null,
+          "uses": [
+            {
+              "id": "#111",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#111",
+                "name": "gGold001"
+              },
+              "description": "uses 1"
+            }
+          ]
+        },
+        {
+          "id": "#112",
+          "name": "cmp49",
+          "type": "Button",
+          "onSelect": "Navigate(S0)",
+          "description": "component 0",
+          "uses": [
+            {
+              "id": "#3",
+              "targetType": "COLLECTION",
+              "target": {
+                "id": "#113",
+                "name": "colGold00"
+              },
+              "description": null
+            },
+            {
+              "id": "#2",
+              "targetType": "VARIABLE",
+              "target": {
+                "id": "#3",
+                "name": "gGold000"
+              },
+              "description": "first"
+            }
+          ]
+        }
+      ],
+      "variableLinks": [
+        {
+          "id": "#2",
+          "variable": {
+            "id": "#114",
+            "name": "gGold050"
+          },
+          "accessMode": "READ",
+          "usedIn": "ctl0.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#3",
+          "variable": {
+            "id": "#115",
+            "name": "gGold051"
+          },
+          "accessMode": "WRITE",
+          "usedIn": "ctl1.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#111",
+          "variable": {
+            "id": "#116",
+            "name": "gGold052"
+          },
+          "accessMode": "READ_WRITE",
+          "usedIn": "ctl2.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#109",
+          "variable": {
+            "id": "#117",
+            "name": "gGold053"
+          },
+          "accessMode": "READ",
+          "usedIn": "ctl3.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#107",
+          "variable": {
+            "id": "#118",
+            "name": "gGold054"
+          },
+          "accessMode": "WRITE",
+          "usedIn": "ctl4.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#105",
+          "variable": {
+            "id": "#119",
+            "name": "gGold055"
+          },
+          "accessMode": "READ_WRITE",
+          "usedIn": "ctl5.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#103",
+          "variable": {
+            "id": "#120",
+            "name": "gGold056"
+          },
+          "accessMode": "READ",
+          "usedIn": "ctl6.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#101",
+          "variable": {
+            "id": "#121",
+            "name": "gGold057"
+          },
+          "accessMode": "WRITE",
+          "usedIn": "ctl7.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#99",
+          "variable": {
+            "id": "#122",
+            "name": "gGold058"
+          },
+          "accessMode": "READ_WRITE",
+          "usedIn": "ctl8.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#97",
+          "variable": {
+            "id": "#123",
+            "name": "gGold059"
+          },
+          "accessMode": "READ",
+          "usedIn": "ctl9.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#95",
+          "variable": {
+            "id": "#124",
+            "name": "gGold060"
+          },
+          "accessMode": "WRITE",
+          "usedIn": "ctl10.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#93",
+          "variable": {
+            "id": "#125",
+            "name": "gGold061"
+          },
+          "accessMode": "READ_WRITE",
+          "usedIn": "ctl11.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#91",
+          "variable": {
+            "id": "#126",
+            "name": "gGold062"
+          },
+          "accessMode": "READ",
+          "usedIn": "ctl12.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#89",
+          "variable": {
+            "id": "#127",
+            "name": "gGold063"
+          },
+          "accessMode": "WRITE",
+          "usedIn": "ctl13.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#87",
+          "variable": {
+            "id": "#128",
+            "name": "gGold064"
+          },
+          "accessMode": "READ_WRITE",
+          "usedIn": "ctl14.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#85",
+          "variable": {
+            "id": "#129",
+            "name": "gGold065"
+          },
+          "accessMode": "READ",
+          "usedIn": "ctl15.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#83",
+          "variable": {
+            "id": "#130",
+            "name": "gGold066"
+          },
+          "accessMode": "WRITE",
+          "usedIn": "ctl16.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#81",
+          "variable": {
+            "id": "#131",
+            "name": "gGold067"
+          },
+          "accessMode": "READ_WRITE",
+          "usedIn": "ctl17.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#79",
+          "variable": {
+            "id": "#132",
+            "name": "gGold068"
+          },
+          "accessMode": "READ",
+          "usedIn": "ctl18.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#77",
+          "variable": {
+            "id": "#133",
+            "name": "gGold069"
+          },
+          "accessMode": "WRITE",
+          "usedIn": "ctl19.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#75",
+          "variable": {
+            "id": "#134",
+            "name": "gGold070"
+          },
+          "accessMode": "READ_WRITE",
+          "usedIn": "ctl20.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#73",
+          "variable": {
+            "id": "#135",
+            "name": "gGold071"
+          },
+          "accessMode": "READ",
+          "usedIn": "ctl21.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#71",
+          "variable": {
+            "id": "#136",
+            "name": "gGold072"
+          },
+          "accessMode": "WRITE",
+          "usedIn": "ctl22.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#69",
+          "variable": {
+            "id": "#137",
+            "name": "gGold073"
+          },
+          "accessMode": "READ_WRITE",
+          "usedIn": "ctl23.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#67",
+          "variable": {
+            "id": "#138",
+            "name": "gGold074"
+          },
+          "accessMode": "READ",
+          "usedIn": "ctl24.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#65",
+          "variable": {
+            "id": "#139",
+            "name": "gGold075"
+          },
+          "accessMode": "WRITE",
+          "usedIn": "ctl25.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#63",
+          "variable": {
+            "id": "#140",
+            "name": "gGold076"
+          },
+          "accessMode": "READ_WRITE",
+          "usedIn": "ctl26.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#61",
+          "variable": {
+            "id": "#141",
+            "name": "gGold077"
+          },
+          "accessMode": "READ",
+          "usedIn": "ctl27.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#59",
+          "variable": {
+            "id": "#142",
+            "name": "gGold078"
+          },
+          "accessMode": "WRITE",
+          "usedIn": "ctl28.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#57",
+          "variable": {
+            "id": "#143",
+            "name": "gGold079"
+          },
+          "accessMode": "READ_WRITE",
+          "usedIn": "ctl29.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#55",
+          "variable": {
+            "id": "#144",
+            "name": "gGold080"
+          },
+          "accessMode": "READ",
+          "usedIn": "ctl30.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#53",
+          "variable": {
+            "id": "#145",
+            "name": "gGold081"
+          },
+          "accessMode": "WRITE",
+          "usedIn": "ctl31.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#51",
+          "variable": {
+            "id": "#146",
+            "name": "gGold082"
+          },
+          "accessMode": "READ_WRITE",
+          "usedIn": "ctl32.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#49",
+          "variable": {
+            "id": "#147",
+            "name": "gGold083"
+          },
+          "accessMode": "READ",
+          "usedIn": "ctl33.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#47",
+          "variable": {
+            "id": "#148",
+            "name": "gGold084"
+          },
+          "accessMode": "WRITE",
+          "usedIn": "ctl34.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#45",
+          "variable": {
+            "id": "#149",
+            "name": "gGold085"
+          },
+          "accessMode": "READ_WRITE",
+          "usedIn": "ctl35.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#43",
+          "variable": {
+            "id": "#150",
+            "name": "gGold086"
+          },
+          "accessMode": "READ",
+          "usedIn": "ctl36.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#41",
+          "variable": {
+            "id": "#151",
+            "name": "gGold087"
+          },
+          "accessMode": "WRITE",
+          "usedIn": "ctl37.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#39",
+          "variable": {
+            "id": "#152",
+            "name": "gGold088"
+          },
+          "accessMode": "READ_WRITE",
+          "usedIn": "ctl38.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#37",
+          "variable": {
+            "id": "#153",
+            "name": "gGold089"
+          },
+          "accessMode": "READ",
+          "usedIn": "ctl39.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#35",
+          "variable": {
+            "id": "#154",
+            "name": "gGold090"
+          },
+          "accessMode": "WRITE",
+          "usedIn": "ctl40.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#32",
+          "variable": {
+            "id": "#155",
+            "name": "gGold091"
+          },
+          "accessMode": "READ_WRITE",
+          "usedIn": "ctl41.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#29",
+          "variable": {
+            "id": "#156",
+            "name": "gGold092"
+          },
+          "accessMode": "READ",
+          "usedIn": "ctl42.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#26",
+          "variable": {
+            "id": "#157",
+            "name": "gGold093"
+          },
+          "accessMode": "WRITE",
+          "usedIn": "ctl43.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#23",
+          "variable": {
+            "id": "#158",
+            "name": "gGold094"
+          },
+          "accessMode": "READ_WRITE",
+          "usedIn": "ctl44.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#20",
+          "variable": {
+            "id": "#159",
+            "name": "gGold095"
+          },
+          "accessMode": "READ",
+          "usedIn": "ctl45.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#17",
+          "variable": {
+            "id": "#160",
+            "name": "gGold096"
+          },
+          "accessMode": "WRITE",
+          "usedIn": "ctl46.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#14",
+          "variable": {
+            "id": "#161",
+            "name": "gGold097"
+          },
+          "accessMode": "READ_WRITE",
+          "usedIn": "ctl47.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#11",
+          "variable": {
+            "id": "#162",
+            "name": "gGold098"
+          },
+          "accessMode": "READ",
+          "usedIn": "ctl48.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#8",
+          "variable": {
+            "id": "#163",
+            "name": "gGold099"
+          },
+          "accessMode": "WRITE",
+          "usedIn": "ctl49.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#5",
+          "variable": {
+            "id": "#164",
+            "name": "gGold100"
+          },
+          "accessMode": "READ_WRITE",
+          "usedIn": "ctl50.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#114",
+          "variable": {
+            "id": "#165",
+            "name": "gGold101"
+          },
+          "accessMode": "READ",
+          "usedIn": "ctl51.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#115",
+          "variable": {
+            "id": "#166",
+            "name": "gGold102"
+          },
+          "accessMode": "WRITE",
+          "usedIn": "ctl52.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#116",
+          "variable": {
+            "id": "#167",
+            "name": "gGold103"
+          },
+          "accessMode": "READ_WRITE",
+          "usedIn": "ctl53.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#117",
+          "variable": {
+            "id": "#168",
+            "name": "gGold104"
+          },
+          "accessMode": "READ",
+          "usedIn": "ctl54.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#118",
+          "variable": {
+            "id": "#169",
+            "name": "gGold105"
+          },
+          "accessMode": "WRITE",
+          "usedIn": "ctl55.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#119",
+          "variable": {
+            "id": "#170",
+            "name": "gGold106"
+          },
+          "accessMode": "READ_WRITE",
+          "usedIn": "ctl56.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#120",
+          "variable": {
+            "id": "#171",
+            "name": "gGold107"
+          },
+          "accessMode": "READ",
+          "usedIn": "ctl57.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#121",
+          "variable": {
+            "id": "#172",
+            "name": "gGold108"
+          },
+          "accessMode": "WRITE",
+          "usedIn": "ctl58.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#122",
+          "variable": {
+            "id": "#173",
+            "name": "gGold109"
+          },
+          "accessMode": "READ_WRITE",
+          "usedIn": "ctl59.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#123",
+          "variable": {
+            "id": "#174",
+            "name": "gGold110"
+          },
+          "accessMode": "READ",
+          "usedIn": "ctl60.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#124",
+          "variable": {
+            "id": "#175",
+            "name": "gGold111"
+          },
+          "accessMode": "WRITE",
+          "usedIn": "ctl61.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#125",
+          "variable": {
+            "id": "#176",
+            "name": "gGold112"
+          },
+          "accessMode": "READ_WRITE",
+          "usedIn": "ctl62.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#126",
+          "variable": {
+            "id": "#177",
+            "name": "gGold113"
+          },
+          "accessMode": "READ",
+          "usedIn": "ctl63.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#127",
+          "variable": {
+            "id": "#178",
+            "name": "gGold114"
+          },
+          "accessMode": "WRITE",
+          "usedIn": "ctl64.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#128",
+          "variable": {
+            "id": "#179",
+            "name": "gGold115"
+          },
+          "accessMode": "READ_WRITE",
+          "usedIn": "ctl65.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#129",
+          "variable": {
+            "id": "#180",
+            "name": "gGold116"
+          },
+          "accessMode": "READ",
+          "usedIn": "ctl66.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#130",
+          "variable": {
+            "id": "#181",
+            "name": "gGold117"
+          },
+          "accessMode": "WRITE",
+          "usedIn": "ctl67.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#131",
+          "variable": {
+            "id": "#182",
+            "name": "gGold118"
+          },
+          "accessMode": "READ_WRITE",
+          "usedIn": "ctl68.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#132",
+          "variable": {
+            "id": "#183",
+            "name": "gGold119"
+          },
+          "accessMode": "READ",
+          "usedIn": "ctl69.Text",
+          "isOrigin": false,
+          "originUsedIn": null
+        },
+        {
+          "id": "#133",
+          "variable": {
+            "id": "#184",
+            "name": "gGoldOrigin"
+          },
+          "accessMode": "WRITE",
+          "usedIn": "origin",
+          "isOrigin": true,
+          "originUsedIn": "OnVisible"
+        }
+      ],
+      "collectionLinks": [
+        {
+          "id": "#2",
+          "accessMode": "WRITE",
+          "usedIn": "gal0.Items",
+          "collection": {
+            "id": "#113",
+            "name": "colGold00"
+          }
+        },
+        {
+          "id": "#3",
+          "accessMode": "READ_WRITE",
+          "usedIn": "gal1.Items",
+          "collection": {
+            "id": "#33",
+            "name": "colGold01"
+          }
+        },
+        {
+          "id": "#111",
+          "accessMode": "READ",
+          "usedIn": "gal2.Items",
+          "collection": {
+            "id": "#30",
+            "name": "colGold02"
+          }
+        },
+        {
+          "id": "#109",
+          "accessMode": "WRITE",
+          "usedIn": "gal3.Items",
+          "collection": {
+            "id": "#27",
+            "name": "colGold03"
+          }
+        },
+        {
+          "id": "#107",
+          "accessMode": "READ_WRITE",
+          "usedIn": "gal4.Items",
+          "collection": {
+            "id": "#24",
+            "name": "colGold04"
+          }
+        },
+        {
+          "id": "#105",
+          "accessMode": "READ",
+          "usedIn": "gal5.Items",
+          "collection": {
+            "id": "#21",
+            "name": "colGold05"
+          }
+        },
+        {
+          "id": "#103",
+          "accessMode": "WRITE",
+          "usedIn": "gal6.Items",
+          "collection": {
+            "id": "#18",
+            "name": "colGold06"
+          }
+        },
+        {
+          "id": "#101",
+          "accessMode": "READ_WRITE",
+          "usedIn": "gal7.Items",
+          "collection": {
+            "id": "#15",
+            "name": "colGold07"
+          }
+        },
+        {
+          "id": "#99",
+          "accessMode": "READ",
+          "usedIn": "gal8.Items",
+          "collection": {
+            "id": "#12",
+            "name": "colGold08"
+          }
+        },
+        {
+          "id": "#97",
+          "accessMode": "WRITE",
+          "usedIn": "gal9.Items",
+          "collection": {
+            "id": "#9",
+            "name": "colGold09"
+          }
+        },
+        {
+          "id": "#95",
+          "accessMode": "READ_WRITE",
+          "usedIn": "gal10.Items",
+          "collection": {
+            "id": "#6",
+            "name": "colGold10"
+          }
+        },
+        {
+          "id": "#93",
+          "accessMode": "READ",
+          "usedIn": "gal11.Items",
+          "collection": {
+            "id": "#185",
+            "name": "colGold11"
+          }
+        },
+        {
+          "id": "#91",
+          "accessMode": "WRITE",
+          "usedIn": "gal12.Items",
+          "collection": {
+            "id": "#186",
+            "name": "colGold12"
+          }
+        },
+        {
+          "id": "#89",
+          "accessMode": "READ_WRITE",
+          "usedIn": "gal13.Items",
+          "collection": {
+            "id": "#187",
+            "name": "colGold13"
+          }
+        },
+        {
+          "id": "#87",
+          "accessMode": "READ",
+          "usedIn": "gal14.Items",
+          "collection": {
+            "id": "#188",
+            "name": "colGold14"
+          }
+        },
+        {
+          "id": "#85",
+          "accessMode": "WRITE",
+          "usedIn": "gal15.Items",
+          "collection": {
+            "id": "#189",
+            "name": "colGold15"
+          }
+        },
+        {
+          "id": "#83",
+          "accessMode": "READ_WRITE",
+          "usedIn": "gal16.Items",
+          "collection": {
+            "id": "#190",
+            "name": "colGold16"
+          }
+        },
+        {
+          "id": "#81",
+          "accessMode": "READ",
+          "usedIn": "gal17.Items",
+          "collection": {
+            "id": "#191",
+            "name": "colGold17"
+          }
+        },
+        {
+          "id": "#79",
+          "accessMode": "WRITE",
+          "usedIn": "gal18.Items",
+          "collection": {
+            "id": "#192",
+            "name": "colGold18"
+          }
+        },
+        {
+          "id": "#77",
+          "accessMode": "READ_WRITE",
+          "usedIn": "gal19.Items",
+          "collection": {
+            "id": "#193",
+            "name": "colGold19"
+          }
+        },
+        {
+          "id": "#75",
+          "accessMode": "READ",
+          "usedIn": "gal20.Items",
+          "collection": {
+            "id": "#194",
+            "name": "colGold20"
+          }
+        },
+        {
+          "id": "#73",
+          "accessMode": "WRITE",
+          "usedIn": "gal21.Items",
+          "collection": {
+            "id": "#195",
+            "name": "colGold21"
+          }
+        },
+        {
+          "id": "#71",
+          "accessMode": "READ_WRITE",
+          "usedIn": "gal22.Items",
+          "collection": {
+            "id": "#196",
+            "name": "colGold22"
+          }
+        },
+        {
+          "id": "#69",
+          "accessMode": "READ",
+          "usedIn": "gal23.Items",
+          "collection": {
+            "id": "#197",
+            "name": "colGold23"
+          }
+        },
+        {
+          "id": "#67",
+          "accessMode": "WRITE",
+          "usedIn": "gal24.Items",
+          "collection": {
+            "id": "#198",
+            "name": "colGold24"
+          }
+        },
+        {
+          "id": "#65",
+          "accessMode": "READ_WRITE",
+          "usedIn": "gal25.Items",
+          "collection": {
+            "id": "#199",
+            "name": "colGold25"
+          }
+        },
+        {
+          "id": "#63",
+          "accessMode": "READ",
+          "usedIn": "gal26.Items",
+          "collection": {
+            "id": "#200",
+            "name": "colGold26"
+          }
+        },
+        {
+          "id": "#61",
+          "accessMode": "WRITE",
+          "usedIn": "gal27.Items",
+          "collection": {
+            "id": "#201",
+            "name": "colGold27"
+          }
+        },
+        {
+          "id": "#59",
+          "accessMode": "READ_WRITE",
+          "usedIn": "gal28.Items",
+          "collection": {
+            "id": "#202",
+            "name": "colGold28"
+          }
+        },
+        {
+          "id": "#55",
+          "accessMode": "READ",
+          "usedIn": "extra.Items",
+          "collection": {
+            "id": "#203",
+            "name": "colGold29"
+          }
+        },
+        {
+          "id": "#57",
+          "accessMode": "READ",
+          "usedIn": "gal29.Items",
+          "collection": {
+            "id": "#203",
+            "name": "colGold29"
+          }
+        }
+      ],
+      "navigations": [
+        {
+          "id": "#114",
+          "targetScreen": {
+            "id": "#204",
+            "name": "Target 00"
+          },
+          "description": "nav 0"
+        },
+        {
+          "id": "#115",
+          "targetScreen": {
+            "id": "#205",
+            "name": "Target 01"
+          },
+          "description": null
+        },
+        {
+          "id": "#116",
+          "targetScreen": {
+            "id": "#206",
+            "name": "Target 02"
+          },
+          "description": "nav 2"
+        },
+        {
+          "id": "#117",
+          "targetScreen": {
+            "id": "#207",
+            "name": "Target 03"
+          },
+          "description": null
+        },
+        {
+          "id": "#118",
+          "targetScreen": {
+            "id": "#208",
+            "name": "Target 04"
+          },
+          "description": "nav 4"
+        },
+        {
+          "id": "#119",
+          "targetScreen": {
+            "id": "#209",
+            "name": "Target 05"
+          },
+          "description": null
+        },
+        {
+          "id": "#120",
+          "targetScreen": {
+            "id": "#210",
+            "name": "Target 06"
+          },
+          "description": "nav 6"
+        },
+        {
+          "id": "#121",
+          "targetScreen": {
+            "id": "#211",
+            "name": "Target 07"
+          },
+          "description": null
+        },
+        {
+          "id": "#122",
+          "targetScreen": {
+            "id": "#212",
+            "name": "Target 08"
+          },
+          "description": "nav 8"
+        },
+        {
+          "id": "#123",
+          "targetScreen": {
+            "id": "#213",
+            "name": "Target 09"
+          },
+          "description": null
+        },
+        {
+          "id": "#124",
+          "targetScreen": {
+            "id": "#214",
+            "name": "Target 10"
+          },
+          "description": "nav 10"
+        },
+        {
+          "id": "#125",
+          "targetScreen": {
+            "id": "#215",
+            "name": "Target 11"
+          },
+          "description": null
+        },
+        {
+          "id": "#126",
+          "targetScreen": {
+            "id": "#216",
+            "name": "Target 12"
+          },
+          "description": "nav 12"
+        },
+        {
+          "id": "#127",
+          "targetScreen": {
+            "id": "#217",
+            "name": "Target 13"
+          },
+          "description": null
+        },
+        {
+          "id": "#128",
+          "targetScreen": {
+            "id": "#218",
+            "name": "Target 14"
+          },
+          "description": "nav 14"
+        },
+        {
+          "id": "#129",
+          "targetScreen": {
+            "id": "#219",
+            "name": "Target 15"
+          },
+          "description": null
+        },
+        {
+          "id": "#130",
+          "targetScreen": {
+            "id": "#220",
+            "name": "Target 16"
+          },
+          "description": "nav 16"
+        },
+        {
+          "id": "#131",
+          "targetScreen": {
+            "id": "#221",
+            "name": "Target 17"
+          },
+          "description": null
+        },
+        {
+          "id": "#132",
+          "targetScreen": {
+            "id": "#222",
+            "name": "Target 18"
+          },
+          "description": "nav 18"
+        },
+        {
+          "id": "#133",
+          "targetScreen": {
+            "id": "#223",
+            "name": "Target 19"
+          },
+          "description": null
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,32 @@
+info:
+  name: '24 Origin · 200 removing the origin screen leaves originUsedIn null'
+  type: http
+  seq: 24
+http:
+  method: PUT
+  url: '{{baseUrl}}/variables/{{lkOriginId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{lkDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{lkPrefix}}gOrigin",
+        "dataType": "TEXT",
+        "scope": "GLOBAL",
+        "description": null,
+        "originScreenId": null,
+        "originUsedIn": null,
+        "environments": [{ "environment": "DEV", "notes": null }]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the answer is UTF-8", function () { expect(String(res.headers["content-type"]).toLowerCase()).to.contain("charset=utf-8"); });
+        test("no origin screen and no originUsedIn", function () { const d = res.body.data; expect(d.originScreen).to.equal(null); expect(d.originUsedIn).to.equal(null); });
+settings:
+  encodeUrl: true

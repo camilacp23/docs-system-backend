@@ -1,0 +1,17 @@
+info:
+  name: '10 Access · 401 no token'
+  type: http
+  seq: 10
+http:
+  method: GET
+  url: '{{baseUrl}}/onboarding/progress?applicationId={{opAppId}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 401", function () { expect(res.status).to.equal(401); });
+        test("code, message and details", function () { expect(res.body.code).to.equal("UNAUTHENTICATED"); expect(res.body.message).to.equal("Your session is not valid. Sign in again."); expect(res.body.details).to.equal(null); });
+        test("the answer is UTF-8", function () { expect(String(res.headers["content-type"]).toLowerCase()).to.contain("charset=utf-8"); });
+settings:
+  encodeUrl: true

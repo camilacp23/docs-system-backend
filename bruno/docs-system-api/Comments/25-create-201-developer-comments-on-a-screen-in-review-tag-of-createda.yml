@@ -1,0 +1,29 @@
+info:
+  name: '25 Create · 201 Developer comments on a screen IN_REVIEW: tag of createdAt, no Location, text kept as written'
+  type: http
+  seq: 25
+http:
+  method: POST
+  url: '{{baseUrl}}/screens/{{comScrId}}/comments'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{comDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "text": "  Ñandú: first line\n  second line  " }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) { bru.setVar("comDevCmtId", res.body.data.id); bru.setVar("comDevEtag", res.headers["etag"]); bru.setVar("comDevCreatedAt", res.body.data.createdAt); }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("the author is the Developer, no decision and never edited", function () { const d = res.body.data; expect(d.author.id).to.equal(bru.getVar("comDevUserId")); expect(d.screenId).to.equal(bru.getVar("comScrId")); expect(d.reviewDecision).to.equal(null); expect(d.updatedAt).to.equal(null); });
+        test("the text is stored as written", function () { expect(res.body.data.text).to.equal("  Ñandú: first line\n  second line  "); });
+        test("the ETag is W/\"<ms of createdAt>\"", function () { expect(res.headers["etag"]).to.equal('W/"' + new Date(res.body.data.createdAt).getTime() + '"'); });
+        test("there is NO Location header (a comment has no address of its own)", function () { expect(res.headers["location"]).to.equal(undefined); });
+settings:
+  encodeUrl: true

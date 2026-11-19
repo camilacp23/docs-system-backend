@@ -39,7 +39,7 @@ runtime:
       code: |-
         test("status 201", function () { expect(res.status).to.equal(201); });
         test("Location points to the new screen", function () { expect(res.headers["location"]).to.equal("/api/v1/screens/" + res.body.data.id); });
-        test("ETag is a weak validator", function () { expect(res.headers["etag"]).to.match(/^W\/"\d+-\d+-\d+"$/); });
+        test("ETag is a weak validator", function () { expect(res.headers["etag"]).to.match(/^W\/"\d+-\d+-\d+-[0-9a-f]{8}"$/); });
         test("DRAFT, and the texts are stored as they arrive", function () { const d = res.body.data; expect(d.documentationStatus).to.equal("DRAFT"); expect(d.template.architecture).to.equal("Beta architecture"); expect(d.template.risks).to.equal("Beta risks"); expect(d.template.knownIssues).to.equal("   "); expect(d.template.onStart).to.equal(null); });
 settings:
   encodeUrl: true

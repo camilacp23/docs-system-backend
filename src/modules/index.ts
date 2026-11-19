@@ -1,6 +1,7 @@
 /**
  * Registry of module handlers by `operationId` (SDD D-42). Each module adds its operations here when it is
- * built; an operation of the contract without an entry answers 404 NOT_IMPLEMENTED (development only).
+ * built. Every operation of the contract has an entry now; one added to the contract without an entry still answers
+ * 404 NOT_IMPLEMENTED (a safeguard, development only).
  *
  * @module modules
  */
@@ -12,7 +13,11 @@ import { applicationsHandlers } from './applications/routes.js';
 import { auditHandlers } from './audit/routes.js';
 import { authHandlers } from './auth/routes.js';
 import { collectionsHandlers } from './collections/routes.js';
+import { commentsHandlers } from './comments/routes.js';
+import { dashboardHandlers } from './dashboard/routes.js';
 import { dependenciesHandlers } from './dependencies/routes.js';
+import { onboardingHandlers } from './onboarding/routes.js';
+import { reportsHandlers } from './reports/routes.js';
 import { screensHandlers } from './screens/routes.js';
 import { searchHandlers } from './search/routes.js';
 import { usersHandlers } from './users/routes.js';
@@ -31,6 +36,8 @@ export function createModuleHandlers(deps: {
   logger: Logger;
   integrationUserEmail: string;
   refreshPageSize?: number;
+  /** Called after a report was saved, to wake the report worker of this process. */
+  onReportQueued?: () => void;
 }): OperationHandlers {
   return {
     ...authHandlers(deps.db),
@@ -46,8 +53,12 @@ export function createModuleHandlers(deps: {
     }),
     ...variablesHandlers(deps.db),
     ...collectionsHandlers(deps.db),
+    ...commentsHandlers(deps.db),
     ...dependenciesHandlers(deps.db),
     ...auditHandlers(deps.db),
     ...searchHandlers(deps.db),
+    ...dashboardHandlers(deps.db, { jira: deps.jira }),
+    ...onboardingHandlers(deps.db, { jira: deps.jira }),
+    ...reportsHandlers(deps.db, deps.onReportQueued === undefined ? {} : { onQueued: deps.onReportQueued }),
   };
 }

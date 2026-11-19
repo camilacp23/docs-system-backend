@@ -1,0 +1,29 @@
+info:
+  name: '104 Cleanup · archive the run application 200 (its reports stay, there is no DELETE of a report)'
+  type: http
+  seq: 104
+http:
+  method: PUT
+  url: '{{baseUrl}}/applications/{{repAppId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{repAdminToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Reports {{repRun}}",
+        "description": null,
+        "platform": "Power Apps",
+        "jiraProjectKey": null,
+        "status": "ARCHIVED"
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("archived", function () { expect(res.body.data.status).to.equal("ARCHIVED"); });
+settings:
+  encodeUrl: true

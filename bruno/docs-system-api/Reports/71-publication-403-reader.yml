@@ -1,0 +1,24 @@
+info:
+  name: '71 Publication · 403 Reader'
+  type: http
+  seq: 71
+http:
+  method: PUT
+  url: '{{baseUrl}}/reports/{{repPdfId}}/publication'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{repReaderToken}}'
+  body:
+    type: json
+    data: |-
+      { "isPublished": true }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 403", function () { expect(res.status).to.equal(403); });
+        test("code and message", function () { expect(res.body.code).to.equal("FORBIDDEN"); expect(res.body.message).to.equal("Your role doesn't allow this action."); });
+        test("the roles that may do it are listed", function () { expect(res.body.details.requiredRoles).to.have.members(["ADMINISTRATOR", "DEVELOPER"]); });
+settings:
+  encodeUrl: true

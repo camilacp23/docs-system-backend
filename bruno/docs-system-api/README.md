@@ -1,7 +1,8 @@
 # docs-system-api (Bruno collection)
 
 Requests and assertions for every implemented operation, grouped by module: `Auth`, `Users`, `Applications`,
-`Screens`, `Variables`, `Collections`, `Jira` and `Dependencies` (584 requests and 1478 assertions in all). It runs against the isolated database
+`Screens`, `Variables`, `Collections`, `Jira`, `Dependencies`, `Audit`, `Search`, `Dashboard`, `Reports`, `Comments`, `Onboarding`, `OnboardingProgress` and `LinkedItems` (about 1000 executions, 998 in the last run, and 2327
+assertions in all; the polling requests of `Reports` run more than once). It runs against the isolated database
 `docs_sandbox`, never against `docs_system`.
 
 ```bash
@@ -169,3 +170,174 @@ To check an interrupted run, run the folder with `npx bru run Jira --env sandbox
 the CLI by its PID after some request (for example after the one that arms a fault), restart the simulator if you like and
 run the folder again: it passes, because the first requests clear the simulator and each run works on its own
 application and prefix.
+
+## Reports folder
+
+71 requests (`seq` 12, after `Dashboard`; 76 executions in a run because the three polling requests repeat). Like the
+other folders it logs in the administrator, creates a Developer and a Reader with random e-mails and an application of its
+own (`Reports <suffix>`, plus a second one for the cross-application cases), and names what it creates with a random prefix
+that starts with a letter. Every error request checks `code`, `message` and `details`; every JSON answer is checked to be
+UTF-8 and the titles carry accents and a `ñ` that must come back unchanged.
+
+The worker of the API generates the reports in the background, so the folder **polls**: the three `Poll` requests ask for
+the report and, while it is `PENDING`, wait 250 ms and jump back to themselves (`bru.runner.setNextRequest`), at most 60
+looks, so a run waits for a report as long as it takes and no longer than 15 s; they assert only on the look that ends the
+loop (the test names say how many looks it took). A report that ends `FAILED`, or one that is still `PENDING` after the last
+look, fails the run.
+
+| Requests | Covers |
+| -------- | ------ |
+| 01-12    | Setup: users, both applications, a screen in each, a variable, and the report count of Sandbox Fixtures and of the run application before anything is generated |
+| 20-29    | The request, in the order of its errors: 401, 403 Reader (`requiredRoles`), 400 from the validator, 400 for repeated values with their position, `required`, `notApplicable`, 400 before 404, 404 application, 404 for a screen of another application (the same shape as one that does not exist, without saying whose it is) and 404 with the position |
+| 30-34    | 202 for a PDF (Developer, UTF-8 title, `Location`, the `ETag` of its `updatedAt`, no `Retry-After`) and for an Excel (Administrator, publish when ready), the parameters stored normalized (defaults written out), and the polling to `READY` (file name rule, size, `publishedAt` equal to `completedAt` for the published one) |
+| 40-52    | Reads: detail, 304, the Reader's 404 for a report that is not published (and the same body as one that does not exist), the list (newest first, no `parameters`, `ETag` hash and 304, Reader sees only published, `published=false` is an empty page for a Reader), 404 and 400 |
+| 60-66    | Download: the PDF and the Excel with their `Content-Type`, `Content-Disposition`, `ETag` and file signature (`%PDF-`, `PK`), 304, the Reader's 404, 404, 400 and 401 |
+| 70-77    | Publication: 412 with `currentETag`, 403, 400, 404, publish with the right `If-Match`, the same value writes nothing (same `ETag` and `updatedAt`), the Reader sees it, unpublish sets `publishedAt` to null |
+| 80-87    | Archived application (D-47): a report can be requested, generated, downloaded, published and unpublished while the application is archived; then it is active again |
+| 100-107  | Cleanup: deletes the variable and the screens, checks the run application has exactly its three reports, archives both applications and checks that Sandbox Fixtures is untouched |
+
+### Cleanup: reports cannot be deleted
+
+There is no `DELETE` of a report, and an application cannot be deleted either (`report.application_id` is `RESTRICT`), so what a
+run generates stays. The folder therefore makes every assertion on the application it created itself, which it archives at
+the end, and never reads another run's reports; Sandbox Fixtures only gets read (its report total is compared before and
+after). `npm run test:api` recreates and drops `docs_sandbox` on every run, so nothing accumulates there; on a sandbox you keep
+(`npm run sandbox:db`) each run adds an archived application and its three reports, which no later run reads.
+
+An interrupted run is simulated with the script itself, `API_FIRST_PASS`, which runs part of the folder first and ignores its
+result, and then the whole folder on the same database:
+
+```bash
+API_FIRST_PASS="Reports/0?-*.yml Reports/1?-*.yml Reports/2?-*.yml Reports/3[0-4]-*.yml" npm run test:api -- Reports
+```
+
+The first pass stops after the polls (setup done, three reports generated and published, the application still active, no
+cleanup), and the second pass, with its own application and prefix, passes.
+
+## Comments folder
+
+52 requests (`seq` 13, after `Reports`; 100 assertions). It logs in the administrator, creates a Developer and a Reader with
+random e-mails and two applications of its own (`Comments <suffix>`, and one that is archived during the run), and names the
+screens with a random prefix. The comments are written by the requests themselves, and the review comment is created the way
+the API does it: `POST /screens/{id}/review` with RETURN on a screen that the Developer took to `IN_REVIEW`.
+
+| Requests | Covers |
+| -------- | ------ |
+| 01-13    | Setup: users, both applications, a screen in each (the first one with the seven template fields), a comment written before the archiving, the first screen taken to `IN_REVIEW`, and its empty thread |
+| 20-27    | `POST`: 401, 400 for whitespace and for an empty text with an unknown field, 404, 400 before 404, and the 201 of the three roles on a screen `IN_REVIEW` (the tag is the one of `createdAt`, there is NO `Location`, the text is stored as written) |
+| 30       | The review comment: the Administrator returns the screen with a comment |
+| 31-36    | `GET`: the thread oldest first with the review comment and its `reviewDecision`, 304 with the hash `ETag`, paging, 400, 404, 401 |
+| 40-49    | `PUT`: 400, 404, 403 `AUTHOR_ONLY` (the Administrator too), 412 with `currentETag`, 412 before 422, 422 `REVIEW_COMMENT_LOCKED` (`details` null, UTF-8), the edit with `If-Match` (`updatedAt` set, new tag), the same text that writes nothing, 412 for the same text with an old tag |
+| 50-54    | The screen: a comment changes its tag (`commentCount`) but not its `updatedAt`, the old tag no longer gives a 304, and a `PUT /screens/{id}` with the `If-Match` read before the comment is a 200 |
+| 60-64    | Archived application: the comment and the edit are 422 `APPLICATION_ARCHIVED`, 403 comes first for someone else, and the thread can still be read |
+| 100-103  | Cleanup: deletes the first screen (its comments go with it), archives the first application and checks that the second one stays archived |
+
+### Cleanup: what stays
+
+A screen of an archived application cannot be deleted, and an application cannot be deleted at all, so the second application
+and its one screen and comment stay (archived, with a random name that no later run reads). `npm run test:api` recreates and
+drops `docs_sandbox` on every run, so nothing accumulates there; on a sandbox you keep (`npm run sandbox:db`) each run adds one
+archived application. An interrupted run is simulated with `API_FIRST_PASS`:
+
+```bash
+API_FIRST_PASS="Comments/0?-*.yml Comments/1?-*.yml Comments/2?-*.yml Comments/30-*.yml Comments/31-*.yml" npm run test:api -- Comments
+```
+
+The first pass stops after the thread was read (setup done, five comments in the thread, the screen `IN_PROGRESS`, no cleanup),
+and the second pass, with its own users, applications and prefix, passes.
+
+## Onboarding folder
+
+60 requests (`seq` 14, after `Comments`; 96 assertions). It builds a run application of its own with 12 screens, 12 `GLOBAL`
+variables and 13 components, so that every ordering rule has a tie to break and every list is cut at 10. Everything is built
+by the requests themselves, in the order that the API allows: a screen can only navigate to a screen that already exists, so
+the screens are created from the last one to the first, and App (OnStart), which exists from the start, is edited at the end
+to navigate to the first screens. The names of the run carry a random prefix that starts with a letter.
+
+| Requests | Covers |
+| -------- | ------ |
+| 01-08    | Setup: users, the run application and the other one, and the id of its App (OnStart) screen |
+| 10-23    | Setup: 12 `GLOBAL` variables (`gTop` is read by 4 screens, `gMid` by 2, ten more by one each, so the ties are real), the same name `gTop` in the other application, and one collection that no screen reads |
+| 24-35    | Setup: 12 screens with one component each (names that differ only in case, and one component that uses nothing); S03 navigates back to App (OnStart) |
+| 37-38    | Setup: App (OnStart) with its template and its two navigations (the cycle App (OnStart), S01, S02, S03 and back, with S11 and S12 apart from it), and a screen with the same name in the other application |
+| 40-46    | `GET`: 401; the exact body (counts, App (OnStart) with its seven template fields, 10 of 12 key screens in reading order with the unreachable ones last, 10 of 12 global variables by code point, 10 of 12 top components); 304 with the hash `ETag`; the Developer and the Reader get the same body and the same `ETag`; the other application does not leak |
+| 50-53    | Archived application: it is read like any other, by the three roles, with the same body |
+| 60-68    | 400 for a missing or non-numeric `applicationId`, 404 for each role and for an id beyond the integer range, 400 before 404, 401 before 400, and no 304 for a 404 |
+| 70       | Sandbox Fixtures is read, not changed |
+| 100-102  | Cleanup: archives the run application (an application cannot be deleted), checks that it is still read with the same body, and that Sandbox Fixtures is untouched |
+
+### Why the cycle goes through App (OnStart)
+
+A first version closed the cycle with a `PUT /screens/{id}` of S03 (navigating to S01), and it answered 400. The cause was the body
+of the request, not the API: the script that builds the screen body also put `applicationId` in the `PUT`, which only the `POST`
+accepts, so the answer was `VALIDATION_ERROR` with `details.fields = [{ field: "applicationId", rule: "unevaluatedProperties" }]`.
+Without `applicationId` the same body is a 200, even when the components and the variable links are sent again without their
+`id`: they are re-created (new ids) and the screen ends up as sent. The folder keeps the cycle App (OnStart), S01, S02, S03 and back
+to App (OnStart) because it needs no `PUT` of a screen with content.
+
+### Cleanup: what stays
+
+An application cannot be deleted, so each run leaves two archived applications with a random name that no later run reads
+(the second one is archived by request 50, the first by request 100). `npm run test:api` recreates and drops `docs_sandbox`
+on every run, so nothing accumulates there; on a sandbox you keep (`npm run sandbox:db`) each run adds two archived
+applications. Every assertion is limited to the elements of the run. An interrupted run is simulated with `API_FIRST_PASS`:
+
+```bash
+API_FIRST_PASS="Onboarding/0?-*.yml Onboarding/1?-*.yml Onboarding/2?-*.yml Onboarding/3?-*.yml Onboarding/41-*.yml" npm run test:api -- Onboarding
+```
+
+The first pass stops after the exact body was read (setup done, no cleanup, the application still active), and the second
+pass, with its own users, applications and prefix, passes.
+
+## OnboardingProgress folder
+
+40 requests (`seq` 15, after `Onboarding`; 85 assertions). The progress of the onboarding is personal, so the folder logs in the
+administrator and creates a Developer and a Reader with random e-mails, plus two applications of its own (a name with accents
+and a `ñ`, and one that is archived during the run). Every JSON answer is checked to be UTF-8 and every error request checks
+`code`, `message` and `details`.
+
+| Requests | Covers |
+| -------- | ------ |
+| 01-07    | Setup: users, the run application and the application that is archived later |
+| 10-12    | `GET`: 401, 200 with no progress (`totalSteps` 5, `completedSteps` empty, an `ETag`) and 304 |
+| 20-27    | `PUT`: the Developer completes step 2, the same step again changes nothing, step 1 comes back ascending, the Developer reads their steps and gets a 304; the administrator still has none (it is personal); the Reader may complete step 3 and reads it |
+| 30-33    | `DELETE`: 204, 204 again (idempotent), the Developer is empty and the Reader keeps step 3 |
+| 40-47    | 400 for step 0 and step 6 (`minimum` and `maximum` on `step`) and for a missing `applicationId`, 400 before 404, 404 for an application that does not exist in `GET`, `PUT` and `DELETE`, 401 before 400 |
+| 50-54    | Archived application: a step is completed, read and reset on it, because the progress is not documentation |
+| 60       | Sandbox Fixtures: the Developer of the run has no progress there (nothing is written) |
+| 100-103  | Cleanup: the Reader starts over, nobody has progress left, the run application is archived, and Sandbox Fixtures is untouched |
+
+An application cannot be deleted, so each run leaves two archived applications with a random name that no later run reads.
+`npm run test:api` recreates and drops `docs_sandbox` on every run. An interrupted run is simulated with `API_FIRST_PASS`:
+
+```bash
+API_FIRST_PASS="OnboardingProgress/0?-*.yml OnboardingProgress/1?-*.yml OnboardingProgress/2?-*.yml OnboardingProgress/30-*.yml" npm run test:api -- OnboardingProgress
+```
+
+The first pass stops after the Developer's progress was reset (setup done, rows written, no cleanup, both applications active),
+and the second pass, with its own users, applications and prefix, passes.
+
+## LinkedItems folder
+
+29 requests (`seq` 16, after `OnboardingProgress`; 57 assertions). It covers what a screen shows that belongs to other rows: where
+a variable is created in its origin screen (`originUsedIn`) and the `ETag` of the screen after a linked item changes. It logs in the
+administrator, creates a Developer and a Reader with random e-mails and an application of its own (a name with accents and a `ñ`),
+and names what it creates with a random prefix that starts with a letter. Every JSON answer is checked to be UTF-8 and every error
+request checks `code`, `message` and `details`. Sandbox Fixtures is only read.
+
+| Requests | Covers |
+| -------- | ------ |
+| 01-09    | Setup: users, the run application, screen `Target`, a `GLOBAL` variable and screen `Main`, which links the variable and navigates to `Target` |
+| 20-25    | `originUsedIn`: a variable created with `originScreenId` and `originUsedIn` returns it; the origin row of `variableLinks` in the screen shows it and the other link does not (`null`); 400 without `originScreenId` (rule `requires`, with its exact message); removing the origin screen leaves it `null` |
+| 30-36    | `ETag` of the screen: four parts, 304 when nothing changed; after the linked variable is renamed the previous `If-None-Match` answers 200 with the new name (same `updatedAt`, new fingerprint) and the new tag answers 304; a `PUT /screens/{id}` with the `If-Match` read before the rename is a 200, and one with another `updatedAt` is still a 412 |
+| 100-106  | Cleanup: deletes the screens and the variables, lists with `q=<prefix>` that `total` is 0, archives the run application and checks that Sandbox Fixtures is untouched |
+
+An application cannot be deleted, so each run leaves one archived application with a random name that no later run reads. An
+interrupted run is simulated with `API_FIRST_PASS`:
+
+```bash
+API_FIRST_PASS="LinkedItems/0?-*.yml LinkedItems/2?-*.yml LinkedItems/30-*.yml LinkedItems/31-*.yml LinkedItems/32-*.yml" npm run test:api -- LinkedItems
+```
+
+The first pass stops after the linked variable was renamed (setup done, the origin removed, no cleanup, the application still
+active), and the second pass, with its own users, application and prefix, passes.

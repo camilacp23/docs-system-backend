@@ -58,6 +58,12 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
+      - name: Show the tool versions
+        # Evidence for a failure that depends on the Node version (the thread tests print theirs too).
+        run: |
+          node --version
+          npm --version
+
       - name: Set up Python (contract check)
         uses: actions/setup-python@v7
         with:
@@ -76,7 +82,8 @@ jobs:
           pip install pyyaml==6.0.3
 
       - name: Audit all dependencies (blocking)
-        run: npm audit --audit-level=high
+        # Same as `npm audit --audit-level=high`, except advisories with no patched release (scripts/auditGate.ts).
+        run: npm run audit:gate
 
       - name: Generate passwords for docs_owner and docs_app
         run: |
@@ -135,6 +142,8 @@ jobs:
         run: npm run build
 
       - name: Unit and integration tests
+        # About 5 minutes on a developer machine; a test that hangs must not use the whole job.
+        timeout-minutes: 15
         run: npm test
 
       - name: Phase 2 regression (153 checks)

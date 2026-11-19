@@ -1,0 +1,23 @@
+info:
+  name: '30 Review · the Administrator returns the screen with a comment: the review comment is created by POST /screens/{id}/review 200'
+  type: http
+  seq: 30
+http:
+  method: POST
+  url: '{{baseUrl}}/screens/{{comScrId}}/review'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{comAdminToken}}'
+  body:
+    type: json
+    data: |-
+      { "decision": "RETURN", "comment": "Please document the risks." }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("back to IN_PROGRESS", function () { expect(res.body.data.documentationStatus).to.equal("IN_PROGRESS"); expect(res.body.data.commentCount).to.equal(4); });
+settings:
+  encodeUrl: true

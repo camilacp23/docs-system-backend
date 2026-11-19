@@ -33,6 +33,9 @@ export const E = {
   /** DEVELOPER_OWN_ACTIONS: a Developer asked `GET /audit-log` for the actions of another user. */
   forbiddenOwnActions: () =>
     new ApiError(403, 'FORBIDDEN', "Your role doesn't allow this action.", { reason: 'OWN_ACTIONS' }),
+  /** AUTHOR_ONLY (D-123): `PUT /comments/{id}` by a user who is not the author of the comment. */
+  forbiddenAuthorOnly: () =>
+    new ApiError(403, 'FORBIDDEN', 'You can only edit your own comments.', { reason: 'AUTHOR_ONLY' }),
   /** CSRF guard of refresh/logout; not in the user catalog (the real frontend never triggers it). */
   originRejected: () => new ApiError(403, 'FORBIDDEN', "This request's origin isn't allowed.", { reason: 'ORIGIN' }),
   // 404

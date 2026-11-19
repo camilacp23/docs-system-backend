@@ -1,0 +1,24 @@
+info:
+  name: '26 Mark · 200 the Reader may complete step 3'
+  type: http
+  seq: 26
+http:
+  method: PUT
+  url: '{{baseUrl}}/onboarding/progress/steps/3?applicationId={{opAppId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{opReaderToken}}'
+  body:
+    type: json
+    data: |-
+      {}
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("only step 3", function () { const d = res.body.data; expect(d).to.deep.equal({ applicationId: Number(bru.getVar("opAppId")), totalSteps: 5, completedSteps: [3] }); });
+        test("the answer is UTF-8", function () { expect(String(res.headers["content-type"]).toLowerCase()).to.contain("charset=utf-8"); });
+settings:
+  encodeUrl: true

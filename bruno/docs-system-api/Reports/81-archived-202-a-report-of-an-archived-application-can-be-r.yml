@@ -1,0 +1,26 @@
+info:
+  name: '81 Archived · 202 a report of an archived application can be requested'
+  type: http
+  seq: 81
+http:
+  method: POST
+  url: '{{baseUrl}}/reports/excel'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{repDevToken}}'
+  body:
+    type: json
+    data: |-
+      { "applicationId": {{repAppId}}, "title": "Archivada {{repRun}}", "scope": { "elementTypes": ["VARIABLE"] }, "publish": false }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 202) { bru.setVar("repArchivedId", res.body.data.id); }
+    - type: tests
+      code: |-
+        test("status 202", function () { expect(res.status).to.equal(202); });
+        test("PENDING", function () { expect(res.body.data.status).to.equal("PENDING"); });
+settings:
+  encodeUrl: true

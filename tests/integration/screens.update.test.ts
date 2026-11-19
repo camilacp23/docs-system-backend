@@ -79,7 +79,10 @@ describe('screens: PUT /screens/{id}', () => {
       assert.equal(s.components.length, 1);
       assert.equal(s.navigations.length, 1);
       assert.notEqual(res.headers.etag, etag);
-      assert.equal(res.headers.etag, `W/"${new Date(s.updatedAt).getTime()}-${s.pendingSubtasks}-${s.commentCount}"`);
+      assert.match(
+        String(res.headers.etag),
+        new RegExp(`^W/"${new Date(s.updatedAt).getTime()}-${s.pendingSubtasks}-${s.commentCount}-[0-9a-f]{8}"$`),
+      );
       assert.deepEqual(
         await auditRows(t, 'screen', String(s.id)).then((r) => r.map((x) => [x.action, x.actor_user_id])),
         [

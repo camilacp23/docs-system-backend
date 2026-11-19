@@ -46,6 +46,7 @@ const CHECK_VALIDATION = [
   'screen_name_not_blank_chk',
   'screen_miro_link_https_chk',
   'variable_name_not_blank_chk',
+  'variable_origin_used_in_chk',
   'collection_name_not_blank_chk',
   'component_name_not_blank_chk',
   'component_type_not_blank_chk',
@@ -73,6 +74,7 @@ const NOT_FOUND = [
   'screen_collection_collection_id_fkey',
   'variable_collection_collection_id_fkey',
   'report_file_report_id_fkey',
+  'onboarding_progress_application_id_fkey',
   'dependency_source_id_source_type_fkey',
   'dependency_target_id_target_type_fkey',
 ];
@@ -111,6 +113,8 @@ const INTERNAL = [
   'audit_log_action_chk',
   'audit_log_event_name_chk',
   'audit_log_entity_type_chk',
+  'onboarding_progress_step_chk',
+  'onboarding_progress_user_id_fkey',
   'refresh_token_user_id_fkey',
   'application_created_by_fkey',
   'screen_author_id_fkey',
@@ -142,6 +146,7 @@ const INTERNAL = [
     'report',
     'report_file',
     'audit_log',
+    'onboarding_progress',
   ].map((t) => `${t}_pkey`),
 ];
 
@@ -163,7 +168,7 @@ describe('database error table', () => {
     await t.close();
   });
 
-  it('has a rule for every constraint and unique index of the six migrations, and no rule for a missing one', async () => {
+  it('has a rule for every constraint and unique index of the migrations, and no rule for a missing one', async () => {
     const r = await t.owner.query<{ name: string }>(`
       SELECT conname AS name FROM pg_constraint
        WHERE contype IN ('p', 'u', 'c', 'f') AND connamespace = 'public'::regnamespace

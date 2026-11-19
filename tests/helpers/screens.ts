@@ -40,6 +40,7 @@ export type VariableLinkBody = {
   accessMode: string;
   usedIn: string;
   isOrigin: boolean;
+  originUsedIn: string | null;
 };
 
 /** A link to a collection as the API returns it. */

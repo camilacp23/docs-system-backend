@@ -1,0 +1,20 @@
+info:
+  name: '61 Download · 304 If-None-Match matches'
+  type: http
+  seq: 61
+http:
+  method: GET
+  url: '{{baseUrl}}/reports/{{repPdfId}}/file'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{repDevToken}}'
+    - name: If-None-Match
+      value: '{{repPdfEtag}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 304", function () { expect(res.status).to.equal(304); });
+settings:
+  encodeUrl: true

@@ -1,0 +1,19 @@
+info:
+  name: '60 Fixtures · 200 Sandbox Fixtures: nothing of this run is written there'
+  type: http
+  seq: 60
+http:
+  method: GET
+  url: '{{baseUrl}}/onboarding/progress?applicationId={{fixturesAppId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{opDevToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the Developer of this run has no progress in Sandbox Fixtures", function () { const d = res.body.data; expect(d.applicationId).to.equal(Number(bru.interpolate("{{fixturesAppId}}"))); expect(d.completedSteps).to.deep.equal([]); });
+settings:
+  encodeUrl: true

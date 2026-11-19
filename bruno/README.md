@@ -11,6 +11,7 @@ The collection `docs-system-api/` (Bruno OpenCollection YAML, created with Bruno
 | `Dependencies` | 55 | dependency graph (FR-15): every node and edge variant and its own fields, the order, `ETag` and 304, `types` / `environment` filters, neighborhood with `depth` 1 to 3 and cycles of `DERIVES_FROM` and `NAVIGATES_TO`, 401 / 404 / 400, Reader and Developer roles; reads Sandbox Fixtures without changing it |
 | `Audit` | 54 | audit history (FR-20, FR-21): the history of a run application and of single elements (create, update, delete, the review event, a field of a collection, a password change without its value), `ETag` and 304, filters, inclusive `from` / `to` to the millisecond, pagination, the empty page for an unknown application, the Developer's own actions and the `OWN_ACTIONS` 403, the 400 rules (400 before 403), 401 / 403 Reader; the records of deleted elements remain after the cleanup; reads Sandbox Fixtures without changing it |
 | `Search` | 56 | advanced search (FR-17, FR-18): a run application whose four elements carry a random prefix that starts with a letter, found by name, description, template, field name, creation condition, `OnSelect`, control type and `usedIn` (UTF-8: `CONFIGURACIÓN` finds `Configuración` and the other way round), ordinary `.`, `_` and `%`, trimmed `q`, pagination, filters without text (`types`, `environment`, `documentationStatus`, `scope`, also one that applies to no selected type), another application with the same name that never leaks, `ETag` and 304, the 400 rules (neither `q` nor a filter, `q` too short, 400 before 404) and the 404s, Developer and Reader; searches Sandbox Fixtures without changing it; the cleanup leaves `total` = 0 |
+| `Dashboard` | 45 | indicator dashboard (FR-19): a run application with a draft screen, an approved one (33.3 %), a variable without origin screen, a context variable that later loses its origin when the screen is deleted, a linked and an unlinked collection, and one pending Jira Subtask created in the simulated Jira; exact figures for the three roles, the ten latest records of the application (Administrator and Developer, without values or database role, with a UTF-8 name) and the `recentActivity` key that does not exist for the Reader, another application that never leaks, an archived application that is read normally, `ETag` and 304, the 400 rules (400 before 404, 401 before 400) and the 404s; reads Sandbox Fixtures without changing it; the cleanup leaves `total` = 0 |
 
 Every request asserts status code, response body (error `code`, `message`, `details`) and the relevant headers
 (`ETag`, `Location`, `Set-Cookie`, `Cache-Control`, `Retry-After`). Requests run in folder order: later ones use the
@@ -83,6 +84,13 @@ The `Search` folder also runs twice in a row on the same database and after an u
 ```bash
 API_FIRST_PASS="Search" npm run test:api -- Search                                            # two complete runs
 API_FIRST_PASS="Search/0?-*.yml Search/10-*.yml Search/11-*.yml" npm run test:api -- Search     # after an interruption
+```
+
+The `Dashboard` folder is repeatable in the same way: every figure is exact because the run creates its own application, and the cleanup ends with `total` = 0 for variables and collections and only App (OnStart) among the screens.
+
+```bash
+API_FIRST_PASS="Dashboard" npm run test:api -- Dashboard                                         # two complete runs
+API_FIRST_PASS="Dashboard/0?-*.yml Dashboard/1?-*.yml" npm run test:api -- Dashboard           # after an interruption
 ```
 
 In `Search`, texts with spaces are written with real spaces in the URL (Bruno encodes them; a typed `%20` would be encoded again).

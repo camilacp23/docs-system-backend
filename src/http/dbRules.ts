@@ -84,6 +84,7 @@ const PRIMARY_KEY_TABLES = [
   'report',
   'report_file',
   'audit_log',
+  'onboarding_progress',
 ] as const;
 
 const DEPENDENCY_TARGET: ConstraintRule = {
@@ -141,6 +142,7 @@ const RULES: Record<string, ConstraintRule> = {
   screen_name_not_blank_chk: notBlank('name'),
   screen_miro_link_https_chk: check('miroLink', 'Must start with https://.'),
   variable_name_not_blank_chk: notBlank('name'),
+  variable_origin_used_in_chk: check('originUsedIn', 'Must not be blank or "origin".'),
   collection_name_not_blank_chk: notBlank('name'),
   component_name_not_blank_chk: notBlank('components[].name'),
   component_type_not_blank_chk: notBlank('components[].type'),
@@ -179,10 +181,14 @@ const RULES: Record<string, ConstraintRule> = {
   audit_log_action_chk: internal('AUDIT_LOG'),
   audit_log_event_name_chk: internal('AUDIT_LOG'),
   audit_log_entity_type_chk: internal('AUDIT_LOG'),
+  // The contract validates the step (1 to 5) before the service runs; a value outside the range is a defect (D-149).
+  onboarding_progress_step_chk: internal('ONBOARDING_STEP'),
 
   // ---- FOREIGN KEY (23503; RESTRICT on delete arrives as 23001 and is a defect, D-65)
   documented_element_application_id_fkey: notFound('application'),
   report_application_id_fkey: notFound('application'),
+  // The service checks that the application exists first; this is the fallback for one that disappears in between.
+  onboarding_progress_application_id_fkey: notFound('application'),
   variable_origin_screen_id_fkey: notFound('screen'),
   component_screen_id_fkey: notFound('screen'),
   screen_variable_screen_id_fkey: notFound('screen'),
@@ -206,6 +212,7 @@ const RULES: Record<string, ConstraintRule> = {
   jira_ticket_created_by_fkey: internal('ACTOR_REFERENCE'),
   comment_user_id_fkey: internal('ACTOR_REFERENCE'),
   report_generated_by_fkey: internal('ACTOR_REFERENCE'),
+  onboarding_progress_user_id_fkey: internal('ACTOR_REFERENCE'),
   audit_log_actor_user_id_fkey: internal('ACTOR_REFERENCE'),
   screen_id_element_type_application_id_fkey: internal('COMPOSITE_KEY'),
   variable_id_element_type_application_id_fkey: internal('COMPOSITE_KEY'),

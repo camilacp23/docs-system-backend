@@ -23,7 +23,7 @@ import {
 } from '../helpers/screens.js';
 import { asUser } from '../helpers/users.js';
 
-const FORMAT = /^W\/"\d+-\d+-\d+"$/;
+const FORMAT = /^W\/"\d+-\d+-\d+-[0-9a-f]{8}"$/;
 /** The `updatedAt` part of a screen ETag. */
 const msOf = (etag: string): string => /^W\/"(\d+)-/.exec(etag)![1]!;
 
@@ -66,7 +66,8 @@ describe('ETag of a screen with its counters (D-101)', () => {
       const first = await read(screen.id);
       assert.equal(first.status, 200);
       const data = screenOf(first);
-      assert.equal(first.headers.etag, `W/"${new Date(data.updatedAt).getTime()}-0-0"`);
+      assert.match(String(first.headers.etag), FORMAT);
+      assert.ok(String(first.headers.etag).startsWith(`W/"${new Date(data.updatedAt).getTime()}-0-0-`));
       assert.equal((await read(screen.id, String(first.headers.etag))).status, 304);
       assert.equal(await etagNow(screen.id), first.headers.etag, 'stable while nothing changes');
     });
@@ -82,17 +83,17 @@ describe('ETag of a screen with its counters (D-101)', () => {
       assert.equal(created.status, 201, JSON.stringify(created.body));
       const after = await assertMoved(screen.id, before);
       assert.equal(msOf(after), msOf(before), 'updated_at did not move: only the counter did');
-      assert.match(after, /-1-0"$/);
+      assert.match(after, /-1-0-[0-9a-f]{8}"$/);
     });
 
     it('changes when a refresh changes the state of a Subtask', async () => {
       const a = await arrange(t, 2);
       const before = await etagNow(a.screenId);
-      assert.match(before, /-2-0"$/);
+      assert.match(before, /-2-0-[0-9a-f]{8}"$/);
       await t.control(`/__sim/issues/${a.subtasks[0]!.key}/status`, { category: 'done' });
       assert.equal((await refresh(a.screenId)).status, 200);
       const after = await assertMoved(a.screenId, before);
-      assert.match(after, /-1-0"$/);
+      assert.match(after, /-1-0-[0-9a-f]{8}"$/);
       // A refresh that changes nothing leaves the ETag, so the client still gets its 304.
       assert.equal((await refresh(a.screenId)).status, 200);
       assert.equal(await etagNow(a.screenId), after);
@@ -110,7 +111,7 @@ describe('ETag of a screen with its counters (D-101)', () => {
       const body = updatedBody(a.subtasks[0]!, { status: statusField('done') }, synced + 5);
       assert.equal((await postSigned(t, body)).status, 204);
       const after = await assertMoved(a.screenId, before);
-      assert.match(after, /-1-0"$/);
+      assert.match(after, /-1-0-[0-9a-f]{8}"$/);
     });
 
     it('changes when a comment is added', async () => {
@@ -119,7 +120,7 @@ describe('ETag of a screen with its counters (D-101)', () => {
       const before = await etagNow(screen.id);
       await insertComments(t, screen.id, 1);
       const after = await assertMoved(screen.id, before);
-      assert.match(after, /-0-1"$/);
+      assert.match(after, /-0-1-[0-9a-f]{8}"$/);
     });
 
     it('changes when the screen changes, and the answers of POST, PUT and /status carry the same ETag as GET', async () => {
@@ -168,7 +169,7 @@ describe('ETag of a screen with its counters (D-101)', () => {
       );
       assert.equal(res.status, 200, JSON.stringify(res.body));
       assert.equal(res.headers.etag, await etagNow(screen.id));
-      assert.match(String(res.headers.etag), /-0-2"$/);
+      assert.match(String(res.headers.etag), /-0-2-[0-9a-f]{8}"$/);
     });
 
     it('also for a Jira ticket created between the read and the save', async () => {

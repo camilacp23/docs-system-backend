@@ -1,0 +1,19 @@
+info:
+  name: '50 Read · list published=false as Developer: only the PDF'
+  type: http
+  seq: 50
+http:
+  method: GET
+  url: '{{baseUrl}}/reports?applicationId={{repAppId}}&published=false'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{repDevToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the report that is not published", function () { expect(res.body.data.map(function (r) { return r.id; })).to.deep.equal([bru.getVar("repPdfId")]); });
+settings:
+  encodeUrl: true

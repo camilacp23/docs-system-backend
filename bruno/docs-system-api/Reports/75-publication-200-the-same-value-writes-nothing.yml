@@ -1,0 +1,23 @@
+info:
+  name: '75 Publication · 200 the same value writes nothing'
+  type: http
+  seq: 75
+http:
+  method: PUT
+  url: '{{baseUrl}}/reports/{{repPdfId}}/publication'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{repAdminToken}}'
+  body:
+    type: json
+    data: |-
+      { "isPublished": true }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("the same ETag and updatedAt", function () { expect(res.headers["etag"]).to.equal(bru.getVar("repPdfEtag2")); expect(res.body.data.updatedAt).to.equal(bru.getVar("repPdfUpdatedAt2")); });
+settings:
+  encodeUrl: true

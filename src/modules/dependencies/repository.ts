@@ -36,12 +36,20 @@ export type DependenciesRepository = {
   readApplicationGraph(applicationId: number, environment?: string): Promise<GraphSnapshot | null>;
   /** The graph of the application that owns the element `type:id`, or `null` when the element does not exist. */
   readElementGraph(type: NodeType, id: number): Promise<GraphSnapshot | null>;
+  /**
+   * The graph of an application read on `client`, the transaction of the caller (the same statements the endpoint runs
+   * in its own snapshot), or `null` when the application does not exist. The caller owns the snapshot.
+   */
+  readApplicationGraphOn(client: GraphClient, applicationId: number): Promise<GraphSnapshot | null>;
 };
 
 type Tx = Prisma.TransactionClient;
 
+/** The client the graph is read on: the transaction of the caller (the module's own snapshot, or another module's). */
+export type GraphClient = Pick<Tx, '$queryRaw' | '$queryRawUnsafe'>;
+
 /** The document of `graph.sql` for one application. */
-async function readGraph(tx: Tx, applicationId: number): Promise<RawGraph> {
+async function readGraph(tx: GraphClient, applicationId: number): Promise<RawGraph> {
   const rows = await tx.$queryRawUnsafe<{ graph: RawGraph | string }[]>(GRAPH_SQL, applicationId);
   const graph = rows[0]?.graph;
   if (graph === undefined) throw new Error('the graph query returned no row');
@@ -49,13 +57,19 @@ async function readGraph(tx: Tx, applicationId: number): Promise<RawGraph> {
 }
 
 /** Keys of the variables and collections of the application that exist in `environment`. */
-async function readEnvironmentKeys(tx: Tx, applicationId: number, environment: string): Promise<Set<string>> {
+async function readEnvironmentKeys(tx: GraphClient, applicationId: number, environment: string): Promise<Set<string>> {
   const rows = await tx.$queryRaw<{ id: number; type: string }[]>`
     SELECT ee.element_id AS id, ee.element_type::text AS type
       FROM element_environment ee
       JOIN documented_element e ON e.id = ee.element_id
      WHERE e.application_id = ${applicationId} AND ee.environment = ${environment}::environment`;
   return new Set(rows.map((row) => `${row.type.toLowerCase()}:${row.id}`));
+}
+
+/** The id of the application if it exists, else `null`. */
+async function findApplication(tx: GraphClient, applicationId: number): Promise<number | null> {
+  const rows = await tx.$queryRaw<{ id: number }[]>`SELECT id FROM application WHERE id = ${applicationId}`;
+  return rows[0]?.id ?? null;
 }
 
 /**
@@ -89,10 +103,14 @@ export function createDependenciesRepository(
 
   return {
     readApplicationGraph: (applicationId, environment) =>
-      snapshot(async (tx) => {
-        const rows = await tx.$queryRaw<{ id: number }[]>`SELECT id FROM application WHERE id = ${applicationId}`;
-        return rows[0]?.id ?? null;
-      }, environment),
+      snapshot((tx) => findApplication(tx, applicationId), environment),
+
+    readApplicationGraphOn: async (client, applicationId) => {
+      const found = await findApplication(client, applicationId);
+      return found === null
+        ? null
+        : { applicationId: found, graph: await readGraph(client, found), inEnvironment: undefined };
+    },
 
     readElementGraph: (type, id) =>
       snapshot(async (tx) => {

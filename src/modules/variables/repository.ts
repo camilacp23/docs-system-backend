@@ -52,6 +52,8 @@ export type VariableSummaryView = {
 /** A variable as `GET`, `POST` and `PUT` return it (contract schema `Variable`). */
 export type VariableView = VariableSummaryView & {
   description: string | null;
+  /** Event or property of the origin screen where the variable is created (D-150); `null` without origin screen. */
+  originUsedIn: string | null;
   environmentDetails: EnvironmentDetail[];
 };
 
@@ -62,6 +64,7 @@ export type VariableData = {
   scope: VariableScope;
   description: string | null;
   originScreenId: number | null;
+  originUsedIn: string | null;
 };
 
 /** Sortable fields of `GET /variables` (the whitelist is the contract's description of `sort`). */
@@ -105,6 +108,7 @@ const VARIABLE_SELECT = {
   dataType: true,
   scope: true,
   description: true,
+  originUsedIn: true,
   createdAt: true,
   updatedAt: true,
   originScreen: { select: { id: true, name: true } },
@@ -133,6 +137,7 @@ const toSummary = (row: Row): VariableSummaryView => ({
 const toView = (row: Row): VariableView => ({
   ...toSummary(row),
   description: row.description,
+  originUsedIn: row.originScreen === null ? null : row.originUsedIn,
   environmentDetails: row.element.environments,
 });
 
@@ -167,10 +172,36 @@ export async function listVariables(
   return [rows.map(toSummary), total];
 }
 
-/** Reads one variable with its environments. */
+/** The variable and its origin screen (one relation, so Prisma sends its statements one after the other). */
+const HEAD_SELECT = {
+  id: true,
+  applicationId: true,
+  name: true,
+  dataType: true,
+  scope: true,
+  description: true,
+  originUsedIn: true,
+  createdAt: true,
+  updatedAt: true,
+  originScreen: { select: { id: true, name: true } },
+} as const;
+
+/**
+ * Reads one variable with its environments.
+ *
+ * `VARIABLE_SELECT` has two relations (origin screen and environments), and Prisma sends the statements of two
+ * relations at once on the connection; inside a transaction that is one connection, where `pg` queues them
+ * (deprecated, a failure in pg 9). So the environments are read apart, after the variable, with the same `ORDER BY`.
+ */
 export async function findVariableById(client: VariablesClient, id: number): Promise<VariableView | null> {
-  const row = await client.variable.findUnique({ where: { id }, select: VARIABLE_SELECT });
-  return row ? toView(row) : null;
+  const head = await client.variable.findUnique({ where: { id }, select: HEAD_SELECT });
+  if (!head) return null;
+  const environments = await client.elementEnvironment.findMany({
+    where: { elementId: id, elementType: 'VARIABLE' },
+    select: { environment: true, notes: true },
+    orderBy: { environment: 'asc' },
+  });
+  return toView({ ...head, element: { environments } });
 }
 
 /** Reads where a variable is created and used: screen links (without the origin row), assignments and components. */
@@ -346,6 +377,7 @@ export async function createVariable(
           dataType: data.dataType,
           scope: data.scope,
           description: data.description,
+          originUsedIn: data.originUsedIn,
           ...(data.originScreenId === null ? {} : { originScreen: { connect: { id: data.originScreenId } } }),
         },
       },

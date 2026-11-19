@@ -1,0 +1,25 @@
+info:
+  name: '43 Edit · 403 AUTHOR_ONLY: not even the Administrator edits the comment of someone else'
+  type: http
+  seq: 43
+http:
+  method: PUT
+  url: '{{baseUrl}}/comments/{{comDevCmtId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{comAdminToken}}'
+    - name: If-Match
+      value: 'W/"1"'
+  body:
+    type: json
+    data: |-
+      { "text": "Not mine either" }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 403", function () { expect(res.status).to.equal(403); });
+        test("the 403 comes before the 412", function () { expect(res.body.details).to.deep.equal({ reason: "AUTHOR_ONLY" }); });
+settings:
+  encodeUrl: true
