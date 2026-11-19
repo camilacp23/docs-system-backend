@@ -38,18 +38,11 @@ export type AuditReport = {
   >;
 };
 
-/** The accepted advisories. Keep this list as short as possible. */
-export const EXCEPTIONS: readonly AuditException[] = [
-  {
-    id: 'GHSA-fc5q-39xc-vjpf',
-    package: 'picomatch',
-    reason:
-      'ReDoS through repeated extglobs. Every published version (up to 4.0.7, the latest) is affected, so there is no ' +
-      'patched release to install. It is reached only by development tools (lint-staged, typescript-eslint, the ' +
-      'Bruno CLI) that match file names of this repository, never by the API at runtime or by user input.',
-    reviewBy: '2027-01-31',
-  },
-];
+/**
+ * The accepted advisories. Keep this list as short as possible: every entry needs the approval of the project owner, a
+ * reason and a review date, and it is removed as soon as `npm audit` stops reporting it (the gate says so).
+ */
+export const EXCEPTIONS: readonly AuditException[] = [];
 
 const BLOCKING = new Set(['high', 'critical']);
 
@@ -100,6 +93,21 @@ export function evaluate(report: AuditReport, exceptions: readonly AuditExceptio
   return { blocking, accepted, stale, overdue };
 }
 
+/**
+ * Parses the output of `npm audit --json`.
+ *
+ * @param stdout - What `npm audit --json` printed.
+ * @returns The report, or `null` when the output is not a report (an `error` entry, no `vulnerabilities`, not JSON).
+ */
+export function parseReport(stdout: string): AuditReport | null {
+  try {
+    const report = JSON.parse(stdout) as AuditReport;
+    return report.error === undefined && report.vulnerabilities !== undefined ? report : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Runs `npm audit --json` and parses it; `null` when the output is not a report. */
 function runAudit(): AuditReport | null {
   // `npm audit` exits 1 when it finds anything, so the exit code is not read: the report is.
@@ -108,25 +116,32 @@ function runAudit(): AuditReport | null {
     shell: process.platform === 'win32',
     maxBuffer: 64 * 1024 * 1024,
   });
-  try {
-    const report = JSON.parse(result.stdout) as AuditReport;
-    return report.error === undefined && report.vulnerabilities !== undefined ? report : null;
-  } catch {
-    return null;
-  }
+  return parseReport(result.stdout);
 }
 
 const describe = (a: Advisory): string => `  - ${a.package} (${a.severity}): ${a.title} [${a.id}]`;
 
-/** Entry point of `npm run audit:gate`; returns the exit code. */
-function main(args: readonly string[]): number {
-  const report = runAudit();
+/**
+ * Entry point of `npm run audit:gate`: 0 = no blocking advisory, 1 = blocking advisories, 2 = no usable report.
+ *
+ * @param args - Command line arguments (`--strict` ignores the exceptions).
+ * @param audit - Source of the report (default: runs `npm audit`); injected by the tests.
+ * @param exceptions - The accepted advisories (default {@link EXCEPTIONS}); injected by the tests.
+ * @param today - `YYYY-MM-DD` (default: today).
+ */
+export function main(
+  args: readonly string[],
+  audit: () => AuditReport | null = runAudit,
+  exceptions: readonly AuditException[] = EXCEPTIONS,
+  today: string = new Date().toISOString().slice(0, 10),
+): number {
+  const report = audit();
   if (report === null) {
     console.error('audit gate: npm audit gave no usable report (registry or network error); failing closed.');
     return 2;
   }
   const strict = args.includes('--strict');
-  const verdict = evaluate(report, strict ? [] : EXCEPTIONS, new Date().toISOString().slice(0, 10));
+  const verdict = evaluate(report, strict ? [] : exceptions, today);
   if (verdict.accepted.length > 0) {
     console.log('Accepted advisories (no patched version exists; see EXCEPTIONS in scripts/auditGate.ts):');
     for (const a of verdict.accepted) console.log(describe(a));

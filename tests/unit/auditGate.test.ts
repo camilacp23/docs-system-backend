@@ -1,14 +1,16 @@
 /**
  * The rules of the dependency audit gate (`scripts/auditGate.ts`): it blocks on high and critical advisories, accepts
  * only the listed advisory of the listed package, ignores lower severities and transitive entries, and reports stale and
- * overdue exceptions. Unit test over synthetic reports: it never runs `npm audit`.
+ * overdue exceptions, and fails closed when there is no report. The list of real exceptions is empty. Unit test over synthetic reports: it never runs `npm audit`.
  */
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { describe, it, mock } from 'node:test';
 import {
   collectAdvisories,
   evaluate,
   EXCEPTIONS,
+  main,
+  parseReport,
   type AuditException,
   type AuditReport,
 } from '../../scripts/auditGate.js';
@@ -100,12 +102,95 @@ describe('audit gate', () => {
     assert.deepEqual(evaluate(reportOf(PICOMATCH), [EXCEPTION], '2026-11-18').stale, []);
   });
 
-  it('the real exceptions are well formed: a GHSA id, a reason and a review date', () => {
-    assert.ok(EXCEPTIONS.length > 0);
+  it('the real list of exceptions is empty, and each entry that is ever added must be well formed', () => {
+    assert.equal(EXCEPTIONS.length, 0);
     for (const exception of EXCEPTIONS) {
       assert.match(exception.id, /^GHSA(-[a-z0-9]{4}){3}$/);
       assert.match(exception.reviewBy, /^\d{4}-\d{2}-\d{2}$/);
       assert.ok(exception.package.length > 0 && exception.reason.length > 40);
     }
+  });
+
+  it('with an empty list a high advisory blocks, and a report with nothing in it has nothing stale or overdue', () => {
+    assert.equal(evaluate(reportOf(PICOMATCH), EXCEPTIONS, '2026-11-18').blocking.length, 1);
+    const clean = evaluate({ vulnerabilities: {} }, EXCEPTIONS, '2026-11-18');
+    assert.deepEqual([clean.blocking, clean.accepted, clean.stale, clean.overdue], [[], [], [], []]);
+  });
+
+  it('an exception that matches nothing in the report is stale and covers no other advisory', () => {
+    const other = advisory('left-pad', 'GHSA-aaaa-bbbb-cccc', 'high');
+    const verdict = evaluate(reportOf(other), [EXCEPTION], '2026-11-18');
+    assert.deepEqual(verdict.stale, [EXCEPTION]);
+    assert.deepEqual(verdict.accepted, []);
+    assert.equal(verdict.blocking.length, 1);
+  });
+
+  describe('main (exit codes)', () => {
+    const quiet = () => {
+      mock.method(console, 'log', () => undefined);
+      mock.method(console, 'warn', () => undefined);
+      mock.method(console, 'error', () => undefined);
+    };
+
+    it('fails closed (2) when npm audit gave no usable report', () => {
+      quiet();
+      try {
+        assert.equal(
+          main([], () => null, [], '2026-11-18'),
+          2,
+        );
+        // Even with an exception that would cover everything: no report, no pass.
+        assert.equal(
+          main([], () => null, [EXCEPTION], '2026-11-18'),
+          2,
+        );
+      } finally {
+        mock.restoreAll();
+      }
+    });
+
+    it('passes (0) a clean report with an empty list, and fails (1) a high advisory nobody accepted', () => {
+      quiet();
+      try {
+        assert.equal(
+          main([], () => ({ vulnerabilities: {} }), [], '2026-11-18'),
+          0,
+        );
+        assert.equal(
+          main([], () => reportOf(PICOMATCH), [], '2026-11-18'),
+          1,
+        );
+      } finally {
+        mock.restoreAll();
+      }
+    });
+
+    it('passes (0) an advisory with a valid exception, still passes an overdue one, and --strict ignores the list', () => {
+      quiet();
+      try {
+        assert.equal(
+          main([], () => reportOf(PICOMATCH), [EXCEPTION], '2026-11-18'),
+          0,
+        );
+        assert.equal(
+          main([], () => reportOf(PICOMATCH), [EXCEPTION], '2027-02-01'),
+          0,
+        );
+        assert.equal(
+          main(['--strict'], () => reportOf(PICOMATCH), [EXCEPTION], '2026-11-18'),
+          1,
+        );
+      } finally {
+        mock.restoreAll();
+      }
+    });
+  });
+
+  it('parseReport accepts a report and rejects an error entry, a missing list and text that is not JSON', () => {
+    assert.deepEqual(parseReport('{"vulnerabilities":{}}'), { vulnerabilities: {} });
+    assert.equal(parseReport('{"error":{"code":"ENOTFOUND"}}'), null);
+    assert.equal(parseReport('{"metadata":{}}'), null);
+    assert.equal(parseReport('<html>502</html>'), null);
+    assert.equal(parseReport(''), null);
   });
 });
