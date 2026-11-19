@@ -106,7 +106,7 @@ describe('screens: PUT /screens/{id}/status', () => {
           assert.equal(body.documentationStatus, to);
           assert.equal(body.template.onStart, 'o');
           assert.ok(Array.isArray(body.components));
-          assert.match(String(res.headers.etag), /^W\/"\d+-\d+-\d+"$/);
+          assert.match(String(res.headers.etag), /^W\/"\d+-\d+-\d+-[0-9a-f]{8}"$/);
           assert.notEqual(res.headers.etag, etag);
           assert.equal(res.headers.etag, String((await dev().get(`/screens/${screen.id}`)).headers.etag));
         }

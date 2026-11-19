@@ -163,7 +163,7 @@ export type VariableLinkView = {
   accessMode: AccessMode;
   usedIn: string;
   isOrigin: boolean;
-  /** Only on the origin row: where the variable is created in this screen, as the variables module stores it (D-134). */
+  /** Only on the origin row: where the variable is created in this screen, as the variables module stores it (D-150). */
   originUsedIn: string | null;
 };
 

@@ -1,5 +1,5 @@
 /**
- * Where a variable is created inside its origin screen (D-134): the optional `originUsedIn` of `POST` and `PUT
+ * Where a variable is created inside its origin screen (D-150): the optional `originUsedIn` of `POST` and `PUT
  * /variables`, how a screen shows it in its `origin` row, and that the `origin` row itself (the marker of the
  * origin) is never touched by it.
  */
@@ -28,7 +28,7 @@ import {
 
 type AuditRow = { action: string; changed_fields: string[] | null };
 
-describe('variables: originUsedIn (D-134)', () => {
+describe('variables: originUsedIn (D-150)', () => {
   let t: TestApp;
   let app: { id: number; name: string };
   let s1: { id: number; name: string };

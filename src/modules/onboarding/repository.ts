@@ -1,5 +1,5 @@
 /**
- * Queries of the onboarding summary (FR-25, D-124), which are read only, and of the progress of a user (D-133), which are
+ * Queries of the onboarding summary (FR-25, D-124), which are read only, and of the progress of a user (D-149), which are
  * plain functions on the client they receive.
  *
  * One read is one snapshot: a `REPEATABLE READ` transaction opened `READ ONLY`, one statement after the other on the

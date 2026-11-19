@@ -1,0 +1,34 @@
+info:
+  name: '36 ETag · 412 an If-Match with another updatedAt is still a 412 with the full tag'
+  type: http
+  seq: 36
+http:
+  method: PUT
+  url: '{{baseUrl}}/screens/{{lkMainId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{lkDevToken}}'
+    - name: If-Match
+      value: 'W/"1000-0-0-0a1b2c3d"'
+  body:
+    type: json
+    data: |-
+      {
+        "name": "{{lkPrefix}}Main",
+        "miroLink": null,
+        "template": { "onStart": null, "workingProcess": null, "architecture": null, "dataModel": null, "requirements": null, "knownIssues": null, "risks": null },
+        "components": [],
+        "variableLinks": [{ "id": {{lkLinkId}}, "variableId": {{lkLinkedId}}, "accessMode": "READ", "usedIn": "lblName.Text" }],
+        "collectionLinks": [],
+        "navigations": [{ "id": {{lkNavId}}, "targetScreenId": {{lkTargetId}}, "description": null }]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 412", function () { expect(res.status).to.equal(412); });
+        test("code, message and details", function () { expect(res.body.code).to.equal("PRECONDITION_FAILED"); expect(res.body.message).to.equal("Someone else saved changes to this screen after you opened it. Reload to see their version."); expect(res.body.details).to.deep.equal({ element: "screen", currentETag: bru.getVar("lkEtag1") }); });
+        test("the answer is UTF-8", function () { expect(String(res.headers["content-type"]).toLowerCase()).to.contain("charset=utf-8"); });
+settings:
+  encodeUrl: true

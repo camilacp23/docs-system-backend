@@ -1,6 +1,7 @@
 /** loadConfig: types, ranges and formats of every variable of .env.example. */
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 import { ConfigError, loadConfig } from '../../src/config/index.js';
 
@@ -145,6 +146,30 @@ describe('loadConfig: the report worker (D-44, D-119)', () => {
       maxRows: 50_000,
       shutdownGraceMs: 8_000,
     });
+  });
+
+  it('the commented production examples of .env.example are valid, safe values', () => {
+    const text = readFileSync(new URL('../../.env.example', import.meta.url), 'utf8');
+    const section = text.slice(text.indexOf('# --- Production (examples'));
+    const examples = Object.fromEntries([...section.matchAll(/^# {3}([A-Z_]+)=(.*)$/gm)].map((m) => [m[1]!, m[2]!]));
+    assert.deepEqual(Object.keys(examples), [
+      'NODE_ENV',
+      'PORT',
+      'LOG_LEVEL',
+      'TRUST_PROXY',
+      'REPORT_WORKER_ENABLED',
+      'REPORT_WORKER_POLL_MS',
+      'REPORT_MAX_SECONDS',
+      'REPORT_MAX_BYTES',
+      'REPORT_MAX_MEMORY_MB',
+      'REPORT_MAX_ROWS',
+      'REPORT_SHUTDOWN_GRACE_MS',
+    ]);
+    const c = loadConfig({ ...valid(), FRONTEND_ORIGIN: 'https://docs.example.test', ...examples });
+    assert.equal(c.nodeEnv, 'production');
+    assert.equal(c.trustProxy, 1, 'a number of proxies, never true');
+    assert.equal(c.reports.maxMemoryMb, 192);
+    assert.doesNotMatch(text, /^TRUST_PROXY=true|^# +TRUST_PROXY=true/m);
   });
 
   it('reads every variable of .env.example', () => {

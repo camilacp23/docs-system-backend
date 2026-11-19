@@ -14,6 +14,6 @@ runtime:
     - type: tests
       code: |-
         test("status 200", function () { expect(res.status).to.equal(200); });
-        test("five comments, same updatedAt, new tag", function () { expect(res.body.data.commentCount).to.equal(5); expect(res.body.data.updatedAt).to.equal(bru.getVar("comScrUpdatedAt")); expect(res.headers["etag"]).to.not.equal(bru.getVar("comScrEtag")); expect(res.headers["etag"]).to.equal('W/"' + new Date(res.body.data.updatedAt).getTime() + '-0-5"'); });
+        test("five comments, same updatedAt, new tag", function () { expect(res.body.data.commentCount).to.equal(5); expect(res.body.data.updatedAt).to.equal(bru.getVar("comScrUpdatedAt")); expect(res.headers["etag"]).to.not.equal(bru.getVar("comScrEtag")); expect(res.headers["etag"].indexOf('W/"' + new Date(res.body.data.updatedAt).getTime() + "-0-5-")).to.equal(0); });
 settings:
   encodeUrl: true

@@ -1,0 +1,23 @@
+info:
+  name: '30 ETag · 200 the Reader reads the screen: the tag has four parts'
+  type: http
+  seq: 30
+http:
+  method: GET
+  url: '{{baseUrl}}/screens/{{lkMainId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{lkReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 200) { bru.setVar("lkEtag0", res.headers["etag"]); bru.setVar("lkUpdatedAt0", res.body.data.updatedAt); }
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("W/<updatedAt ms>-<pendingSubtasks>-<commentCount>-<fingerprint>", function () { expect(res.headers["etag"]).to.match(/^W\/"\d+-\d+-\d+-[0-9a-f]{8}"$/); expect(res.headers["etag"].indexOf('W/"' + new Date(res.body.data.updatedAt).getTime() + "-0-0-")).to.equal(0); });
+        test("the linked variable has its name", function () { expect(res.body.data.variableLinks.some(function (l) { return l.variable.name === bru.interpolate("{{lkPrefix}}gLinked"); })).to.equal(true); });
+settings:
+  encodeUrl: true

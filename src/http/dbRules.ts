@@ -181,7 +181,7 @@ const RULES: Record<string, ConstraintRule> = {
   audit_log_action_chk: internal('AUDIT_LOG'),
   audit_log_event_name_chk: internal('AUDIT_LOG'),
   audit_log_entity_type_chk: internal('AUDIT_LOG'),
-  // The contract validates the step (1 to 5) before the service runs; a value outside the range is a defect (D-133).
+  // The contract validates the step (1 to 5) before the service runs; a value outside the range is a defect (D-149).
   onboarding_progress_step_chk: internal('ONBOARDING_STEP'),
 
   // ---- FOREIGN KEY (23503; RESTRICT on delete arrives as 23001 and is a defect, D-65)

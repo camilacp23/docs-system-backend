@@ -1,0 +1,35 @@
+info:
+  name: '20 Origin · 201 created with originScreenId and originUsedIn'
+  type: http
+  seq: 20
+http:
+  method: POST
+  url: '{{baseUrl}}/variables'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{lkDevToken}}'
+  body:
+    type: json
+    data: |-
+      {
+        "applicationId": {{lkAppId}},
+        "name": "{{lkPrefix}}gOrigin",
+        "dataType": "TEXT",
+        "scope": "GLOBAL",
+        "originScreenId": {{lkMainId}},
+        "originUsedIn": "OnVisible",
+        "environments": [{ "environment": "DEV" }]
+      }
+  auth: inherit
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) { bru.setVar("lkOriginId", res.body.data.id); }
+    - type: tests
+      code: |-
+        test("status 201", function () { expect(res.status).to.equal(201); });
+        test("the answer is UTF-8", function () { expect(String(res.headers["content-type"]).toLowerCase()).to.contain("charset=utf-8"); });
+        test("the variable returns where it is created", function () { const d = res.body.data; expect(d.originUsedIn).to.equal("OnVisible"); expect(d.originScreen.id).to.equal(Number(bru.getVar("lkMainId"))); expect(d.scope).to.equal("GLOBAL"); });
+settings:
+  encodeUrl: true

@@ -1,7 +1,7 @@
 # docs-system-api (Bruno collection)
 
 Requests and assertions for every implemented operation, grouped by module: `Auth`, `Users`, `Applications`,
-`Screens`, `Variables`, `Collections`, `Jira`, `Dependencies`, `Audit`, `Search`, `Dashboard`, `Reports`, `Comments` and `Onboarding` (927 executions and 2184
+`Screens`, `Variables`, `Collections`, `Jira`, `Dependencies`, `Audit`, `Search`, `Dashboard`, `Reports`, `Comments`, `Onboarding`, `OnboardingProgress` and `LinkedItems` (about 1000 executions, 998 in the last run, and 2327
 assertions in all; the polling requests of `Reports` run more than once). It runs against the isolated database
 `docs_sandbox`, never against `docs_system`.
 
@@ -227,7 +227,7 @@ the API does it: `POST /screens/{id}/review` with RETURN on a screen that the De
 | 20-27    | `POST`: 401, 400 for whitespace and for an empty text with an unknown field, 404, 400 before 404, and the 201 of the three roles on a screen `IN_REVIEW` (the tag is the one of `createdAt`, there is NO `Location`, the text is stored as written) |
 | 30       | The review comment: the Administrator returns the screen with a comment |
 | 31-36    | `GET`: the thread oldest first with the review comment and its `reviewDecision`, 304 with the hash `ETag`, paging, 400, 404, 401 |
-| 40-49    | `PUT`: 400, 404, 403 `AUTHOR_ONLY` (the Administrator too), 412 with `currentETag`, 412 before 422, 422 `REVIEW_COMMENT_LOCKED`, the edit with `If-Match` (`updatedAt` set, new tag), the same text that writes nothing, 412 for the same text with an old tag |
+| 40-49    | `PUT`: 400, 404, 403 `AUTHOR_ONLY` (the Administrator too), 412 with `currentETag`, 412 before 422, 422 `REVIEW_COMMENT_LOCKED` (`details` null, UTF-8), the edit with `If-Match` (`updatedAt` set, new tag), the same text that writes nothing, 412 for the same text with an old tag |
 | 50-54    | The screen: a comment changes its tag (`commentCount`) but not its `updatedAt`, the old tag no longer gives a 304, and a `PUT /screens/{id}` with the `If-Match` read before the comment is a 200 |
 | 60-64    | Archived application: the comment and the edit are 422 `APPLICATION_ARCHIVED`, 403 comes first for someone else, and the thread can still be read |
 | 100-103  | Cleanup: deletes the first screen (its comments go with it), archives the first application and checks that the second one stays archived |
@@ -288,3 +288,56 @@ API_FIRST_PASS="Onboarding/0?-*.yml Onboarding/1?-*.yml Onboarding/2?-*.yml Onbo
 
 The first pass stops after the exact body was read (setup done, no cleanup, the application still active), and the second
 pass, with its own users, applications and prefix, passes.
+
+## OnboardingProgress folder
+
+40 requests (`seq` 15, after `Onboarding`; 85 assertions). The progress of the onboarding is personal, so the folder logs in the
+administrator and creates a Developer and a Reader with random e-mails, plus two applications of its own (a name with accents
+and a `ñ`, and one that is archived during the run). Every JSON answer is checked to be UTF-8 and every error request checks
+`code`, `message` and `details`.
+
+| Requests | Covers |
+| -------- | ------ |
+| 01-07    | Setup: users, the run application and the application that is archived later |
+| 10-12    | `GET`: 401, 200 with no progress (`totalSteps` 5, `completedSteps` empty, an `ETag`) and 304 |
+| 20-27    | `PUT`: the Developer completes step 2, the same step again changes nothing, step 1 comes back ascending, the Developer reads their steps and gets a 304; the administrator still has none (it is personal); the Reader may complete step 3 and reads it |
+| 30-33    | `DELETE`: 204, 204 again (idempotent), the Developer is empty and the Reader keeps step 3 |
+| 40-47    | 400 for step 0 and step 6 (`minimum` and `maximum` on `step`) and for a missing `applicationId`, 400 before 404, 404 for an application that does not exist in `GET`, `PUT` and `DELETE`, 401 before 400 |
+| 50-54    | Archived application: a step is completed, read and reset on it, because the progress is not documentation |
+| 60       | Sandbox Fixtures: the Developer of the run has no progress there (nothing is written) |
+| 100-103  | Cleanup: the Reader starts over, nobody has progress left, the run application is archived, and Sandbox Fixtures is untouched |
+
+An application cannot be deleted, so each run leaves two archived applications with a random name that no later run reads.
+`npm run test:api` recreates and drops `docs_sandbox` on every run. An interrupted run is simulated with `API_FIRST_PASS`:
+
+```bash
+API_FIRST_PASS="OnboardingProgress/0?-*.yml OnboardingProgress/1?-*.yml OnboardingProgress/2?-*.yml OnboardingProgress/30-*.yml" npm run test:api -- OnboardingProgress
+```
+
+The first pass stops after the Developer's progress was reset (setup done, rows written, no cleanup, both applications active),
+and the second pass, with its own users, applications and prefix, passes.
+
+## LinkedItems folder
+
+29 requests (`seq` 16, after `OnboardingProgress`; 57 assertions). It covers what a screen shows that belongs to other rows: where
+a variable is created in its origin screen (`originUsedIn`) and the `ETag` of the screen after a linked item changes. It logs in the
+administrator, creates a Developer and a Reader with random e-mails and an application of its own (a name with accents and a `ñ`),
+and names what it creates with a random prefix that starts with a letter. Every JSON answer is checked to be UTF-8 and every error
+request checks `code`, `message` and `details`. Sandbox Fixtures is only read.
+
+| Requests | Covers |
+| -------- | ------ |
+| 01-09    | Setup: users, the run application, screen `Target`, a `GLOBAL` variable and screen `Main`, which links the variable and navigates to `Target` |
+| 20-25    | `originUsedIn`: a variable created with `originScreenId` and `originUsedIn` returns it; the origin row of `variableLinks` in the screen shows it and the other link does not (`null`); 400 without `originScreenId` (rule `requires`, with its exact message); removing the origin screen leaves it `null` |
+| 30-36    | `ETag` of the screen: four parts, 304 when nothing changed; after the linked variable is renamed the previous `If-None-Match` answers 200 with the new name (same `updatedAt`, new fingerprint) and the new tag answers 304; a `PUT /screens/{id}` with the `If-Match` read before the rename is a 200, and one with another `updatedAt` is still a 412 |
+| 100-106  | Cleanup: deletes the screens and the variables, lists with `q=<prefix>` that `total` is 0, archives the run application and checks that Sandbox Fixtures is untouched |
+
+An application cannot be deleted, so each run leaves one archived application with a random name that no later run reads. An
+interrupted run is simulated with `API_FIRST_PASS`:
+
+```bash
+API_FIRST_PASS="LinkedItems/0?-*.yml LinkedItems/2?-*.yml LinkedItems/30-*.yml LinkedItems/31-*.yml LinkedItems/32-*.yml" npm run test:api -- LinkedItems
+```
+
+The first pass stops after the linked variable was renamed (setup done, the origin removed, no cleanup, the application still
+active), and the second pass, with its own users, application and prefix, passes.

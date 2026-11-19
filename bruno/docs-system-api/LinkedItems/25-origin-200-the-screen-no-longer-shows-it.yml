@@ -1,0 +1,19 @@
+info:
+  name: '25 Origin · 200 the screen no longer shows an originUsedIn for that variable'
+  type: http
+  seq: 25
+http:
+  method: GET
+  url: '{{baseUrl}}/screens/{{lkMainId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{lkReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("no row of the variable carries originUsedIn", function () { const rows = res.body.data.variableLinks.filter(function (l) { return l.variable.id === Number(bru.getVar("lkOriginId")); }); rows.forEach(function (l) { expect(l.originUsedIn).to.equal(null); expect(l.isOrigin).to.equal(false); }); });
+settings:
+  encodeUrl: true

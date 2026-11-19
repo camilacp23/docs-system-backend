@@ -52,7 +52,7 @@ export type VariableSummaryView = {
 /** A variable as `GET`, `POST` and `PUT` return it (contract schema `Variable`). */
 export type VariableView = VariableSummaryView & {
   description: string | null;
-  /** Event or property of the origin screen where the variable is created (D-134); `null` without origin screen. */
+  /** Event or property of the origin screen where the variable is created (D-150); `null` without origin screen. */
   originUsedIn: string | null;
   environmentDetails: EnvironmentDetail[];
 };

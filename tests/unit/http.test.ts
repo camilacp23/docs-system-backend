@@ -8,6 +8,7 @@ import {
   etagOf,
   etagOfJson,
   screenEtagOf,
+  screenFingerprintOf,
   setEtag,
   setLocation,
 } from '../../src/http/etag.js';
@@ -61,18 +62,62 @@ describe('ETag and If-Match', () => {
     assert.equal(thrown(() => assertIfMatch(reqWith('"2"'), 'screen', 'W/"2"')).status, 412); // exact comparison
   });
 
-  it('builds the ETag of a screen from updatedAt and the two counters (D-101)', () => {
-    const base = { updatedAt: new Date(1727548800123), pendingSubtasks: 3, commentCount: 5 };
-    assert.equal(screenEtagOf(base), 'W/"1727548800123-3-5"');
-    assert.equal(screenEtagOf({ ...base, updatedAt: '2024-09-28T18:40:00.123Z' }), 'W/"1727548800123-3-5"');
-    assert.notEqual(screenEtagOf({ ...base, pendingSubtasks: 2 }), screenEtagOf(base));
-    assert.notEqual(screenEtagOf({ ...base, commentCount: 6 }), screenEtagOf(base));
+  /** A screen as the API returns it, with an item of every kind that comes from another row (D-153). */
+  const screenOf = () => ({
+    updatedAt: new Date(1727548800123),
+    pendingSubtasks: 3,
+    commentCount: 5,
+    author: { id: 1, name: 'Ana' },
+    components: [{ uses: [{ id: 10, targetType: 'VARIABLE', target: { id: 7, name: 'gA' } }] }],
+    variableLinks: [
+      { id: 20, variable: { id: 7, name: 'gA' }, isOrigin: false, originUsedIn: null },
+      { id: 21, variable: { id: 8, name: 'gOrigin' }, isOrigin: true, originUsedIn: 'OnStart' },
+    ],
+    collectionLinks: [{ id: 30, collection: { id: 4, name: 'colA' } }],
+    navigations: [{ id: 40, targetScreen: { id: 9, name: 'Home' } }],
   });
 
-  it('If-Match of a screen compares only the updatedAt part and accepts the former format (D-101)', () => {
-    const current = 'W/"2000-3-5"';
+  it('builds the ETag of a screen from updatedAt, the two counters and a fingerprint (D-153)', () => {
+    const base = screenOf();
+    const etag = screenEtagOf(base);
+    assert.match(etag, /^W\/"1727548800123-3-5-[0-9a-f]{8}"$/);
+    assert.equal(screenEtagOf({ ...base, updatedAt: '2024-09-28T18:40:00.123Z' }), etag);
+    assert.notEqual(screenEtagOf({ ...base, pendingSubtasks: 2 }), etag);
+    assert.notEqual(screenEtagOf({ ...base, commentCount: 6 }), etag);
+  });
+
+  it('the fingerprint is stable, ignores the order of the arrays and changes with every item of another row', () => {
+    const base = screenOf();
+    const fingerprint = screenFingerprintOf(base);
+    assert.match(fingerprint, /^[0-9a-f]{8}$/);
+    assert.equal(screenFingerprintOf(screenOf()), fingerprint, 'stable');
+    assert.equal(screenFingerprintOf({ ...base, variableLinks: [...base.variableLinks].reverse() }), fingerprint);
+    const changes: Record<string, ReturnType<typeof screenOf>> = {
+      author: { ...base, author: { id: 1, name: 'Ana María' } },
+      use: { ...base, components: [{ uses: [{ id: 10, targetType: 'VARIABLE', target: { id: 7, name: 'gB' } }] }] },
+      variable: {
+        ...base,
+        variableLinks: [{ ...base.variableLinks[0]!, variable: { id: 7, name: 'gB' } }, base.variableLinks[1]!],
+      },
+      originUsedIn: {
+        ...base,
+        variableLinks: [base.variableLinks[0]!, { ...base.variableLinks[1]!, originUsedIn: 'X' }],
+      },
+      originRemoved: { ...base, variableLinks: [base.variableLinks[0]!] },
+      collection: { ...base, collectionLinks: [{ id: 30, collection: { id: 4, name: 'colB' } }] },
+      navigation: { ...base, navigations: [{ id: 40, targetScreen: { id: 9, name: 'Start' } }] },
+    };
+    for (const [what, changed] of Object.entries(changes)) {
+      assert.notEqual(screenFingerprintOf(changed), fingerprint, what);
+    }
+  });
+
+  it('If-Match of a screen compares only the updatedAt part and accepts the three formats (D-101, D-153)', () => {
+    const current = 'W/"2000-3-5-0a1b2c3d"';
     assertScreenIfMatch(reqWith(undefined), 'screen', current);
-    assertScreenIfMatch(reqWith('W/"2000-3-5"'), 'screen', current);
+    assertScreenIfMatch(reqWith('W/"2000-3-5-0a1b2c3d"'), 'screen', current);
+    assertScreenIfMatch(reqWith('W/"2000-3-5-ffffffff"'), 'screen', current); // another fingerprint: not a 412
+    assertScreenIfMatch(reqWith('W/"2000-3-5"'), 'screen', current); // the format of three parts
     assertScreenIfMatch(reqWith('W/"2000-0-0"'), 'screen', current); // the counters changed: not a 412
     assertScreenIfMatch(reqWith('W/"2000"'), 'screen', current); // former format
     for (const supplied of [
@@ -83,6 +128,10 @@ describe('ETag and If-Match', () => {
       'W/"2000-3"',
       'W/"2000-a-b"',
       'W/"2000-1-2-3"',
+      'W/"2000-3-5-0A1B2C3D"',
+      'W/"2000-3-5-0a1b2c3"',
+      'W/"2000-3-5-0a1b2c3d4"',
+      'W/"2000-3-5-0a1b2c3d-1"',
       '*',
     ]) {
       const e = thrown(() => assertScreenIfMatch(reqWith(supplied), 'screen', current));

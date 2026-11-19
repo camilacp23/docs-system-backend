@@ -17,6 +17,6 @@ runtime:
     - type: tests
       code: |-
         test("status 200", function () { expect(res.status).to.equal(200); });
-        test("four comments in the tag and in the body", function () { expect(res.body.data.commentCount).to.equal(4); expect(res.headers["etag"]).to.equal('W/"' + new Date(res.body.data.updatedAt).getTime() + '-0-4"'); });
+        test("four comments in the tag and in the body", function () { expect(res.body.data.commentCount).to.equal(4); expect(res.headers["etag"]).to.match(/^W\/"\d+-0-4-[0-9a-f]{8}"$/); expect(res.headers["etag"].indexOf('W/"' + new Date(res.body.data.updatedAt).getTime() + "-0-4-")).to.equal(0); });
 settings:
   encodeUrl: true

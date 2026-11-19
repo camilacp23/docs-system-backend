@@ -1,0 +1,19 @@
+info:
+  name: '52 Archived · 200 it is read'
+  type: http
+  seq: 52
+http:
+  method: GET
+  url: '{{baseUrl}}/onboarding/progress?applicationId={{opOtherAppId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{opDevToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("progress of the other application", function () { const d = res.body.data; expect(d.applicationId).to.equal(Number(bru.getVar("opOtherAppId"))); expect(d.totalSteps).to.equal(5); expect(d.completedSteps).to.deep.equal([4]); });
+settings:
+  encodeUrl: true

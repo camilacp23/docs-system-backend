@@ -1,0 +1,19 @@
+info:
+  name: '21 Origin · 200 the variable returns originUsedIn'
+  type: http
+  seq: 21
+http:
+  method: GET
+  url: '{{baseUrl}}/variables/{{lkOriginId}}'
+  headers:
+    - name: Authorization
+      value: 'Bearer {{lkReaderToken}}'
+  auth: inherit
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status 200", function () { expect(res.status).to.equal(200); });
+        test("originUsedIn is OnVisible", function () { expect(res.body.data.originUsedIn).to.equal("OnVisible"); });
+settings:
+  encodeUrl: true

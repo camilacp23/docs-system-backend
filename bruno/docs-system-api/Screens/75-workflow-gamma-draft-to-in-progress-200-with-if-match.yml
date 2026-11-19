@@ -26,6 +26,6 @@ runtime:
       code: |-
         test("status 200", function () { expect(res.status).to.equal(200); });
         test("the status is IN_PROGRESS", function () { expect(res.body.data.documentationStatus).to.equal("IN_PROGRESS"); });
-        test("the ETag is new (D-88)", function () { expect(res.headers["etag"]).to.match(/^W\/"\d+-\d+-\d+"$/); expect(res.headers["etag"]).to.not.equal(bru.getVar("scrCPrev")); });
+        test("the ETag is new (D-88)", function () { expect(res.headers["etag"]).to.match(/^W\/"\d+-\d+-\d+-[0-9a-f]{8}"$/); expect(res.headers["etag"]).to.not.equal(bru.getVar("scrCPrev")); });
 settings:
   encodeUrl: true

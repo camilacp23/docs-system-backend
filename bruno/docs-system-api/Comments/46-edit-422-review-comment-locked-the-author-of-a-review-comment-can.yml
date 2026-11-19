@@ -11,13 +11,14 @@ http:
   body:
     type: json
     data: |-
-      { "text": "Rewritten" }
+      { "text": "Reescrito con ñ y acentos: revisión" }
   auth: inherit
 runtime:
   scripts:
     - type: tests
       code: |-
         test("status 422", function () { expect(res.status).to.equal(422); });
-        test("code and message", function () { expect(res.body.code).to.equal("REVIEW_COMMENT_LOCKED"); expect(res.body.message).to.equal("Review decisions can't be edited."); });
+        test("code, message and details", function () { expect(res.body.code).to.equal("REVIEW_COMMENT_LOCKED"); expect(res.body.message).to.equal("Review decisions can't be edited."); expect(res.body.details).to.equal(null); });
+        test("the answer is UTF-8", function () { expect(String(res.headers["content-type"]).toLowerCase()).to.contain("charset=utf-8"); });
 settings:
   encodeUrl: true
