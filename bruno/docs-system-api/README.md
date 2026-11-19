@@ -1,7 +1,7 @@
 # docs-system-api (Bruno collection)
 
 Requests and assertions for every implemented operation, grouped by module: `Auth`, `Users`, `Applications`,
-`Screens`, `Variables`, `Collections`, `Jira`, `Dependencies`, `Audit`, `Search`, `Dashboard`, `Reports`, `Comments`, `Onboarding`, `OnboardingProgress` and `LinkedItems` (996 executions and 2327
+`Screens`, `Variables`, `Collections`, `Jira`, `Dependencies`, `Audit`, `Search`, `Dashboard`, `Reports`, `Comments`, `Onboarding`, `OnboardingProgress` and `LinkedItems` (about 1000 executions, 998 in the last run, and 2327
 assertions in all; the polling requests of `Reports` run more than once). It runs against the isolated database
 `docs_sandbox`, never against `docs_system`.
 
