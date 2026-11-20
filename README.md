@@ -16,7 +16,7 @@ negociables, Git y definición de terminado. Toda la documentación está en **[
 | `api/` | Contrato OpenAPI 3.1 (`openapi.yaml`, versión 0.5.1, 53 operaciones) y `check_contract_vs_db.py`, que lo compara con la base |
 | `bootstrap/` | `01_roles_and_database.sql`: roles `docs_owner` / `docs_app` y la base; lo ejecuta un DBA una sola vez |
 | `docs/requirements/` | SRS v1.3 (qué debe hacer el sistema) |
-| `docs/design/` | SDD v1.4, el vigente (cómo se construye); lo reemplazará el SDD v1.6 |
+| `docs/design/` | SDD v1.6, el vigente (cómo se construye) |
 | `docs/phase3/` | Decisiones posteriores al SDD (`DECISIONS_FASE3.md`) y plan semanal (`PLAN_SEMANA6.md`) |
 | `docs/phase4/TEST_PLAN.md` | [Plan de pruebas funcionales](docs/phase4/TEST_PLAN.md): alcance, niveles, entornos, criterios y severidad de defectos |
 | `docs/phase4/TRACEABILITY_MATRIX.md` | [Matriz de trazabilidad](docs/phase4/TRACEABILITY_MATRIX.md): cada requisito (FR y NFR) con sus casos de prueba y su resultado |
