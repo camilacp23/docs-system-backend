@@ -22,8 +22,8 @@ count. Counts of files per catalog are in the appendix.
 
 | Result | Requirements |
 | ------ | ------------ |
-| Pass | 39 |
-| Partial | 8 |
+| Pass | 41 |
+| Partial | 6 |
 | Not run | 0 |
 
 ## 2. Partial results and why
@@ -31,15 +31,13 @@ count. Counts of files per catalog are in the appendix.
 | Requirement | Reason |
 | ----------- | ------ |
 | FR-26 | The seeding mechanism is verified; the content of SAR was not loaded. |
-| NFR-04 | Outbound HTTPS and HSTS are tested; the HTTPS of the browser path in production is not recorded by any case. |
-| NFR-07 | No dedicated check of visual consistency (indirect evidence only). |
-| NFR-09 | The vocabulary is verified; the learning curve was not measured. |
+| NFR-07 | No dedicated check of visual consistency; `DESIGN_REFERENCE.md` §9 of the frontend is out of date after the redesign (defect DEF-09, open). |
+| NFR-09 | The vocabulary is verified; there was no session with users, and the learning curve is validated in the training. |
 | NFR-10 | Measurements on disposable databases; no load of 30 concurrent users and no measurement in production. |
 | NFR-13 | No availability measurement; only the always-on plan and the backup verification exist. |
-| NFR-15 | Structure only; no automated check of the module boundaries. |
 | NFR-19 | No case in this phase verifies the layout below 1440 px. |
 
-NFR-18 is Pass: Google Chrome (MP-01 to MP-06) and Microsoft Edge (MP-07, 2026-11-20).
+NFR-04, NFR-15 and NFR-18 are Pass. NFR-18: Google Chrome (MP-01 to MP-06) and Microsoft Edge (MP-07, 2026-11-20).
 
 ## 3. Matrix
 
@@ -80,18 +78,18 @@ Jira (manual backup cases MB-nn are listed as manual production).
 | NFR-01 | BE-I15, BE-I17, LG-07, BR-Auth, FE-AUTH, FE-SESSION, MP-03 | backend auto, legacy, Bruno, frontend auto, manual production | `tests/integration/{auth.login,auth.session}.test.ts`<br>`tests/07_auth_rbac.test.ts`<br>Bruno folders `Auth`<br>frontend `src/test/{auth,session}`<br>MANUAL_CASES.md | Pass |  |
 | NFR-02 | BE-I15, BE-U42, LG-07, MP-04 | backend auto, legacy, manual production | `tests/integration/auth.login.test.ts`; `tests/unit/seedConfig.test.ts`<br>`tests/07_auth_rbac.test.ts`<br>MANUAL_CASES.md | Pass |  |
 | NFR-03 | BE-I01, BE-I02, BE-I03, LG-07, BR-Auth, BR-Users, FE-AUDIT, FE-LAYOUT, FE-REVIEW, FE-USERS, MS-01, MP-05, MP-06 | backend auto, legacy, Bruno, frontend auto, manual sandbox, manual production | `tests/integration/{app.authz-matrix,app.chain,app.registry}.test.ts`<br>`tests/07_auth_rbac.test.ts`<br>Bruno folders `Auth`, `Users`<br>frontend `src/test/{audit,layout,review,users}`<br>MANUAL_CASES.md | Pass | The authorization matrix covers every operation of the contract with its roles. |
-| NFR-04 | BE-I02, BE-U05, BE-U15, BE-U16 | backend auto | `tests/integration/app.chain.test.ts`; `tests/unit/{config,jiraBaseUrl,jiraClient}.test.ts` | Partial | Outbound Jira calls require HTTPS and the API sets HSTS (`app.chain`, `jiraClient`, `config`). The HTTPS of the browser-to-API path in production is provided by the hosting service and no case records it. |
+| NFR-04 | BE-I02, BE-U05, BE-U15, BE-U16, MP-01, MP-02, MP-03, MP-04, MP-05, MP-06, MP-07, MJ-04, MJ-06 | backend auto, manual production, manual Jira | `tests/integration/app.chain.test.ts`; `tests/unit/{config,jiraBaseUrl,jiraClient}.test.ts`<br>MANUAL_CASES.md | Pass | All manual production cases ran over HTTPS, including the Secure cookie of the sign-in (MP-01 to MP-07); the webhook deliveries of Jira reached the API over HTTPS (MJ-04, MJ-06). `tests/integration/app.chain.test.ts` checks the `strict-transport-security` header (HSTS); outbound Jira calls require HTTPS (`jiraClient`, `config`). |
 | NFR-05 | BE-I02, BE-I16, LG-08, BR-Auth, MP-03 | backend auto, legacy, Bruno, manual production | `tests/integration/{app.chain,auth.rateLimit}.test.ts`<br>`tests/08_request_validation.test.mjs`<br>Bruno folders `Auth`<br>MANUAL_CASES.md | Pass |  |
 | NFR-06 | BE-I14, BE-I41, BE-U18, BE-U25, MJ-03 | backend auto, manual Jira | `tests/integration/{auth.logging,jira.webhook}.test.ts`; `tests/unit/{jiraLogging,loggerRedaction}.test.ts`<br>MANUAL_CASES.md | Pass |  |
-| NFR-07 | FE-UI | frontend auto | frontend `src/test/{ui}` | Partial | No dedicated check of visual consistency. The shared component tests (FE-UI) and the manual navigation (MP-04 to MP-06) exercise it indirectly. The visual reference for the redesign is out of date (DEF-09). |
+| NFR-07 | FE-UI | frontend auto | frontend `src/test/{ui}` | Partial | No dedicated check of visual consistency. The shared component tests (FE-UI) and the manual navigation (MP-04 to MP-06) exercise it indirectly. `docs/design/DESIGN_REFERENCE.md` §9 of the frontend is out of date after the redesign (DEF-09, open). |
 | NFR-08 | BE-I34, BE-I55, BE-U14, LG-08, BR-Screens, BR-LinkedItems, FE-API, MS-02 | backend auto, legacy, Bruno, frontend auto, manual sandbox | `tests/integration/{dbErrors,screens.concurrency}.test.ts`; `tests/unit/http.test.ts`<br>`tests/08_request_validation.test.mjs`<br>Bruno folders `Screens`, `LinkedItems`<br>frontend `src/test/{api}`<br>MANUAL_CASES.md | Pass |  |
-| NFR-09 | - | - | - | Partial | The Power Apps vocabulary is in the schema and the API names (contract-vs-database check, Bruno). The learning curve was not measured with users. |
+| NFR-09 | - | - | - | Partial | The Power Apps vocabulary is in the schema and the API names (contract-vs-database check, Bruno). There was no session with users; the learning curve is validated in the training. |
 | NFR-10 | BE-I31, BE-I47, BE-I79, BE-P01, BE-P03 | backend auto | `tests/integration/{dashboard.scale,readModels.golden,transactions.sequential}.test.ts`; `tests/perf/{dashboard.performance,search.performance}.test.ts` | Partial | Measurements on disposable databases only: not a load of 30 concurrent users and not in production. What exists: `tests/perf/{search,dashboard,reports}.performance.test.ts` (outside `npm test`; `npm run test:perf`), the `PERF` lines of `dashboard.scale`, `dependencies.performance` and `audit.performance`, D-129 (measurement of the report worker) and the section "Pruebas bajo carga: P2028 en pantallas" of `docs/phase3/DECISIONS_FASE3.md` (`GET /screens/{id}`: about 17 ms to about 20 ms median with 50 components, 100 links and 20 navigations). |
 | NFR-11 | BE-I10, BE-I35, BE-I37, BE-I45, FE-DEPENDENCY-MAP, MP-04 | backend auto, frontend auto, manual production | `tests/integration/{audit.performance,dependencies.graph,dependencies.performance,onboarding.scale}.test.ts`<br>frontend `src/test/{dependency-map}`<br>MANUAL_CASES.md | Pass |  |
 | NFR-12 | BE-I49, BE-I53, BR-Reports, FE-REPORTS, MP-04 | backend auto, Bruno, frontend auto, manual production | `tests/integration/{reports.generate,reports.worker}.test.ts`<br>Bruno folders `Reports`<br>frontend `src/test/{reports}`<br>MANUAL_CASES.md | Pass |  |
 | NFR-13 | MB-01, MB-02 | manual production | MANUAL_CASES.md | Partial | No availability measurement exists, so 99% of business hours is not verified. What exists: one always-on instance on the Render Starter plan (D-155), PITR with a 3-day window and an export (MB-01) and a dump restored with the same counts (MB-02). |
 | NFR-14 | BE-I29, BE-I41, BE-I62, BE-I64, BE-U23, BR-Jira, FE-DASHBOARD, FE-LAYOUT, FE-SCREENS | backend auto, Bruno, frontend auto | `tests/integration/{dashboard.jira,jira.webhook,screens.jiraTicket.unavailable,screens.jiraTree}.test.ts`; `tests/unit/jiraView.test.ts`<br>Bruno folders `Jira`<br>frontend `src/test/{dashboard,layout,screens}` | Pass | The outage is tested against the simulator (`screens.jiraTicket.unavailable`); there is no manual outage case. |
-| NFR-15 | - | inspection | `src/modules/` | Partial | The module folders exist in `src/modules/` and the layers are described in SDD §4.1. There is no automated check of the module boundaries. |
+| NFR-15 | BE-I03 | inspection, backend auto | structure `src/modules/<module>` with the layers of D-42<br>`tests/integration/app.registry.test.ts` | Pass | Each of the 13 folders of `src/modules/` holds one module with the layers of D-42, and `app.registry` checks that the 53 operations of the contract are served by the registered modules. There is no automatic rule that checks the boundaries between modules. |
 | NFR-16 | BE-I05, BR-Applications, FE-APPLICATION, FE-APPLICATIONS, MP-04 | backend auto, Bruno, frontend auto, manual production | `tests/integration/applications.crud.test.ts`<br>Bruno folders `Applications`<br>frontend `src/test/{application,applications}`<br>MANUAL_CASES.md | Pass |  |
 | NFR-17 | BE-I08, BE-U03 | backend auto, static checks | `tests/integration/audit.contractEnums.test.ts`; `tests/unit/auditGate.test.ts`<br>`npm run lint`, `typecheck`, `format:check`, `audit:gate` | Pass | Static checks and the dependency audit gate. D-156 accepts one high advisory until 2026-12-31 (DEF-06). |
 | NFR-18 | MP-01, MP-02, MP-03, MP-04, MP-05, MP-06, MP-07 | manual production | MANUAL_CASES.md | Pass | Chrome: MP-01 to MP-06. Microsoft Edge: MP-07. |
