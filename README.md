@@ -13,18 +13,21 @@ negociables, Git y definición de terminado. Toda la documentación está en **[
 
 | Ruta | Contenido |
 |---|---|
-| `api/` | Contrato OpenAPI 3.1 (`openapi.yaml`, 50 operaciones) y `check_contract_vs_db.py`, que lo compara con la base |
+| `api/` | Contrato OpenAPI 3.1 (`openapi.yaml`, versión 0.5.1, 53 operaciones) y `check_contract_vs_db.py`, que lo compara con la base |
 | `bootstrap/` | `01_roles_and_database.sql`: roles `docs_owner` / `docs_app` y la base; lo ejecuta un DBA una sola vez |
 | `docs/requirements/` | SRS v1.3 (qué debe hacer el sistema) |
-| `docs/design/` | SDD v1.2 (cómo se construye) |
+| `docs/design/` | SDD v1.6, el vigente (cómo se construye) |
 | `docs/phase3/` | Decisiones posteriores al SDD (`DECISIONS_FASE3.md`) y plan semanal (`PLAN_SEMANA6.md`) |
 | `docs/phase4/TEST_PLAN.md` | [Plan de pruebas funcionales](docs/phase4/TEST_PLAN.md): alcance, niveles, entornos, criterios y severidad de defectos |
 | `docs/phase4/TRACEABILITY_MATRIX.md` | [Matriz de trazabilidad](docs/phase4/TRACEABILITY_MATRIX.md): cada requisito (FR y NFR) con sus casos de prueba y su resultado |
 | `docs/phase4/MANUAL_CASES.md` | [Casos manuales](docs/phase4/MANUAL_CASES.md): sandbox, producción, Jira Cloud y respaldo |
 | `docs/phase4/DEFECTS.md` | [Registro de defectos](docs/phase4/DEFECTS.md) e incidentes del despliegue del 2026-11-19 |
+| `docs/phase4/OPERATIONS_NOTES.md` | [Notas de operación](docs/phase4/OPERATIONS_NOTES.md): preparar una base administrada y ejecutar migraciones y siembra desde una computadora local |
+| `docs/operations/DEPLOYMENT.md` | [Guía de despliegue](docs/operations/DEPLOYMENT.md): topología en Render, variables, comandos, primer despliegue, versiones nuevas, webhook de Jira y respaldo |
+| `docs/operations/MAINTENANCE.md` | [Guía de mantenimiento](docs/operations/MAINTENANCE.md): rotación de secretos, acciones directas en la base, usuarios, dependencias, límites y diagnóstico |
 | `docs/guides/` | Guías de la Fase 2: instalación y verificación de la base (`00_LEEME_fase2.md`, `GUIA_CAMBIOS_CP01-CP11.md`) |
 | `docs/diagrams/` | Fuentes (Mermaid/Graphviz) e imágenes de las figuras del SDD |
-| `prisma/` | `schema.prisma` (19 tablas, 16 enums) y `migrations/` (6 migraciones, inmutables) |
+| `prisma/` | `schema.prisma` (20 tablas, 16 enums) y `migrations/` (8 migraciones, inmutables) |
 | `src/db/` | Prisma Client con contexto de auditoría (`auditContext`, `auditedTransaction`) |
 | `src/security/` | JWT, refresh token, bcrypt, autenticación y autorización generada desde el contrato. `testApp.ts` es un arnés de pruebas, no la API final |
 | `src/integrations/jira/` | Verificación HMAC del webhook de Jira |

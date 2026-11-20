@@ -9,9 +9,9 @@ of the project. The design (Phase 2) is complete, verified and frozen: build on 
 | Priority | Source | Path | Governs |
 |---|---|---|---|
 | 1 | SRS v1.3 | `docs/requirements/SRS_v1.3.md` | WHAT the system must do (FR-01..FR-27, NFR-01..NFR-20, roles Table 26, standards §3.7) |
-| 2 | SDD v1.4 | `docs/design/SDD_v1.4.md` | HOW it is built (architecture §4, data §6, API conventions §7.1, errors Table 45, UI §7.3, workflow §9, security §11, decisions Table 70). It is the only SDD in `docs/design` (there is no `SDD_v1.2.md` and no `SDD_v1.5.md`); the SDD v1.6 will replace it in a later documentation branch. |
+| 2 | SDD v1.6 | `docs/design/SDD_v1.6.md` | HOW it is built (architecture §4, data §6, API conventions §7.1, errors Table 45, UI §7.3, workflow §9, security §11, decisions Table 70). It is the current source; any earlier version kept in `docs/design` is history only. |
 | 3 | OpenAPI 3.1 contract | `api/openapi.yaml` | The API. **Where an SDD table and the contract differ, the contract prevails** (SDD §7). Authorization is generated from its `x-roles` / `x-rule`. |
-| 4 | Phase 3 decisions | `docs/phase3/DECISIONS_FASE3.md` | Decisions approved after SDD v1.0: D-60 to D-114 are incorporated in SDD v1.4, the later ones (D-115 on) are only here until the SDD v1.6. |
+| 4 | Phase 3 decisions | `docs/phase3/DECISIONS_FASE3.md` | Decisions approved after SDD v1.0: D-60 to D-157 are incorporated in SDD v1.6 (Table 70); the decisions made in the frontend are copied in its section "Decisiones registradas en el frontend". Later decisions are only here until the next SDD. |
 | 5 | Weekly plan | `docs/phase3/PLAN_SEMANA6.md` | Task scope (B-xx). |
 | — | Phase 2 guides | `docs/guides/` | How the baseline was installed and verified. |
 
