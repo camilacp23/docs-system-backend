@@ -2,8 +2,8 @@
  * `npm run audit:gate`: the blocking dependency audit of the CI (every dependency, development ones included).
  *
  * It fails on any advisory of severity `high` or `critical`, exactly like `npm audit --audit-level=high`, except for the
- * advisories listed in {@link EXCEPTIONS}. An exception exists only when NO patched version of the package has been
- * published, so no update can fix it; each one names the advisory, why it is accepted and when to review it. An
+ * advisories listed in {@link EXCEPTIONS}. An exception exists only when no patched version is reachable (none is
+ * published, or no release of the dependency that pulls the package accepts it), so no update can fix it; each one names the advisory, why it is accepted and when to review it. An
  * exception that no longer matches anything is reported as stale (remove it), and one past its review date is
  * reported as a warning, never silently kept. `--strict` ignores the exceptions (the plain audit).
  *
@@ -42,7 +42,17 @@ export type AuditReport = {
  * The accepted advisories. Keep this list as short as possible: every entry needs the approval of the project owner, a
  * reason and a review date, and it is removed as soon as `npm audit` stops reporting it (the gate says so).
  */
-export const EXCEPTIONS: readonly AuditException[] = [];
+export const EXCEPTIONS: readonly AuditException[] = [
+  {
+    id: 'GHSA-7589-6fvf-x4pw',
+    package: 'effect',
+    reason:
+      'Only the Prisma CLI loads it, when it reads prisma.config.ts (prisma > @prisma/config > effect 3.20.0); the running ' +
+      'server never loads it and no user data reaches that code. Prisma 7.x publishes no release that asks for a fixed ' +
+      'effect (> 3.22.0).',
+    reviewBy: '2026-12-31',
+  },
+];
 
 const BLOCKING = new Set(['high', 'critical']);
 
@@ -143,8 +153,12 @@ export function main(
   const strict = args.includes('--strict');
   const verdict = evaluate(report, strict ? [] : exceptions, today);
   if (verdict.accepted.length > 0) {
-    console.log('Accepted advisories (no patched version exists; see EXCEPTIONS in scripts/auditGate.ts):');
-    for (const a of verdict.accepted) console.log(describe(a));
+    console.log('Accepted advisories (no patched version reachable; see EXCEPTIONS in scripts/auditGate.ts):');
+    for (const a of verdict.accepted) {
+      console.log(describe(a));
+      const e = exceptions.find((x) => x.id === a.id && x.package === a.package);
+      if (e !== undefined) console.log(`    review by ${e.reviewBy}: ${e.reason}`);
+    }
   }
   for (const e of verdict.overdue)
     console.warn(`WARNING: the exception for ${e.id} is past its review date ${e.reviewBy}.`);

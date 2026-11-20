@@ -1,7 +1,7 @@
 /**
  * The rules of the dependency audit gate (`scripts/auditGate.ts`): it blocks on high and critical advisories, accepts
  * only the listed advisory of the listed package, ignores lower severities and transitive entries, and reports stale and
- * overdue exceptions, and fails closed when there is no report. The list of real exceptions is empty. Unit test over synthetic reports: it never runs `npm audit`.
+ * overdue exceptions, and fails closed when there is no report. The real list holds the `effect` exception. Unit test over synthetic reports: it never runs `npm audit`.
  */
 import assert from 'node:assert/strict';
 import { describe, it, mock } from 'node:test';
@@ -102,8 +102,11 @@ describe('audit gate', () => {
     assert.deepEqual(evaluate(reportOf(PICOMATCH), [EXCEPTION], '2026-11-18').stale, []);
   });
 
-  it('the real list of exceptions is empty, and each entry that is ever added must be well formed', () => {
-    assert.equal(EXCEPTIONS.length, 0);
+  it('the real list holds only the effect exception, and each entry must be well formed', () => {
+    assert.deepEqual(
+      EXCEPTIONS.map((e) => [e.package, e.id, e.reviewBy]),
+      [['effect', 'GHSA-7589-6fvf-x4pw', '2026-12-31']],
+    );
     for (const exception of EXCEPTIONS) {
       assert.match(exception.id, /^GHSA(-[a-z0-9]{4}){3}$/);
       assert.match(exception.reviewBy, /^\d{4}-\d{2}-\d{2}$/);
@@ -111,9 +114,50 @@ describe('audit gate', () => {
     }
   });
 
+  it('the real exception covers the Prisma chain (prisma > @prisma/config > effect), and --strict does not', () => {
+    const effect = advisory('effect', 'GHSA-7589-6fvf-x4pw', 'high', 'Effect ReDoS');
+    const chain: AuditReport = {
+      vulnerabilities: {
+        effect: { via: [effect] },
+        '@prisma/config': { via: ['effect'] },
+        prisma: { via: ['@prisma/config'] },
+      },
+    };
+    const verdict = evaluate(chain, EXCEPTIONS, '2026-11-19');
+    assert.deepEqual(verdict.blocking, []);
+    assert.deepEqual(
+      verdict.accepted.map((a) => a.id),
+      ['GHSA-7589-6fvf-x4pw'],
+    );
+    assert.deepEqual([verdict.stale, verdict.overdue], [[], []]);
+    assert.equal(evaluate(chain, EXCEPTIONS, '2027-01-01').overdue.length, 1);
+    assert.equal(evaluate(chain, [], '2026-11-19').blocking.length, 1);
+    // Another advisory of the same package, or the same GHSA on another package, stays blocked.
+    const other = reportOf(advisory('effect', 'GHSA-aaaa-bbbb-cccc', 'high'));
+    assert.equal(evaluate(other, EXCEPTIONS, '2026-11-19').blocking.length, 1);
+    const spoof = reportOf(advisory('left-pad', 'GHSA-7589-6fvf-x4pw', 'high'));
+    assert.equal(evaluate(spoof, EXCEPTIONS, '2026-11-19').blocking.length, 1);
+  });
+
+  it('prints the review date of an accepted advisory', () => {
+    const lines: string[] = [];
+    mock.method(console, 'log', (line: string) => lines.push(line));
+    mock.method(console, 'warn', () => undefined);
+    try {
+      assert.equal(
+        main([], () => reportOf(PICOMATCH), [EXCEPTION], '2026-11-18'),
+        0,
+      );
+    } finally {
+      mock.restoreAll();
+    }
+    assert.ok(lines.some((l) => l.includes('no patched version reachable')));
+    assert.ok(lines.some((l) => l.includes('review by 2027-01-31')));
+  });
+
   it('with an empty list a high advisory blocks, and a report with nothing in it has nothing stale or overdue', () => {
-    assert.equal(evaluate(reportOf(PICOMATCH), EXCEPTIONS, '2026-11-18').blocking.length, 1);
-    const clean = evaluate({ vulnerabilities: {} }, EXCEPTIONS, '2026-11-18');
+    assert.equal(evaluate(reportOf(PICOMATCH), [], '2026-11-18').blocking.length, 1);
+    const clean = evaluate({ vulnerabilities: {} }, [], '2026-11-18');
     assert.deepEqual([clean.blocking, clean.accepted, clean.stale, clean.overdue], [[], [], [], []]);
   });
 
